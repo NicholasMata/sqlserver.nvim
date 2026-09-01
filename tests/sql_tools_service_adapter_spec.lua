@@ -53,5 +53,20 @@ return {
     assert(query_message.message == "Done")
     assert(query_message.is_error == false)
     assert(query_message.owner_uri == "file:///query.sql")
+
+    local original_get_clients = vim.lsp.get_clients
+    local stopped = false
+    vim.lsp.get_clients = function()
+      return {
+        {
+          stop = function(_, force)
+            stopped = force
+          end,
+        },
+      }
+    end
+    adapter.stop()
+    vim.lsp.get_clients = original_get_clients
+    assert(stopped, "SQL Tools Service clients should be force-stopped during cleanup")
   end,
 }

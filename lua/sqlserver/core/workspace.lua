@@ -25,6 +25,7 @@ function M.create(opts)
   local activity = {}
   local active_operations = {}
   local next_operation_id = 0
+  local disposed = false
   local workspace
 
   local function emit(event)
@@ -152,7 +153,11 @@ function M.create(opts)
       if type(result) == "table" and result.diagnostic then
         workspace.record_message(result.diagnostic, false)
       end
-      finish_operation(operation_id, "error", "Connection failed")
+      finish_operation(
+        operation_id,
+        "error",
+        type(result) == "table" and result.operation_message or "Connection failed"
+      )
       error(type(result) == "table" and result.message or result, 0)
     end
 
@@ -192,6 +197,24 @@ function M.create(opts)
     connect_params = nil
     set_state(M.states.disconnected)
     finish_operation(operation_id, "success", "Disconnected")
+  end
+
+  function workspace.dispose_async()
+    if disposed then
+      return
+    end
+    disposed = true
+
+    if state == M.states.executing then
+      pcall(backend.cancel_async)
+    end
+    if state ~= M.states.disconnected then
+      pcall(backend.disconnect_async)
+    end
+    active_operations = {}
+    connect_params = nil
+    last_connect_params = nil
+    set_state(M.states.disconnected)
   end
 
   ---@param request SqlServerQueryRequest

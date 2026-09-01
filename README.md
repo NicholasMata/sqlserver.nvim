@@ -50,7 +50,7 @@ profiles with:
 ```
 
 See [Connections JSON](docs/Connections-Json.md) for the supported connection
-properties.
+properties and `${ENVIRONMENT_VARIABLE}` credential references.
 
 ## Configuration
 

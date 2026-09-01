@@ -267,6 +267,12 @@ Connection timeouts are presented as `SQL Server connection timed out`. The
 activity history retains the corresponding SQL Tools Service diagnostic so the
 notification does not expose LSP method names or buffer identifiers.
 
+Authentication, TLS validation, unreachable-server, and SQL Tools Service
+failures also use distinct user-facing messages. Redacted server diagnostics
+remain available in activity history. Deleting a SQL buffer disposes its
+workspace connection, and leaving Neovim explicitly stops plugin-owned SQL
+Tools Service clients.
+
 | Default suffix | Command | Behavior |
 | --- | --- | --- |
 | `x` | `ExecuteQuery` | Execute the statement under the cursor |

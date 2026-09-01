@@ -3,6 +3,28 @@
 Each connection json object can contain the following properties (taken from the
 [sql tools service source code](https://github.com/microsoft/sqltoolsservice/blob/main/src/Microsoft.SqlTools.ServiceLayer/Connection/Contracts/ConnectionDetails.cs)).
 
+Use `${ENVIRONMENT_VARIABLE}` anywhere inside a string value to keep secrets or
+machine-specific values out of the file. Variables are resolved immediately
+before connecting, and a missing variable stops the connection with a profile-
+specific error. For example:
+
+```json
+{
+  "development": {
+    "server": "${SQLSERVER_HOST}",
+    "database": "ApplicationDb",
+    "authenticationType": "SqlLogin",
+    "user": "${SQLSERVER_USER}",
+    "password": "${SQLSERVER_PASSWORD}",
+    "trustServerCertificate": true
+  }
+}
+```
+
+Every profile requires a non-empty `server`. `SqlLogin` profiles also require
+`user` and either `password` or `promptForPassword`. Resolved passwords are
+redacted from plugin-generated connection errors.
+
 | Name                       | Allowed Values                                                                                                        | Description                                                                                                                                      |
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `server`                   | `string`                                                                                                              | The name of the SQL Server instance to connect to.                                                                                               |

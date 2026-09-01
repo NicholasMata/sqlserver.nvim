@@ -58,6 +58,18 @@ return {
     assert(query_error.diagnostic:find("cancellation was requested", 1, true))
     assert(requests[#requests].method == "query/cancel")
 
+    utils.wait_for_notification_async = function()
+      return { errorMessage = "Login failed using Secret123" }
+    end
+    local secret_backend = query_backend.create(0, {}, { connection = 10000, query = false })
+    local secret_connected, secret_error = pcall(secret_backend.connect_async, {
+      connection = { options = { password = "Secret123" } },
+    })
+    assert(not secret_connected)
+    assert(secret_error.message == "SQL Server authentication failed")
+    assert(secret_error.diagnostic:find("[REDACTED]", 1, true))
+    assert(not secret_error.diagnostic:find("Secret123", 1, true))
+
     utils.lsp_request_async = original_request
     utils.wait_for_notification_async = original_wait
     utils.get_lsp_client = original_get_client

@@ -46,7 +46,7 @@ local function run_test(test)
   if not success then
     print_without_prompt("\n" .. test.test_name .. " FAILED: " .. err)
     copy_state_folder()
-    os.exit(1)
+    vim.cmd("cquit 1")
   else
     print_without_prompt("\nTest passed\n")
   end
@@ -76,5 +76,5 @@ coroutine.resume(coroutine.create(function()
   for _, test in ipairs(tests) do
     run_test(test)
   end
-  os.exit(0)
+  vim.cmd("qa!")
 end))

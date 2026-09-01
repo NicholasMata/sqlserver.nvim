@@ -13,7 +13,8 @@
 
 ## Phase 1: Reliable Query Workflow
 
-- Connection profiles with environment-variable support.
+- Validated connection profiles with environment-variable support and
+  secret-safe errors.
 - New query buffers bound to a connection and database.
 - Execute current statement, visual selection, or whole buffer.
 - Cancel running query.
@@ -23,6 +24,7 @@
 - Export results to CSV and JSON.
 - Preserve typed cell metadata and apply row limits and truncation consistently.
 - Normalize SQL Tools Service batch timings in query activity.
+- Dispose buffer connections and SQL Tools Service processes deterministically.
 
 ## Phase 2: Object Workflow
 

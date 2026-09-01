@@ -1,11 +1,13 @@
 local utils = require("sqlserver.utils")
 local result_cell = require("sqlserver.core.result_cell")
+local connection_profiles = require("sqlserver.core.connection_profiles")
 
 local M = {}
 
 local function connection_timeout_error(timeout_ms)
   return setmetatable({
     message = "SQL Server connection timed out",
+    operation_message = "Connection timed out",
     diagnostic = string.format(
       "SQL Tools Service did not send connection/complete within %.0f seconds",
       timeout_ms / 1000
@@ -77,9 +79,10 @@ function M.create(bufnr, client, timeouts)
 
     connect_async = function(connect_params)
       connect_params.ownerUri = owner_uri
+      local connection = connect_params.connection and connect_params.connection.options
       local _, request_error = utils.lsp_request_async(client, "connection/connect", connect_params)
       if request_error then
-        error("Could not connect: " .. request_error.message, 0)
+        error(connection_profiles.failure(request_error.message, connection), 0)
       end
 
       local connection_timeout_ms = timeouts.connection
@@ -92,7 +95,7 @@ function M.create(bufnr, client, timeouts)
         error("Could not connect: " .. notification_error.message, 0)
       end
       if result and type(result.errorMessage) == "string" then
-        error("Error in connecting: " .. result.errorMessage, 0)
+        error(connection_profiles.failure(result.errorMessage, connection), 0)
       end
       return result
     end,

@@ -24,6 +24,7 @@ return {
       table.insert(activity, event)
     end)
     local initialized_connection
+    local disconnect_count = 0
     local objects = create_objects_fake()
     objects.initialise_cache_async = function(_, connection)
       initialized_connection = vim.deepcopy(connection)
@@ -42,7 +43,9 @@ return {
         })
         return { connectionSummary = { databaseName = "ApplicationDb" } }
       end,
-      disconnect_async = function() end,
+      disconnect_async = function()
+        disconnect_count = disconnect_count + 1
+      end,
       execute_async = function()
         return coroutine.yield()
       end,
@@ -160,6 +163,12 @@ return {
 
     workspace.reconnect_async()
     workspace.disconnect_async()
+    workspace.reconnect_async()
+    workspace.dispose_async()
+    workspace.dispose_async()
+    assert(workspace.get_state() == workspace_module.states.disconnected)
+    assert(workspace.get_connection() == nil and not workspace.can_reconnect())
+    assert(disconnect_count == 3, "Workspace disposal should disconnect exactly once")
     assert(#workspace.get_activity() == #activity)
     assert(registry.detach(99) == workspace)
 

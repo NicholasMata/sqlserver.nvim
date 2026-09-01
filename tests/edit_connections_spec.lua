@@ -17,24 +17,18 @@ return {
       "No json was found after calling edit_connections"
     )
 
-    local connections = string.format(
-      [[
+    local connections = [[
 {
   "master": {
-    "server": "%s",
-    "database": "%s",
+    "server": "${DbServer}",
+    "database": "${DbDatabase}",
     "authenticationType": "SqlLogin",
-    "user": "%s",
-    "password": "%s",
+    "user": "${DbUser}",
+    "password": "${DbPassword}",
     "trustServerCertificate": true
   }
 }
-]],
-      os.getenv("DbServer"),
-      os.getenv("DbDatabase"),
-      os.getenv("DbUser"),
-      os.getenv("DbPassword")
-    )
+]]
 
     vim.api.nvim_buf_set_lines(0, 0, -1, false, vim.split(connections, "\n"))
     vim.cmd("w")

@@ -54,6 +54,35 @@ local function notify_attach_waiters(bufnr, client)
   end
 end
 
+local function remove_attach_waiter(bufnr, waiter)
+  local waiters = attach_waiters[bufnr]
+  if not waiters then
+    return
+  end
+  for index, candidate in ipairs(waiters) do
+    if candidate == waiter then
+      table.remove(waiters, index)
+      break
+    end
+  end
+  if #waiters == 0 then
+    attach_waiters[bufnr] = nil
+  end
+end
+
+function M.stop()
+  for _, client in ipairs(vim.lsp.get_clients({ name = M.client_name })) do
+    pcall(client.stop, client, true)
+  end
+  local pending = attach_waiters
+  attach_waiters = {}
+  for _, waiters in pairs(pending) do
+    for _, waiter in ipairs(waiters) do
+      waiter(nil)
+    end
+  end
+end
+
 ---@class SqlServerSqlToolsCallbacks
 ---@field on_attach? fun(client: vim.lsp.Client, bufnr: integer)
 ---@field on_connection_changed? fun(result: table)
@@ -118,6 +147,12 @@ function M.enable(opts, callbacks)
 
   vim.lsp.config[M.client_name] = config
   vim.lsp.enable(M.client_name)
+
+  local group = vim.api.nvim_create_augroup("SqlServerToolsService", { clear = true })
+  vim.api.nvim_create_autocmd("VimLeavePre", {
+    group = group,
+    callback = M.stop,
+  })
 end
 
 ---Wait for SQL Tools Service to attach to a buffer.
@@ -133,11 +168,13 @@ function M.wait_for_attach_async(bufnr, timeout)
 
   local coroutine_to_resume = coroutine.running()
   local resumed = false
-  local function resume(client_or_nil)
+  local resume
+  resume = function(client_or_nil)
     if resumed then
       return
     end
     resumed = true
+    remove_attach_waiter(bufnr, resume)
     utils.try_resume(coroutine_to_resume, client_or_nil)
   end
 

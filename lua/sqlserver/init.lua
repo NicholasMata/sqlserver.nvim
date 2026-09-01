@@ -14,6 +14,7 @@ local activity_ui = require("sqlserver.ui.activity")
 local ui_options = require("sqlserver.ui.options")
 local status_ui = require("sqlserver.ui.status")
 local timeout_options = require("sqlserver.core.timeouts")
+local connection_profiles = require("sqlserver.core.connection_profiles")
 
 local joinpath = vim.fs.joinpath
 local winbar_expression = "%{%v:lua.require'sqlserver.ui.status'.winbar()%}"
@@ -139,6 +140,7 @@ local function set_auto_commands(opts)
 
   if opts.sql_buffer_options and opts.sql_buffer_options ~= {} then
     vim.api.nvim_create_autocmd("FileType", {
+      group = "AutoNameSQL",
       pattern = "sql",
       callback = function()
         -- copy all properties
@@ -149,14 +151,16 @@ local function set_auto_commands(opts)
     })
   end
 
-  -- clean the sql object cache on buffer close
-  -- use the BufWipeout auto command so that at that point the buffer is not loaded
+  -- Release the SQL Tools Service connection and object cache with the buffer.
   vim.api.nvim_create_autocmd("BufDelete", {
+    group = "AutoNameSQL",
     callback = function(args)
-      if workspace_registry.detach(args.buf) then
-        vim.schedule(function()
+      local workspace = workspace_registry.detach(args.buf)
+      if workspace then
+        coroutine.resume(coroutine.create(function()
+          workspace.dispose_async()
           clean_cache()
-        end)
+        end))
       end
     end,
   })
@@ -370,19 +374,16 @@ local edit_connections = function(opts)
 end
 
 local function get_connections(opts)
-  local f = io.open(opts.connections_file, "r")
-  if not f then
-    return nil
-  end
+  return connection_profiles.load(opts.connections_file)
+end
 
-  local content = f:read("*a")
-  f:close()
-  local ok, json = pcall(vim.fn.json_decode, content)
-  utils.safe_assert(
-    ok and type(json) == "table" and not vim.islist(json),
-    "The connections json file must contain a valid json object"
-  )
-  return json
+local function prepare_connection(profile, name)
+  local connection = connection_profiles.resolve(profile, name)
+  if connection.promptForPassword then
+    connection.password = vim.fn.inputsecret("password for " .. (connection.server or ""))
+  end
+  connection_profiles.validate(connection, name)
+  return connection
 end
 
 local function switch_database_async(buf)
@@ -424,11 +425,7 @@ local connect_async = function(opts, workspace)
     return
   end
 
-  local con = json[con_name]
-
-  if con.promptForPassword then
-    con.password = vim.fn.inputsecret("password for " .. (con.server or ""))
-  end
+  local con = prepare_connection(json[con_name], con_name)
 
   local connectParams = {
     connection = {
@@ -465,16 +462,12 @@ local function new_default_query_async(opts)
     edit_connections(opts)
     return
   end
-  local connection = connections.default
+  local connection = prepare_connection(connections.default, "default")
 
   local buf = new_query_async()
   local workspace = workspace_registry.get(buf)
   if not workspace then
     error("CRITICAL: Lsp attached without a SQL workspace")
-  end
-
-  if connection.promptForPassword then
-    connection.password = vim.fn.inputsecret("password for " .. (connection.server or ""))
   end
 
   local connectParams = {
@@ -618,11 +611,7 @@ local function connect_to_default(workspace, opts)
     return
   end
 
-  local connection = connections.default
-
-  if connection.promptForPassword then
-    connection.password = vim.fn.inputsecret("password for " .. (connection.server or ""))
-  end
+  local connection = prepare_connection(connections.default, "default")
 
   local connectParams = {
     connection = {
