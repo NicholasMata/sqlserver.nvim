@@ -2,6 +2,7 @@ return {
   unit = {
     "tests.lsp_nulls_spec",
     "tests.sql_tools_service_adapter_spec",
+    "tests.tools_downloader_spec",
     "tests.workspace_spec",
     "tests.activity_stream_spec",
     "tests.ui_options_spec",

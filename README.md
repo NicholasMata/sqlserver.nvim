@@ -41,9 +41,10 @@ Requires Neovim 0.11 or newer. With [lazy.nvim](https://github.com/folke/lazy.nv
 }
 ```
 
-SQL Tools Service is downloaded automatically on first setup unless
-`tools_file` points to an existing executable. Create or edit connection
-profiles with:
+The tested SQL Tools Service release is pinned and installed automatically on
+first setup unless `tools_file` points to an existing executable. Override
+`tools_version` only when intentionally testing another upstream release.
+Create or edit connection profiles with:
 
 ```vim
 :SQLServer EditConnections

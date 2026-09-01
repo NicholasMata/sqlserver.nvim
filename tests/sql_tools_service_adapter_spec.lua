@@ -12,6 +12,7 @@ return {
     local attached_buffer
     local connection_change
     local query_message
+    local service_exit
     adapter.enable({ data_dir = "/tmp/sqlserver.nvim-test" }, {
       on_attach = function(_, bufnr)
         attached_buffer = bufnr
@@ -21,6 +22,9 @@ return {
       end,
       on_query_message = function(message, is_error, owner_uri)
         query_message = { message = message, is_error = is_error, owner_uri = owner_uri }
+      end,
+      on_exit = function(code, signal, client_id)
+        service_exit = { code = code, signal = signal, client_id = client_id }
       end,
     })
     vim.lsp.enable = original_enable
@@ -53,6 +57,11 @@ return {
     assert(query_message.message == "Done")
     assert(query_message.is_error == false)
     assert(query_message.owner_uri == "file:///query.sql")
+
+    config.on_exit(1, 9, 123)
+    assert(service_exit.code == 1)
+    assert(service_exit.signal == 9)
+    assert(service_exit.client_id == 123)
 
     local original_get_clients = vim.lsp.get_clients
     local stopped = false

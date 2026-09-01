@@ -1,3 +1,5 @@
+local tools_downloader = require("sqlserver.tools_downloader")
+
 return {
   -- Set up keymaps with this prefix. If which-key is found, this will be a which-key group.
   keymap_prefix = nil,
@@ -74,6 +76,9 @@ return {
   -- Path to an existing SQL tools service binary (see https://github.com/microsoft/sqltoolsservice/releases).
   -- If nil, then the binary is auto downloaded to data_dir
   tools_file = nil,
+
+  -- Pinned SQL Tools Service release used by the automatic installer.
+  tools_version = tools_downloader.default_version,
 
   -- Directory to store download tools and internal config options
   data_dir = vim.fs.joinpath(vim.fn.stdpath("data"), "/sqlserver.nvim"):gsub("[/\\]+$", ""),

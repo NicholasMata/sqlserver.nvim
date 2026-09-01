@@ -1,136 +1,152 @@
 local utils = require("sqlserver.utils")
-local joinpath = vim.fs.joinpath
+
 local M = {}
 
--- Check the OS and system architecture
-M.get_tools_download_url = function()
-  local urls = {
-    Windows = {
-      arm64 = "https://github.com/microsoft/sqltoolsservice/releases/download/5.0.20250530.2/Microsoft.SqlTools.ServiceLayer-win-arm64-net8.0.zip",
-      x64 = "https://github.com/microsoft/sqltoolsservice/releases/download/5.0.20250530.2/Microsoft.SqlTools.ServiceLayer-win-x64-net8.0.zip",
-      x86 = "https://github.com/microsoft/sqltoolsservice/releases/download/5.0.20250530.2/Microsoft.SqlTools.ServiceLayer-win-x86-net8.0.zip",
-    },
-    Linux = {
-      arm64 = "https://github.com/microsoft/sqltoolsservice/releases/download/5.0.20250530.2/Microsoft.SqlTools.ServiceLayer-linux-arm64-net8.0.tar.gz",
-      x64 = "https://github.com/microsoft/sqltoolsservice/releases/download/5.0.20250530.2/Microsoft.SqlTools.ServiceLayer-linux-x64-net8.0.tar.gz",
-    },
-    OSX = {
-      arm64 = "https://github.com/microsoft/sqltoolsservice/releases/download/5.0.20250530.2/Microsoft.SqlTools.ServiceLayer-osx-arm64-net8.0.tar.gz",
-      x64 = "https://github.com/microsoft/sqltoolsservice/releases/download/5.0.20250530.2/Microsoft.SqlTools.ServiceLayer-osx-x64-net8.0.tar.gz",
-    },
+M.default_version = "5.0.20250530.2"
+
+local platforms = {
+  Windows = { arm64 = "win-arm64-net8.0.zip", x64 = "win-x64-net8.0.zip", x86 = "win-x86-net8.0.zip" },
+  Linux = { arm64 = "linux-arm64-net8.0.tar.gz", x64 = "linux-x64-net8.0.tar.gz" },
+  OSX = { arm64 = "osx-arm64-net8.0.tar.gz", x64 = "osx-x64-net8.0.tar.gz" },
+}
+
+function M.get_release(version, os, arch)
+  version = version or M.default_version
+  os = os or jit.os
+  arch = arch or jit.arch
+  if type(version) ~= "string" or not version:match("^[%w%.%-]+$") then
+    error("tools_version must contain only letters, numbers, periods, and hyphens", 0)
+  end
+  if not platforms[os] then
+    error("SQL Tools Service does not support operating system " .. tostring(os), 0)
+  end
+  local artifact = platforms[os][arch]
+  if not artifact then
+    error(string.format("SQL Tools Service does not support architecture %s on %s", tostring(arch), os), 0)
+  end
+  local filename = "Microsoft.SqlTools.ServiceLayer-" .. artifact
+  return {
+    version = version,
+    filename = filename,
+    url = string.format("https://github.com/microsoft/sqltoolsservice/releases/download/%s/%s", version, filename),
   }
-
-  local os = jit.os
-  local arch = jit.arch
-
-  if not urls[os] then
-    error("Your OS " .. os .. " is not supported. It must be Windows, Linux or OSX.", 0)
-  end
-
-  local url = urls[os][arch]
-  if not url then
-    error("Your system architecture " .. arch .. " is not supported. It can either be x64 or arm64.", 0)
-  end
-
-  return url
 end
 
--- Delete any existing download folder, download, unzip and write the most recent url to the config
-M.download_tools_async = function(url, data_folder)
-  local target_folder = joinpath(data_folder, "sqltools")
+function M.get_tools_download_url()
+  return M.get_release().url
+end
 
-  local download_job
-  if jit.os == "Windows" then
-    local temp_file = joinpath(data_folder, "/temp.zip")
-    -- Turn off the progress bar to speed up the download
-    download_job = {
-      "powershell",
-      "-Command",
-      string.format(
-        [[
-          $ErrorActionPreference = 'Stop'
-          $ProgressPreference = 'SilentlyContinue'
-          Invoke-WebRequest %s -OutFile "%s"
-          if (Test-Path -LiteralPath "%s") { Remove-Item -LiteralPath "%s" -Recurse }
-          Expand-Archive "%s" "%s"
-          Remove-Item "%s"
-          $ProgressPreference = 'Continue'
-        ]],
-        url,
-        temp_file,
-        target_folder,
-        target_folder,
-        temp_file,
-        target_folder,
-        temp_file
-      ),
-    }
-  else
-    local temp_file = joinpath(data_folder, "/temp.gz")
-    download_job = {
-      "bash",
-      "-c",
-      string.format(
-        [[
-          set -e
-          curl -fsSL "%s" -o "%s"
-          rm -rf "%s"
-          mkdir "%s"
-          tar -xzf "%s" -C "%s"
-          rm "%s"
-        ]],
-        url,
-        temp_file,
-        target_folder,
-        target_folder,
-        temp_file,
-        target_folder,
-        temp_file
-      ),
-    }
-  end
-
-  utils.log_info("Downloading sql tools...")
-
+local function run_async(command)
   local co = coroutine.running()
-  local stderr = {}
+  vim.system(command, { text = true }, function(result)
+    vim.schedule(function()
+      utils.try_resume(co, result)
+    end)
+  end)
+  return coroutine.yield()
+end
 
-  local job_id = vim.fn.jobstart(download_job, {
-    stderr_buffered = true,
+local function remove(path)
+  if vim.fn.isdirectory(path) == 1 or vim.fn.filereadable(path) == 1 then
+    vim.fn.delete(path, "rf")
+  end
+end
 
-    on_stderr = function(_, data)
-      if not data then
-        return
-      end
+local function command_error(command, result)
+  local detail = vim.trim(result.stderr or "")
+  if detail == "" then
+    detail = "process exited with code " .. tostring(result.code)
+  end
+  return string.format("%s failed: %s", command, detail)
+end
 
-      for _, line in ipairs(data) do
-        if line ~= "" then
-          table.insert(stderr, line)
-        end
-      end
-    end,
-
-    on_exit = function(_, code)
-      if code ~= 0 then
-        local message = #stderr > 0 and table.concat(stderr, "\n") or ("Process exited with code " .. code)
-
-        utils.log_error("Sql tools download error: " .. message)
-        coroutine.resume(co, false, message)
-        return
-      end
-
-      utils.log_info("Downloaded successfully")
-      coroutine.resume(co, true)
-    end,
-  })
-
-  if job_id <= 0 then
-    local message = "Failed to start sql tools download job"
-    utils.log_error(message)
-    return false, message
+function M.download_tools_async(release, data_folder)
+  if type(release) == "string" then
+    release = { url = release, filename = release:match("[^/]+$") }
   end
 
-  return coroutine.yield()
+  local suffix = string.format("%d-%d", vim.fn.getpid(), vim.uv.hrtime())
+  local target = vim.fs.joinpath(data_folder, "sqltools")
+  local staging = vim.fs.joinpath(data_folder, "sqltools.installing-" .. suffix)
+  local backup = vim.fs.joinpath(data_folder, "sqltools.previous-" .. suffix)
+  local archive = vim.fs.joinpath(data_folder, "sqltools.download-" .. suffix)
+  local executable = vim.fs.joinpath(
+    staging,
+    jit.os == "Windows" and "MicrosoftSqlToolsServiceLayer.exe" or "MicrosoftSqlToolsServiceLayer"
+  )
+
+  remove(staging)
+  remove(backup)
+  vim.fn.mkdir(staging, "p")
+  utils.log_info("Downloading SQL Tools Service...")
+
+  local download
+  if jit.os == "Windows" then
+    download = run_async({
+      "powershell",
+      "-NoProfile",
+      "-Command",
+      "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri $args[0] -OutFile $args[1]",
+      release.url,
+      archive,
+    })
+  else
+    download = run_async({ "curl", "-fsSL", release.url, "-o", archive })
+  end
+  if download.code ~= 0 then
+    remove(staging)
+    remove(archive)
+    return false, command_error("SQL Tools Service download", download)
+  end
+
+  local extract
+  if jit.os == "Windows" then
+    extract = run_async({
+      "powershell",
+      "-NoProfile",
+      "-Command",
+      "Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1]",
+      archive,
+      staging,
+    })
+  else
+    extract = run_async({ "tar", "-xzf", archive, "-C", staging })
+  end
+  remove(archive)
+  if extract.code ~= 0 then
+    remove(staging)
+    return false, command_error("SQL Tools Service extraction", extract)
+  end
+  if vim.fn.filereadable(executable) == 0 then
+    remove(staging)
+    return false, "SQL Tools Service archive did not contain the expected executable"
+  end
+  if jit.os ~= "Windows" then
+    local chmod = run_async({ "chmod", "u+x", executable })
+    if chmod.code ~= 0 then
+      remove(staging)
+      return false, command_error("Making SQL Tools Service executable", chmod)
+    end
+  end
+
+  if vim.fn.isdirectory(target) == 1 then
+    local moved, move_error = vim.uv.fs_rename(target, backup)
+    if not moved then
+      remove(staging)
+      return false, "Could not preserve the existing SQL Tools Service install: " .. tostring(move_error)
+    end
+  end
+  local installed, install_error = vim.uv.fs_rename(staging, target)
+  if not installed then
+    if vim.fn.isdirectory(backup) == 1 then
+      vim.uv.fs_rename(backup, target)
+    end
+    remove(staging)
+    return false, "Could not activate SQL Tools Service: " .. tostring(install_error)
+  end
+  remove(backup)
+  utils.log_info("SQL Tools Service installed successfully")
+  return true
 end
 
 return M

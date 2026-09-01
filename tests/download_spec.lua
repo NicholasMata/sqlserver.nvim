@@ -20,6 +20,12 @@ local function tools_file_exists()
   return false
 end
 
+local function installed_version()
+  local config_file = vim.fs.joinpath(vim.fn.stdpath("data"), "sqlserver.nvim/config.json")
+  local lines = vim.fn.readfile(config_file)
+  return vim.json.decode(table.concat(lines, "\n")).tools_version
+end
+
 local function setup_async()
   local co = coroutine.running()
   sqlserver.setup({
@@ -43,5 +49,6 @@ return {
     setup_async()
     download_finished = true
     assert(tools_file_exists(), "The sql server tools file does not exist among the downloads")
+    assert(installed_version() == require("sqlserver.tools_downloader").default_version)
   end,
 }

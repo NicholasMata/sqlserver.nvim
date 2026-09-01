@@ -87,6 +87,7 @@ end
 ---@field on_attach? fun(client: vim.lsp.Client, bufnr: integer)
 ---@field on_connection_changed? fun(result: table)
 ---@field on_query_message? fun(message: string, is_error: boolean, owner_uri: string)
+---@field on_exit? fun(code: integer, signal: integer, client_id: integer)
 
 ---@param opts table
 ---@param callbacks? SqlServerSqlToolsCallbacks
@@ -138,6 +139,11 @@ function M.enable(opts, callbacks)
         callbacks.on_attach(client, bufnr)
       end
       notify_attach_waiters(bufnr, client)
+    end,
+    on_exit = function(code, signal, client_id)
+      if callbacks.on_exit then
+        callbacks.on_exit(code, signal, client_id)
+      end
     end,
   }
 

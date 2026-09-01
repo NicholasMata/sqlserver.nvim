@@ -118,6 +118,11 @@ local function enable_lsp(opts)
         apply_workspace_winbar(bufnr, opts)
       end
     end,
+    on_exit = function(code, signal)
+      if code ~= 0 or signal ~= 0 then
+        utils.log_error(string.format("SQL Tools Service stopped unexpectedly (exit %d, signal %d)", code, signal))
+      end
+    end,
   })
 end
 
@@ -319,28 +324,30 @@ local function setup_async(opts)
 
   -- if the opts specify a tools file path, don't download.
   if opts.tools_file then
-    local file = io.open(opts.tools_file, "r")
-    if not file then
-      error("No sql tools file found at " .. opts.tools_file, 0)
+    if vim.fn.filereadable(opts.tools_file) == 0 then
+      error("SQL Tools Service executable was not found at " .. opts.tools_file, 0)
     end
-    file:close()
+    if vim.fn.executable(opts.tools_file) == 0 then
+      error("SQL Tools Service file is not executable: " .. opts.tools_file, 0)
+    end
   else
     local config_file = joinpath(opts.data_dir, "config.json")
     local config = read_json_file(config_file)
-    local download_url = downloader.get_tools_download_url()
+    local release = downloader.get_release(opts.tools_version)
     local tools_file = sql_tools_service.default_executable(opts)
 
     -- download if it's a first time setup or the last downloaded is old
     if
       vim.fn.filereadable(tools_file) == 0
-      or not config.last_downloaded_from
-      or config.last_downloaded_from ~= download_url
+      or vim.fn.executable(tools_file) == 0
+      or config.tools_version ~= release.version
     then
-      local downloaded, err = downloader.download_tools_async(download_url, opts.data_dir)
+      local downloaded, err = downloader.download_tools_async(release, opts.data_dir)
       if not downloaded then
         error("Could not install SQL Tools Service: " .. (err or "unknown error"), 0)
       end
-      config.last_downloaded_from = download_url
+      config.tools_version = release.version
+      config.last_downloaded_from = nil
       write_json_file(config_file, config)
     end
   end

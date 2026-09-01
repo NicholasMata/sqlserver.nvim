@@ -38,7 +38,8 @@
 
 ## Phase 3: Language Intelligence
 
-- Harden SQL Tools Service startup and version handling.
+- Pin and expose the managed SQL Tools Service version, validate custom and
+  downloaded executables, and preserve a working install when updates fail.
 - Preserve standard Neovim LSP behavior rather than owning a parallel UI.
 - Keep completion compatible with Neovim's LSP completion consumers.
 - Sanitize malformed SQL Tools Service completion and signature responses.

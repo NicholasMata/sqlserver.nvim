@@ -224,7 +224,15 @@ it.
 
 - `connections_file` overrides the connections JSON path.
 - `tools_file` uses an existing SQL Tools Service executable.
+- `tools_version` pins the release installed when `tools_file` is unset. The
+  default is the version tested by this plugin. Changing it opts into a
+  different upstream release and triggers a staged reinstall.
 - `data_dir` controls downloaded tools and internal plugin data.
+
+Automatic installs are extracted and validated in a staging directory before
+they replace the active service. A failed update therefore leaves the previous
+working installation intact. Custom `tools_file` paths must point to a readable,
+executable file.
 
 When unset, files are stored under `sqlserver.nvim` inside
 `vim.fn.stdpath("data")`.
