@@ -3,6 +3,9 @@ return {
 		"tests.lsp_nulls_spec",
 		"tests.sql_tools_service_adapter_spec",
 		"tests.workspace_spec",
+		"tests.activity_stream_spec",
+		"tests.ui_options_spec",
+		"tests.activity_ui_spec",
 	},
 	integration = {
 		"tests.download_spec",

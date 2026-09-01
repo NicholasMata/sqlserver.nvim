@@ -8,8 +8,30 @@ local sql_tools_service = require("sqlserver.adapters.sql_tools_service")
 local query_backend = require("sqlserver.adapters.sql_tools_service.query_backend")
 local workspace_module = require("sqlserver.core.workspace")
 local workspace_registry = require("sqlserver.core.workspace_registry")
+local activity_stream = require("sqlserver.core.activity_stream").create({ on_error = utils.log_error })
+local activity_ui = require("sqlserver.ui.activity")
+local ui_options = require("sqlserver.ui.options")
+local status_ui = require("sqlserver.ui.status")
 
 local joinpath = vim.fs.joinpath
+local winbar_expression = "%{%v:lua.require'sqlserver.ui.status'.winbar()%}"
+local custom_presenter_unsubscribe
+
+local function apply_workspace_winbar(bufnr, opts)
+	for _, winid in ipairs(vim.fn.win_findbuf(bufnr)) do
+		local current = vim.api.nvim_get_option_value("winbar", { win = winid })
+		if opts.ui.presenter == "default" and opts.ui.winbar.enabled and workspace_registry.get(bufnr) then
+			if current ~= winbar_expression then
+				vim.w[winid].sqlserver_previous_winbar = current
+			end
+			vim.api.nvim_set_option_value("winbar", winbar_expression, { win = winid })
+		elseif current == winbar_expression then
+			local previous = vim.w[winid].sqlserver_previous_winbar or ""
+			vim.api.nvim_set_option_value("winbar", previous, { win = winid })
+			vim.w[winid].sqlserver_previous_winbar = nil
+		end
+	end
+end
 
 -- creates the directory if it doesn't exist
 local function make_directory(path)
@@ -52,7 +74,13 @@ end
 
 local function enable_lsp(opts)
 	sql_tools_service.enable(opts, {
-		on_query_message = opts.view_messages_in,
+		on_query_message = function(message, is_error, owner_uri)
+			local workspace = workspace_registry.find_by_owner_uri(owner_uri)
+			if workspace then
+				workspace.record_message(message, is_error)
+			end
+			opts.view_messages_in(message, is_error)
+		end,
 		on_connection_changed = function(result)
 			local workspace = workspace_registry.find_by_owner_uri(result.ownerUri)
 			if not (result.connection and workspace) then
@@ -67,14 +95,14 @@ local function enable_lsp(opts)
 		end,
 		on_attach = function(client, bufnr)
 			if not workspace_registry.get(bufnr) then
-				workspace_registry.attach(
-					bufnr,
-					workspace_module.create({
-						bufnr = bufnr,
-						backend = query_backend.create(bufnr, client),
-						objects = finder,
-					})
-				)
+				local workspace = workspace_module.create({
+					bufnr = bufnr,
+					backend = query_backend.create(bufnr, client),
+					objects = finder,
+					activity_stream = activity_stream,
+				})
+				workspace_registry.attach(bufnr, workspace)
+				apply_workspace_winbar(bufnr, opts)
 			end
 		end,
 	})
@@ -119,6 +147,13 @@ local function set_auto_commands(opts)
 					clean_cache()
 				end)
 			end
+		end,
+	})
+
+	vim.api.nvim_create_autocmd("BufWinEnter", {
+		group = "AutoNameSQL",
+		callback = function(args)
+			apply_workspace_winbar(args.buf, opts)
 		end,
 	})
 end
@@ -186,6 +221,7 @@ local clear_message_buffer = function()
 end
 
 local view_message_options = {
+	activity = function() end,
 	notification = function(message, is_error)
 		if is_error then
 			utils.log_error(message)
@@ -241,9 +277,23 @@ end
 local function setup_async(opts)
 	opts = opts or {}
 	opts = vim.tbl_deep_extend("keep", opts or {}, default_opts)
+	opts.ui.winbar = ui_options.normalize_winbar(opts.ui.winbar)
 	opts.connections_file = opts.connections_file or joinpath(opts.data_dir, "connections.json")
 	set_show_results_option(opts)
 	set_view_message_option(opts)
+	if custom_presenter_unsubscribe then
+		custom_presenter_unsubscribe()
+		custom_presenter_unsubscribe = nil
+	end
+	activity_ui.setup(opts.ui)
+	if opts.ui.presenter == "default" then
+		status_ui.setup(opts.ui.winbar)
+		activity_ui.setup(opts.ui, activity_stream)
+	elseif type(opts.ui.presenter) == "function" then
+		custom_presenter_unsubscribe = activity_stream.subscribe(opts.ui.presenter)
+	elseif opts.ui.presenter ~= false then
+		error("ui.presenter must be 'default', false, or a function", 0)
+	end
 
 	make_directory(opts.data_dir)
 
@@ -277,6 +327,9 @@ local function setup_async(opts)
 
 	enable_lsp(opts)
 	set_auto_commands(opts)
+	for bufnr in workspace_registry.iter() do
+		apply_workspace_winbar(bufnr, opts)
+	end
 
 	plugin_opts = opts
 end
@@ -341,7 +394,6 @@ local function switch_database_async(buf)
 	connect_params.connection.options.database = db
 
 	workspace.connect_async(connect_params)
-	utils.log_info("Connected")
 end
 
 local connect_async = function(opts, workspace)
@@ -373,8 +425,6 @@ local connect_async = function(opts, workspace)
 
 	if con.promptForDatabase then
 		switch_database_async()
-	else
-		utils.log_info("Connected")
 	end
 end
 
@@ -422,8 +472,6 @@ local function new_default_query_async(opts)
 
 	if connection.promptForDatabase then
 		switch_database_async(buf)
-	else
-		utils.log_info("Connected")
 	end
 	workspace.initialise_objects_async()
 end
@@ -567,8 +615,6 @@ local function connect_to_default(workspace, opts)
 
 	if connection.promptForDatabase then
 		switch_database_async()
-	else
-		utils.log_info("Connected")
 	end
 end
 
@@ -624,8 +670,6 @@ local function save_query_results_async(result_info)
 		vim.cmd("edit " .. file)
 	end
 end
-
-local show_caching_in_status_line = false
 
 local M = {
 	new_query = function()
@@ -688,13 +732,9 @@ local M = {
 			utils.log_error("You are currently " .. workspace.get_state())
 			return
 		end
-		-- refresh the object cache, fire and forget
-		show_caching_in_status_line = true
-
+		-- Refresh the object cache without blocking editing.
 		coroutine.resume(coroutine.create(function()
 			workspace.initialise_objects_async(true)
-			show_caching_in_status_line = false
-			vim.cmd("redrawstatus")
 		end))
 
 		-- refresh the intellisense cache, fire and forget
@@ -704,7 +744,6 @@ local M = {
 		if not success then
 			utils.log_error(msg)
 		end
-		utils.log_info("Refreshing cache...")
 	end,
 
 	disconnect = function()
@@ -749,42 +788,20 @@ local M = {
 		end))
 	end,
 
-	lualine_component = {
-		function()
-			local workspace = workspace_registry.get()
-			if not workspace then
-				return
-			end
-			local state = workspace.get_state()
-			if state == workspace_module.states.disconnected then
-				return "Disconnected"
-			elseif state == workspace_module.states.connecting then
-				return "Connecting..."
-			elseif state == workspace_module.states.executing then
-				return "Executing..."
-			elseif state == workspace_module.states.connected then
-				local connect_params = workspace.get_connect_params()
-				if not (connect_params and connect_params.connection and connect_params.connection.options) then
-					return "Connected"
-				end
+	status = status_ui.component,
 
-				local db = connect_params.connection.options.database
-				local server = connect_params.connection.options.server
-				if not (db or server) then
-					return "Connected"
-				end
-				local caching = ""
-				if show_caching_in_status_line and workspace.is_refreshing() then
-					caching = " (Caching database objects...)"
-				end
-
-				return server .. " | " .. db .. caching
-			end
-		end,
-		cond = function()
-			return workspace_registry.get() ~= nil
-		end,
-	},
+	toggle_activity = function()
+		if not activity_ui.is_enabled() then
+			utils.log_error("The built-in SQL Server UI is disabled")
+			return
+		end
+		local workspace = workspace_registry.get()
+		if not workspace then
+			utils.log_error("No SQL Server workspace is attached to this buffer")
+			return
+		end
+		activity_ui.toggle(workspace)
+	end,
 
 	backup_database = function()
 		local workspace = workspace_registry.get()
@@ -831,14 +848,9 @@ local M = {
 		end
 
 		if workspace.is_refreshing() then
-			show_caching_in_status_line = true
-			vim.cmd("redrawstatus")
-			utils.log_error("Still caching. Try again in a few seconds...")
+			workspace.record_message("Database objects are still refreshing", false)
 			return
 		end
-
-		show_caching_in_status_line = false
-		vim.cmd("redrawstatus")
 
 		utils.try_resume(coroutine.create(function()
 			local item = workspace.find_object_async()
@@ -863,11 +875,18 @@ M.set_keymaps = function(prefix)
 	interface.set_keymaps(prefix, M)
 end
 
+---Subscribe to structured workspace activity events.
+---@param subscriber fun(workspace: SqlServerWorkspace, event: SqlServerActivityEvent)
+---@return fun unsubscribe
+M.subscribe_activity = function(subscriber)
+	return activity_stream.subscribe(subscriber)
+end
+
 M.setup = function(opts, callback)
 	utils.try_resume(coroutine.create(function()
 		setup_async(opts)
 		interface.set_user_commands(M)
-		interface.set_keymaps(opts.keymap_prefix, M)
+		interface.set_keymaps(plugin_opts.keymap_prefix, M)
 		if callback ~= nil then
 			callback()
 		end

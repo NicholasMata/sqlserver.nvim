@@ -1,5 +1,6 @@
 local workspace_module = require("sqlserver.core.workspace")
 local registry = require("sqlserver.core.workspace_registry")
+local activity_stream_module = require("sqlserver.core.activity_stream")
 
 local function create_objects_fake()
 	return {
@@ -17,6 +18,11 @@ return {
 	test_name = "Workspace should own connection and query state",
 	run_test_async = function()
 		local workspace
+		local activity = {}
+		local activity_stream = activity_stream_module.create()
+		activity_stream.subscribe(function(_, event)
+			table.insert(activity, event)
+		end)
 		local initialized_connection
 		local objects = create_objects_fake()
 		objects.initialise_cache_async = function(_, connection)
@@ -50,6 +56,7 @@ return {
 			bufnr = 99,
 			backend = backend,
 			objects = objects,
+			activity_stream = activity_stream,
 		})
 
 		registry.attach(99, workspace)
@@ -65,6 +72,17 @@ return {
 		assert(workspace.get_state() == workspace_module.states.connected)
 		assert(workspace.get_connection().database == "ApplicationDb")
 		assert(initialized_connection.trustServerCertificate == true)
+		assert(activity[1].message == "Connecting" and activity[1].status == "running")
+		assert(activity[#activity].message == "Connected" and activity[#activity].status == "success")
+
+		objects.initialise_cache_async = function()
+			return coroutine.yield()
+		end
+		local refresh = coroutine.create(function()
+			workspace.initialise_objects_async(true)
+		end)
+		assert(coroutine.resume(refresh))
+		assert(workspace.get_active_operation().kind == "metadata")
 
 		local execution = coroutine.create(function()
 			local result = workspace.execute_async("WAITFOR DELAY '00:00:01'")
@@ -72,14 +90,25 @@ return {
 		end)
 		assert(coroutine.resume(execution))
 		assert(workspace.get_state() == workspace_module.states.executing)
+		assert(workspace.get_active_operation().message == "Executing query")
+		assert(coroutine.resume(refresh))
+		assert(workspace.get_active_operation().message == "Executing query")
 		workspace.cancel_async()
 		assert(workspace.get_state() == workspace_module.states.cancelling)
+		assert(workspace.get_active_operation().message == "Cancelling query")
 		assert(coroutine.resume(execution, { batchSummaries = {} }))
 		assert(workspace.get_state() == workspace_module.states.connected)
+		assert(workspace.get_active_operation() == nil)
+		assert(activity[#activity].status == "cancelled")
+
+		workspace.record_message("Changed database context", false)
+		assert(activity[#activity].kind == "message")
+		assert(activity[#activity].message == "Changed database context")
 
 		workspace.disconnect_async()
 		assert(workspace.get_state() == workspace_module.states.disconnected)
 		assert(workspace.get_connection() == nil)
+		assert(#workspace.get_activity() == #activity)
 		assert(registry.detach(99) == workspace)
 	end,
 }

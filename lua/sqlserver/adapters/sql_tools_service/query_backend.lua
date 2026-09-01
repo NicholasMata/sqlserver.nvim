@@ -45,7 +45,6 @@ function M.create(bufnr, client)
 				error("Could not execute query", 0)
 			end
 
-			utils.log_info("Executing...")
 			local completed, notification_error =
 				utils.wait_for_notification_async(bufnr, client, "query/complete", 360000)
 			if notification_error then

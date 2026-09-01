@@ -75,6 +75,12 @@ Global state should be limited to intentionally shared resources such as cached
 metadata and plugin configuration. Every global cache needs an explicit key,
 refresh policy, and cleanup path.
 
+Workspaces publish structured lifecycle and server-message events through an
+activity stream. Presentation modules subscribe to that stream; workspace
+services do not call winbar, progress, notification, or window APIs directly.
+Subscribers must be independently replaceable and a failing subscriber must
+not interrupt the underlying connection or query operation.
+
 ## Models
 
 Introduce plugin-owned models at backend boundaries. In particular, query

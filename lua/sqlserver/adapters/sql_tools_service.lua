@@ -57,7 +57,7 @@ end
 ---@class SqlServerSqlToolsCallbacks
 ---@field on_attach? fun(client: vim.lsp.Client, bufnr: integer)
 ---@field on_connection_changed? fun(result: table)
----@field on_query_message? fun(message: string, is_error: boolean)
+---@field on_query_message? fun(message: string, is_error: boolean, owner_uri: string)
 
 ---@param opts table
 ---@param callbacks? SqlServerSqlToolsCallbacks
@@ -85,7 +85,6 @@ function M.enable(opts, callbacks)
 					utils.log_error("Could not start intellisense: " .. vim.inspect(err))
 				elseif not hide_intellisense_ready then
 					hide_intellisense_ready = true
-					utils.log_info("Intellisense ready")
 					vim.defer_fn(function()
 						hide_intellisense_ready = false
 					end, 1000)
@@ -95,7 +94,7 @@ function M.enable(opts, callbacks)
 			["query/message"] = function(_, result)
 				local message = result and result.message
 				if message and message.message and callbacks.on_query_message then
-					callbacks.on_query_message(message.message, message.isError)
+					callbacks.on_query_message(message.message, message.isError, result.ownerUri)
 				end
 			end,
 			["connection/connectionchanged"] = function(_, result)

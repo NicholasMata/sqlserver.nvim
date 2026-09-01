@@ -10,6 +10,7 @@ return {
 		end
 
 		local keymaps = {
+			activity = { "a", M.toggle_activity, desc = "Activity", icon = { icon = "󰋼", color = "blue" } },
 			new_query = { "n", M.new_query, desc = "New Query", icon = { icon = "", color = "yellow" } },
 			connect = { "c", M.connect, desc = "Connect", icon = { icon = "󱘖", color = "green" } },
 			disconnect = { "q", M.disconnect, desc = "Disconnect", icon = { icon = "", color = "red" } },
@@ -49,6 +50,11 @@ return {
 
 		local success, wk = pcall(require, "which-key")
 		if success then
+			local function with_activity(items)
+				table.insert(items, 1, keymaps.activity)
+				return items
+			end
+
 			local wkeygroup = {
 				prefix,
 				group = "sqlserver",
@@ -62,20 +68,20 @@ return {
 					local state = workspace.get_state()
 					local states = workspace_module.states
 					if state == states.connecting then
-						return {
+						return with_activity({
 							keymaps.new_query,
 							keymaps.new_default_query,
 							keymaps.edit_connections,
-						}
+						})
 					elseif state == states.executing then
-						return {
+						return with_activity({
 							keymaps.new_query,
 							keymaps.new_default_query,
 							keymaps.edit_connections,
 							keymaps.cancel_query,
-						}
+						})
 					elseif state == states.connected then
-						return {
+						return with_activity({
 							keymaps.new_query,
 							keymaps.new_default_query,
 							keymaps.edit_connections,
@@ -89,9 +95,9 @@ return {
 								icon = { icon = "", color = "yellow" },
 							},
 							keymaps.find_object,
-						}
+						})
 					elseif state == states.disconnected then
-						return {
+						return with_activity({
 							keymaps.new_query,
 							keymaps.new_default_query,
 							keymaps.edit_connections,
@@ -103,13 +109,13 @@ return {
 								mode = { "n", "v" },
 								icon = { icon = "", color = "green" },
 							},
-						}
+						})
 					elseif state == states.cancelling then
-						return {
+						return with_activity({
 							keymaps.new_query,
 							keymaps.new_default_query,
 							keymaps.edit_connections,
-						}
+						})
 					else
 						utils.log_error("Entered unrecognised query state: " .. state)
 						return {}
@@ -167,6 +173,7 @@ return {
 
 	set_user_commands = function(M)
 		local commands = {
+			Activity = M.toggle_activity,
 			Connect = M.connect,
 			Disconnect = M.disconnect,
 			BackupDatabase = M.backup_database,
@@ -201,21 +208,25 @@ return {
 
 			local state = workspace.get_state()
 			local states = workspace_module.states
+			local function with_activity(items)
+				table.insert(items, 1, "Activity")
+				return items
+			end
 			if state == states.connecting then
-				return {
+				return with_activity({
 					"NewQuery",
 					"NewDefaultQuery",
 					"EditConnections",
-				}
+				})
 			elseif state == states.executing then
-				return {
+				return with_activity({
 					"NewQuery",
 					"NewDefaultQuery",
 					"EditConnections",
 					"CancelQuery",
-				}
+				})
 			elseif state == states.connected then
-				return {
+				return with_activity({
 					"NewQuery",
 					"NewDefaultQuery",
 					"EditConnections",
@@ -226,20 +237,20 @@ return {
 					"BackupDatabase",
 					"RestoreDatabase",
 					"Find",
-				}
+				})
 			elseif state == states.disconnected then
-				return {
+				return with_activity({
 					"NewQuery",
 					"NewDefaultQuery",
 					"EditConnections",
 					"Connect",
-				}
+				})
 			elseif state == states.cancelling then
-				return {
+				return with_activity({
 					"NewQuery",
 					"NewDefaultQuery",
 					"EditConnections",
-				}
+				})
 			else
 				utils.log_error("Entered unrecognised query state: " .. state)
 				return {}

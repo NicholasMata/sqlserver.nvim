@@ -27,6 +27,101 @@ See [docs/vision.md](docs/vision.md) for the product direction and
 module boundaries and migration strategy are described in
 [docs/architecture.md](docs/architecture.md).
 
+## Workspace status and activity
+
+Each SQL query buffer has a workspace status shown in its winbar. It includes
+the server, database, and current state, such as connecting, ready, executing,
+cancelling, or refreshing metadata. Active operations include elapsed time.
+
+Long-running work also uses Neovim's native progress messages. Routine state
+changes and SQL Server messages are kept out of transient notifications and
+recorded in an expandable activity split instead. Open or close it with:
+
+```vim
+:SQLServer Activity
+```
+
+Press `q` in the activity split to close it. If `keymap_prefix` is configured,
+`a` under that prefix opens the same view. For example, the configuration below
+uses `<leader>sa`.
+
+```lua
+require("sqlserver").setup({
+  keymap_prefix = "<leader>s",
+  view_messages_in = "activity",
+  ui = {
+    presenter = "default",
+    winbar = true,
+    native_progress = true,
+    height = 12,
+  },
+})
+```
+
+The default winbar keeps the server and database on the left and status on the
+right. Set `winbar = false` to disable it. Use an object for a compact layout:
+
+```lua
+winbar = {
+  layout = "compact",
+  alignment = "right", -- "left", "center", or "right"
+}
+```
+
+The object form also accepts `layout = "split"`, which is what `winbar = true`
+uses. Set `ui.native_progress` to `false` to let another UI own progress
+presentation.
+`require("sqlserver").status()` returns the same status string for any
+statusline implementation without coupling the plugin to one. The older
+`"notification"` and `"buffer"` values for `view_messages_in` remain available,
+as does a custom message function.
+
+The winbar colors only its state icon. Its default highlight groups link to
+standard Neovim groups, and user or colorscheme definitions take precedence:
+
+```lua
+vim.api.nvim_set_hl(0, "SqlServerReady", { fg = "#98c379" })
+vim.api.nvim_set_hl(0, "SqlServerWorking", { fg = "#61afef" })
+vim.api.nvim_set_hl(0, "SqlServerCancelling", { fg = "#e5c07b" })
+vim.api.nvim_set_hl(0, "SqlServerDisconnected", { fg = "#5c6370" })
+```
+
+Internally, workspaces publish structured activity events to a subscriber
+stream. Neovim progress and the activity split are consumers of that stream,
+not workspace dependencies. This keeps presentation replaceable if Neovim's UI
+APIs change and allows future consumers to be added independently.
+
+Configure one primary custom presenter directly in `setup()`:
+
+```lua
+require("sqlserver").setup({
+  ui = {
+    presenter = function(workspace, event)
+      -- event.kind, event.status, event.title, event.message,
+      -- event.operation_id, event.duration_ms, and event.time
+    end,
+  },
+})
+```
+
+Use `ui.presenter = false` to disable primary presentation completely. The
+default is `"default"`, which enables the included winbar, native progress, and
+activity split.
+
+The stream is also part of the public Lua API for optional secondary consumers:
+
+```lua
+local unsubscribe = require("sqlserver").subscribe_activity(function(workspace, event)
+  -- Log or observe activity independently of the primary presenter.
+end)
+
+unsubscribe()
+```
+
+This API intentionally exposes events rather than integrations for individual
+statusline or notification plugins. Custom UIs can translate the same event
+shape into any presentation they choose.
+
 ## Development
 
 Load the plugin from a local checkout:

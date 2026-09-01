@@ -15,12 +15,21 @@ return {
 
 	--[[ Where to view messages sent from sql server (eg when executing queries)
   Valid options are: 
+  "activity"                            - Store messages in the SQL Server activity panel
   "notification"                        - View as a vim notification
   "buffer"                              - View in a messages buffer
   function(message, is_error) ...       - Function which takes the message string and is_error boolean
                                           (called for each message). Use this to view messages in a custom way
   --]]
-	view_messages_in = "notification",
+	view_messages_in = "activity",
+
+	-- Persistent workspace status and expandable activity UI.
+	ui = {
+		presenter = "default",
+		winbar = true,
+		native_progress = true,
+		height = 12,
+	},
 
 	-- Max rows to return for queries. Needed so that large results don't crash neovim.
 	max_rows = 100,

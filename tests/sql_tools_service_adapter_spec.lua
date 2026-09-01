@@ -19,8 +19,8 @@ return {
 			on_connection_changed = function(result)
 				connection_change = result
 			end,
-			on_query_message = function(message, is_error)
-				query_message = { message = message, is_error = is_error }
+			on_query_message = function(message, is_error, owner_uri)
+				query_message = { message = message, is_error = is_error, owner_uri = owner_uri }
 			end,
 		})
 		vim.lsp.enable = original_enable
@@ -46,8 +46,12 @@ return {
 		config.handlers["connection/connectionchanged"](nil, { ownerUri = "file:///query.sql" })
 		assert(connection_change.ownerUri == "file:///query.sql")
 
-		config.handlers["query/message"](nil, { message = { message = "Done", isError = false } })
+		config.handlers["query/message"](nil, {
+			ownerUri = "file:///query.sql",
+			message = { message = "Done", isError = false },
+		})
 		assert(query_message.message == "Done")
 		assert(query_message.is_error == false)
+		assert(query_message.owner_uri == "file:///query.sql")
 	end,
 }
