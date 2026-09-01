@@ -14,6 +14,10 @@ Studio. The goal is to make the core SQL Server loop reliable inside Neovim:
 - script database objects into editable buffers
 - expose Lua APIs that can later support MCP and agent workflows
 
+Switching from `mssql.nvim` requires configuration and workflow changes. See
+[Migrating from mssql.nvim](docs/migrating-from-mssql.md) for the complete
+current compatibility guide and checklist.
+
 Queries that return multiple result sets create one buffer per set while using
 one results window. The first result is shown initially; use `]r` and `[r` from
 a result buffer, or `:SQLServer NextResult` and `:SQLServer PreviousResult`, to
@@ -35,6 +39,11 @@ require("sqlserver").setup({
 When `max_rows` is reached, the result buffer says how many rows are shown.
 Cell truncation only affects the rendered table, leaving the plugin-owned
 result model available for future renderers and exporters.
+
+`:SQLServer ExecuteQuery` executes the T-SQL statement under the cursor, and
+`:SQLServer ExecuteBuffer` executes the entire query buffer. With
+`keymap_prefix` configured, these actions use `x` and `X` under that prefix.
+Using the `x` mapping from visual mode executes the selected text instead.
 
 ## Status
 
@@ -160,6 +169,18 @@ Run the isolated unit suite:
 ```sh
 make test
 ```
+
+Lua uses two-space indentation enforced by StyLua 2.5.2. Format the entire
+Lua codebase or check formatting without changing files with:
+
+```sh
+make format
+make format-check
+```
+
+`make lint` currently performs the same formatting check and is the stable
+entry point for adding more static analysis later. Pull requests run the
+formatting check in CI.
 
 Unit tests do not download SQL Tools Service or require a database. All Neovim
 configuration, data, state, and cache files created by tests are isolated under
