@@ -1,0 +1,71 @@
+name: End To End Tests
+
+on:
+  pull_request:
+
+jobs:
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        # Getting problems on mac os
+        # os: [ubuntu-latest, macos-latest, windows-latest]
+
+    env:
+      DbServer: localhost
+      DbUser: sa
+      DbPassword: Test_Password_123
+      DbDatabase: tempdb
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install sql server
+        uses: potatoqualitee/mssqlsuite@v1.8
+        with:
+          install: sqlengine, sqlclient
+          sa-password: ${{ env.DbPassword }}
+
+      - name: Run sqlcmd
+        run:
+          sqlcmd -S "${{ env.DbServer }}" -U "${{ env.DbUser }}" -P "${{
+          env.DbPassword }}" -d "${{ env.DbDatabase }}" -i
+          ./.github/workflows/seed.sql -C
+
+      - name: Install winget (Windows)
+        if: runner.os == 'Windows'
+        uses: Cyberboss/install-winget@v1
+
+      - name: Install Neovim (Windows) and add to PATH
+        if: runner.os == 'Windows'
+        run: |
+          winget install Neovim.Neovim --silent --accept-package-agreements --accept-source-agreements
+          echo "$Env:ProgramFiles\Neovim\bin" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+
+      - name: Install Neovim (macOS)
+        if: runner.os == 'macOS'
+        run: |
+          brew install neovim
+
+      - name: Install Neovim (Linux)
+        if: runner.os == 'Linux'
+        run: |
+          curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz
+          sudo rm -rf /opt/nvim
+          sudo tar -C /opt -xzf nvim-linux-x86_64.tar.gz
+          echo "/opt/nvim-linux-x86_64/bin" >> $GITHUB_PATH
+
+      - name: Run Neovim tests
+        run: |
+          nvim -u runtests.lua --headless
+
+      - name: Upload Neovim state folder
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: nvim-state-dump
+          path: nvim-state-dump
+          if-no-files-found: ignore
