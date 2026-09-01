@@ -133,6 +133,21 @@ return {
 
     workspace.reconnect_async()
     backend.execute_async = function()
+      error({
+        message = "SQL Server query timed out",
+        diagnostic = "SQL Tools Service did not send query/complete within 1 seconds; cancellation was requested",
+        operation_message = "Query timed out",
+      }, 0)
+    end
+    local timed_out, timeout_error = pcall(function()
+      workspace.execute_async({ kind = "buffer", text = "WAITFOR" })
+    end)
+    assert(not timed_out and timeout_error == "SQL Server query timed out")
+    assert(workspace.get_state() == workspace_module.states.disconnected)
+    assert(workspace.get_activity()[#workspace.get_activity()].message == "Query timed out")
+
+    workspace.reconnect_async()
+    backend.execute_async = function()
       error("transport closed")
     end
     local execution_ok = pcall(function()
@@ -147,5 +162,27 @@ return {
     workspace.disconnect_async()
     assert(#workspace.get_activity() == #activity)
     assert(registry.detach(99) == workspace)
+
+    local failed_workspace = workspace_module.create({
+      bufnr = 100,
+      backend = {
+        owner_uri = "file:///failed.sql",
+        connect_async = function()
+          error({
+            message = "SQL Server connection timed out",
+            diagnostic = "SQL Tools Service did not send connection/complete within 10 seconds",
+          }, 0)
+        end,
+      },
+      objects = create_objects_fake(),
+      activity_stream = activity_stream,
+    })
+    local connected, connection_error = pcall(failed_workspace.connect_async, {
+      connection = { options = { server = "localhost" } },
+    })
+    assert(not connected and connection_error == "SQL Server connection timed out")
+    local failed_activity = failed_workspace.get_activity()
+    assert(failed_activity[#failed_activity - 1].message:find("connection/complete", 1, true))
+    assert(failed_activity[#failed_activity].message == "Connection failed")
   end,
 }

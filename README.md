@@ -66,6 +66,12 @@ require("sqlserver").setup({
     max_rows = 100,
     max_cell_width = 100,
   },
+  timeouts = {
+    lsp_attach = 10000,
+    connection = 10000,
+    object_explorer = 10000,
+    query = false,
+  },
   ui = {
     presenter = "default",
     winbar = true,
@@ -74,6 +80,9 @@ require("sqlserver").setup({
   },
 })
 ```
+
+Operational timeouts use milliseconds or `false` to wait indefinitely. Queries
+have no client-side timeout by default and can be stopped with `CancelQuery`.
 
 With the prefix above, use `<leader>sx` for the statement under the cursor or a
 visual selection, and `<leader>sX` for the complete buffer. Commands are also

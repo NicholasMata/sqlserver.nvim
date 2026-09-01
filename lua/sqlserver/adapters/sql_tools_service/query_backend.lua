@@ -3,6 +3,35 @@ local result_cell = require("sqlserver.core.result_cell")
 
 local M = {}
 
+local function connection_timeout_error(timeout_ms)
+  return setmetatable({
+    message = "SQL Server connection timed out",
+    diagnostic = string.format(
+      "SQL Tools Service did not send connection/complete within %.0f seconds",
+      timeout_ms / 1000
+    ),
+  }, {
+    __tostring = function(err)
+      return err.message
+    end,
+  })
+end
+
+local function query_timeout_error(timeout_ms, cancellation_error)
+  local diagnostic =
+    string.format("SQL Tools Service did not send query/complete within %.0f seconds", timeout_ms / 1000)
+  if cancellation_error then
+    diagnostic = diagnostic .. "; cancellation request failed: " .. cancellation_error.message
+  else
+    diagnostic = diagnostic .. "; cancellation was requested"
+  end
+  return {
+    message = "SQL Server query timed out",
+    diagnostic = diagnostic,
+    operation_message = "Query timed out",
+  }
+end
+
 ---@param locator table
 ---@return SqlServerResultCell[][]
 function M.get_result_rows_async(locator)
@@ -38,8 +67,10 @@ end
 
 ---@param bufnr integer
 ---@param client vim.lsp.Client
-function M.create(bufnr, client)
+---@param timeouts? table
+function M.create(bufnr, client, timeouts)
   local owner_uri = utils.lsp_file_uri(bufnr)
+  timeouts = timeouts or { connection = 10000, query = false }
 
   return {
     owner_uri = owner_uri,
@@ -51,9 +82,14 @@ function M.create(bufnr, client)
         error("Could not connect: " .. request_error.message, 0)
       end
 
-      local result, notification_error = utils.wait_for_notification_async(bufnr, client, "connection/complete", 10000)
+      local connection_timeout_ms = timeouts.connection
+      local result, notification_error =
+        utils.wait_for_notification_async(bufnr, client, "connection/complete", connection_timeout_ms)
       if notification_error then
-        error("Error in connecting: " .. notification_error.message, 0)
+        if connection_timeout_ms then
+          error(connection_timeout_error(connection_timeout_ms), 0)
+        end
+        error("Could not connect: " .. notification_error.message, 0)
       end
       if result and type(result.errorMessage) == "string" then
         error("Error in connecting: " .. result.errorMessage, 0)
@@ -90,8 +126,13 @@ function M.create(bufnr, client)
         error("Could not execute query", 0)
       end
 
-      local completed, notification_error = utils.wait_for_notification_async(bufnr, client, "query/complete", 360000)
+      local completed, notification_error =
+        utils.wait_for_notification_async(bufnr, client, "query/complete", timeouts.query)
       if notification_error then
+        if timeouts.query then
+          local _, cancellation_error = utils.lsp_request_async(client, "query/cancel", { ownerUri = owner_uri })
+          error(query_timeout_error(timeouts.query, cancellation_error), 0)
+        end
         error("Could not execute query: " .. vim.inspect(notification_error), 0)
       end
       return completed

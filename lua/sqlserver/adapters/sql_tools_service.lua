@@ -123,7 +123,7 @@ end
 ---Wait for SQL Tools Service to attach to a buffer.
 ---Must be called inside a coroutine.
 ---@param bufnr integer
----@param timeout integer
+---@param timeout integer|false
 ---@return vim.lsp.Client?
 function M.wait_for_attach_async(bufnr, timeout)
   local client = vim.lsp.get_clients({ name = M.client_name, bufnr = bufnr })[1]
@@ -144,13 +144,15 @@ function M.wait_for_attach_async(bufnr, timeout)
   attach_waiters[bufnr] = attach_waiters[bufnr] or {}
   table.insert(attach_waiters[bufnr], resume)
 
-  vim.defer_fn(function()
-    if resumed then
-      return
-    end
-    utils.log_error("Waiting for the lsp to attach to buffer " .. bufnr .. " timed out")
-    resume(nil)
-  end, timeout)
+  if timeout then
+    vim.defer_fn(function()
+      if resumed then
+        return
+      end
+      utils.log_error("Waiting for the lsp to attach to buffer " .. bufnr .. " timed out")
+      resume(nil)
+    end, timeout)
+  end
 
   return coroutine.yield()
 end

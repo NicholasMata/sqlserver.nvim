@@ -5,6 +5,7 @@ return {
     "tests.workspace_spec",
     "tests.activity_stream_spec",
     "tests.ui_options_spec",
+    "tests.timeouts_spec",
     "tests.activity_ui_spec",
     "tests.query_result_renderer_spec",
     "tests.query_selection_spec",

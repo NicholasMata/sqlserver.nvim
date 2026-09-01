@@ -149,8 +149,11 @@ function M.create(opts)
     if not ok then
       connect_params = nil
       set_state(M.states.disconnected)
+      if type(result) == "table" and result.diagnostic then
+        workspace.record_message(result.diagnostic, false)
+      end
       finish_operation(operation_id, "error", "Connection failed")
-      error(result, 0)
+      error(type(result) == "table" and result.message or result, 0)
     end
 
     if result and result.connectionSummary then
@@ -207,8 +210,11 @@ function M.create(opts)
     end
     if not ok then
       set_state(M.states.disconnected)
-      finish_operation(operation_id, "error", "Connection lost")
-      error(result, 0)
+      if type(result) == "table" and result.diagnostic then
+        workspace.record_message(result.diagnostic, false)
+      end
+      finish_operation(operation_id, "error", type(result) == "table" and result.operation_message or "Connection lost")
+      error(type(result) == "table" and result.message or result, 0)
     end
     if not (result and result.batchSummaries) then
       set_state(M.states.connected)

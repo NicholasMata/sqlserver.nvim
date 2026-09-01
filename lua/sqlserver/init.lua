@@ -13,6 +13,7 @@ local activity_stream = require("sqlserver.core.activity_stream").create({ on_er
 local activity_ui = require("sqlserver.ui.activity")
 local ui_options = require("sqlserver.ui.options")
 local status_ui = require("sqlserver.ui.status")
+local timeout_options = require("sqlserver.core.timeouts")
 
 local joinpath = vim.fs.joinpath
 local winbar_expression = "%{%v:lua.require'sqlserver.ui.status'.winbar()%}"
@@ -107,7 +108,7 @@ local function enable_lsp(opts)
       if not workspace_registry.get(bufnr) then
         local workspace = workspace_module.create({
           bufnr = bufnr,
-          backend = query_backend.create(bufnr, client),
+          backend = query_backend.create(bufnr, client, opts.timeouts),
           objects = finder,
           activity_stream = activity_stream,
         })
@@ -289,6 +290,8 @@ end
 local function setup_async(opts)
   opts = opts or {}
   opts = vim.tbl_deep_extend("keep", opts or {}, default_opts)
+  opts.timeouts = timeout_options.normalize(opts.timeouts)
+  finder.setup(opts.timeouts)
   opts.ui.winbar = ui_options.normalize_winbar(opts.ui.winbar)
   opts.connections_file = opts.connections_file or joinpath(opts.data_dir, "connections.json")
   set_show_results_option(opts)
@@ -449,7 +452,7 @@ local function new_query_async()
   vim.cmd("setfiletype sql")
   vim.b[buf].is_temp_name = true
 
-  local client = sql_tools_service.wait_for_attach_async(buf, 10000)
+  local client = sql_tools_service.wait_for_attach_async(buf, plugin_opts.timeouts.lsp_attach)
   return buf, client
 end
 

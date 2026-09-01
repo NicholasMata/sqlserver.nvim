@@ -1,10 +1,11 @@
 local utils = require("sqlserver.utils")
 local object_script = require("sqlserver.core.object_script")
+local object_explorer_timeout = 10000
 
 ---Same as utils.wait_for_notification_async but ignores any owner uri
 ---@param client vim.lsp.Client
 ---@param method string
----@param timeout integer
+---@param timeout integer|false
 ---@return any result
 ---@return lsp.ResponseError? error
 local wait_for_notification_async = function(client, method, timeout)
@@ -20,20 +21,22 @@ local wait_for_notification_async = function(client, method, timeout)
     return result, err
   end
   utils.register_lsp_handler(client, method, handler)
-  vim.defer_fn(function()
-    if not resumed then
-      resumed = true
-      utils.unregister_lsp_handler(client, method, handler)
-      utils.try_resume(
-        this,
-        nil,
-        vim.lsp.rpc_response_error(
-          vim.lsp.protocol.ErrorCodes.UnknownErrorCode,
-          "Waiting for the lsp to call " .. method .. "timed out"
+  if timeout then
+    vim.defer_fn(function()
+      if not resumed then
+        resumed = true
+        utils.unregister_lsp_handler(client, method, handler)
+        utils.try_resume(
+          this,
+          nil,
+          vim.lsp.rpc_response_error(
+            vim.lsp.protocol.ErrorCodes.UnknownErrorCode,
+            "Waiting for the lsp to call " .. method .. " timed out"
+          )
         )
-      )
-    end
-  end, timeout)
+      end
+    end, timeout)
+  end
   return coroutine.yield()
 end
 
@@ -50,7 +53,7 @@ local get_session_async = function(client, connection_options)
   connection_options.DatabaseDisplayName = connection_options.DatabaseDisplayName or connection_options.database
 
   utils.lsp_request_async(client, "objectexplorer/createsession", connection_options)
-  local response, err = wait_for_notification_async(client, "objectexplorer/sessioncreated", 10000)
+  local response, err = wait_for_notification_async(client, "objectexplorer/sessioncreated", object_explorer_timeout)
   if response and response.rootNode and response.rootNode.objectType == "Server" then
     -- If we connect to a system database then the root node will be the server.
     -- So we need to set a target path to navigate to first so that we only search the database we connect to
@@ -375,6 +378,9 @@ local function delete_unused_cache(in_use_connections)
 end
 
 return {
+  setup = function(timeouts)
+    object_explorer_timeout = timeouts.object_explorer
+  end,
   initialise_cache_async = initialise_cache_async,
   delete_unused_cache = delete_unused_cache,
   is_refreshing = is_refreshing,

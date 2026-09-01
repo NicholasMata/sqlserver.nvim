@@ -38,6 +38,14 @@ return {
     max_cell_width = 100,
   },
 
+  -- Operational waits in milliseconds. false disables a timeout.
+  timeouts = {
+    lsp_attach = 10000,
+    connection = 10000,
+    object_explorer = 10000,
+    query = false,
+  },
+
   -- When choosing a table/view in the finder, immediately execute the generated SELECT statement
   execute_generated_select_statements = true,
 

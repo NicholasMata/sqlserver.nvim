@@ -44,6 +44,20 @@ return {
     local rows = query_backend.get_result_rows_async({ ownerUri = "file:///query.sql", rowsCount = 1 })
     assert(backend.is_connected_async())
 
+    utils.wait_for_notification_async = function()
+      return nil, { message = "Waiting for internal notification timed out" }
+    end
+    local connected, connection_error = pcall(backend.connect_async, { connection = { options = {} } })
+    assert(not connected)
+    assert(tostring(connection_error) == "SQL Server connection timed out")
+    assert(connection_error.diagnostic == "SQL Tools Service did not send connection/complete within 10 seconds")
+
+    local timed_backend = query_backend.create(0, {}, { connection = 10000, query = 500 })
+    local executed, query_error = pcall(timed_backend.execute_async, { kind = "buffer", text = "WAITFOR" })
+    assert(not executed and query_error.message == "SQL Server query timed out")
+    assert(query_error.diagnostic:find("cancellation was requested", 1, true))
+    assert(requests[#requests].method == "query/cancel")
+
     utils.lsp_request_async = original_request
     utils.wait_for_notification_async = original_wait
     utils.get_lsp_client = original_get_client

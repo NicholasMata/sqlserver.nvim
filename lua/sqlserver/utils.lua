@@ -184,7 +184,7 @@ return {
   ---@param client vim.lsp.Client
   ---@param bufnr integer
   ---@param method string
-  ---@param timeout integer
+  ---@param timeout integer|false
   ---@return any result
   ---@return lsp.ResponseError? error
   wait_for_notification_async = function(bufnr, client, method, timeout)
@@ -202,20 +202,22 @@ return {
     end
     register_lsp_handler(client, method, handler)
 
-    vim.defer_fn(function()
-      if not resumed then
-        resumed = true
-        unregister_lsp_handler(client, method, handler)
-        try_resume(
-          this,
-          nil,
-          vim.lsp.rpc_response_error(
-            vim.lsp.protocol.ErrorCodes.UnknownErrorCode,
-            "Waiting for the lsp to call " .. method .. " timed out for buffer " .. bufnr
+    if timeout then
+      vim.defer_fn(function()
+        if not resumed then
+          resumed = true
+          unregister_lsp_handler(client, method, handler)
+          try_resume(
+            this,
+            nil,
+            vim.lsp.rpc_response_error(
+              vim.lsp.protocol.ErrorCodes.UnknownErrorCode,
+              "Waiting for the lsp to call " .. method .. " timed out for buffer " .. bufnr
+            )
           )
-        )
-      end
-    end, timeout)
+        end
+      end, timeout)
+    end
     return coroutine.yield()
   end,
   get_lsp_client = get_lsp_client,

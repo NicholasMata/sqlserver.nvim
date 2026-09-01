@@ -63,6 +63,27 @@ datetime, and binary display values are preserved at the SQL Tools Service
 adapter boundary together with invariant-culture values when the service
 provides them.
 
+### Timeouts
+
+Operational timeouts use milliseconds. Set an individual timeout to `false` to
+wait indefinitely:
+
+```lua
+timeouts = {
+  lsp_attach = 10000,
+  connection = 10000,
+  object_explorer = 10000,
+  query = false,
+}
+```
+
+Queries have no timeout by default. When a configured query timeout expires,
+the plugin requests server-side cancellation and marks the connection
+disconnected because its execution state cannot be confirmed. Use `Reconnect`
+before executing another query. For an intentional interactive stop, use
+`CancelQuery`. UI redraw and debounce intervals are internal implementation
+details and are not part of this configuration.
+
 ### Messages and activity
 
 `view_messages_in` controls SQL Server messages:
@@ -241,6 +262,10 @@ protocol failure occurs, or an error-only execution fails a connection probe,
 the workspace transitions to disconnected while retaining its last connection
 profile. Use `:SQLServer Reconnect` or the `R` mapping suffix to retry that exact
 connection without selecting the profile again.
+
+Connection timeouts are presented as `SQL Server connection timed out`. The
+activity history retains the corresponding SQL Tools Service diagnostic so the
+notification does not expose LSP method names or buffer identifiers.
 
 | Default suffix | Command | Behavior |
 | --- | --- | --- |
