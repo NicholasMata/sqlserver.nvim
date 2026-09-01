@@ -1,8 +1,6 @@
 # sqlserver.nvim
 
-
-https://github.com/user-attachments/assets/034df3b6-6755-4ea6-8361-88dd8d0ddf2c
-
+https://github.com/user-attachments/assets/d7838d49-58e5-44c0-8a71-c649a2b2df34
 
 Stay in Neovim for the daily SQL Server workflow—from connecting and exploring
 objects to executing T-SQL and inspecting results.
