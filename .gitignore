@@ -9,3 +9,6 @@ nvim.log
 
 # Isolated local test state
 /.tests/
+
+# macOS metadata
+.DS_Store
