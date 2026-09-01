@@ -15,6 +15,7 @@ local ui_options = require("sqlserver.ui.options")
 local status_ui = require("sqlserver.ui.status")
 local timeout_options = require("sqlserver.core.timeouts")
 local connection_profiles = require("sqlserver.core.connection_profiles")
+local public_api = require("sqlserver.api")
 
 local joinpath = vim.fs.joinpath
 local winbar_expression = "%{%v:lua.require'sqlserver.ui.status'.winbar()%}"
@@ -351,6 +352,7 @@ local function setup_async(opts)
   end
 
   plugin_opts = opts
+  public_api.configure(opts)
 end
 
 local edit_connections = function(opts)
@@ -384,6 +386,28 @@ local function prepare_connection(profile, name)
   end
   connection_profiles.validate(connection, name)
   return connection
+end
+
+local function await_public(invoke)
+  local co = coroutine.running()
+  local completed = false
+  local result
+  local api_err
+  invoke(function(value, err)
+    completed = true
+    result = value
+    api_err = err
+    if coroutine.status(co) == "suspended" then
+      coroutine.resume(co)
+    end
+  end)
+  if not completed then
+    coroutine.yield()
+  end
+  if api_err then
+    error(api_err.message, 0)
+  end
+  return result
 end
 
 local function switch_database_async(buf)
@@ -427,13 +451,9 @@ local connect_async = function(opts, workspace)
 
   local con = prepare_connection(json[con_name], con_name)
 
-  local connectParams = {
-    connection = {
-      options = con,
-    },
-  }
-
-  workspace.connect_async(connectParams)
+  await_public(function(callback)
+    public_api.connect(con, { bufnr = workspace.bufnr, profile_name = con_name, refresh_objects = false }, callback)
+  end)
 
   if con.promptForDatabase then
     switch_database_async()
@@ -470,13 +490,13 @@ local function new_default_query_async(opts)
     error("CRITICAL: Lsp attached without a SQL workspace")
   end
 
-  local connectParams = {
-    connection = {
-      options = connection,
-    },
-  }
-
-  workspace.connect_async(connectParams)
+  await_public(function(callback)
+    public_api.connect(
+      connection,
+      { bufnr = workspace.bufnr, profile_name = "default", refresh_objects = false },
+      callback
+    )
+  end)
 
   if connection.promptForDatabase then
     switch_database_async(buf)
@@ -613,13 +633,13 @@ local function connect_to_default(workspace, opts)
 
   local connection = prepare_connection(connections.default, "default")
 
-  local connectParams = {
-    connection = {
-      options = connection,
-    },
-  }
-
-  workspace.connect_async(connectParams)
+  await_public(function(callback)
+    public_api.connect(
+      connection,
+      { bufnr = workspace.bufnr, profile_name = "default", refresh_objects = false },
+      callback
+    )
+  end)
 
   if connection.promptForDatabase then
     switch_database_async()
@@ -630,49 +650,23 @@ local function save_query_results_async(result_info)
   utils.wait_for_schedule_async()
   local subset_params = result_info.subset_params
 
-  local success, lsp_client = pcall(utils.get_lsp_client, subset_params.ownerUri)
-  if not success then
-    error("The buffer with the sql query has been closed, can't save query results")
-  end
-
   local file = vim.fn.input("Save query results (.csv/.json/.xls/.xlsx/.xml)", "", "file")
   if not file or file == "" then
     utils.log_error("No file path given")
     return
   end
 
-  local params = {
-    FilePath = file,
-    BatchIndex = subset_params.batchIndex,
-    ResultSetIndex = subset_params.resultSetIndex,
-    OwnerUri = subset_params.ownerUri,
-    IncludeHeaders = true,
-    Formatted = true,
-  }
-
-  local method
-  local openAfterSave = true
-  if file:match("%.csv$") then
-    method = "query/saveCsv"
-  elseif file:match("%.json$") then
-    method = "query/saveJson"
-  elseif file:match("%.xml$") then
-    method = "query/saveXml"
-  elseif file:match("%.xls$") or file:match("%.xlsx$") then
-    method = "query/saveExcel"
-    openAfterSave = false
-  else
+  local extension = file:match("%.([^.]+)$")
+  extension = extension and extension:lower() or nil
+  if not vim.tbl_contains({ "csv", "json", "xml", "xls", "xlsx" }, extension) then
     utils.log_error("File extension not recognised. Enter a file with extension .csv/.json/.xls/.xlsx/.xml")
     return
   end
+  local openAfterSave = extension ~= "xls" and extension ~= "xlsx"
 
-  local _, err = utils.lsp_request_async(lsp_client, method, params)
-
-  if err then
-    utils.log_error("Error saving query results")
-    utils.log_error(vim.inspect(err))
-    return
-  end
+  await_public(function(callback)
+    public_api.export_results({ result_set = { locator = subset_params }, path = file }, callback)
+  end)
 
   utils.log_info("File saved")
 
@@ -681,7 +675,7 @@ local function save_query_results_async(result_info)
   end
 end
 
-local M = {
+local command_handlers = {
   new_query = function()
     utils.try_resume(coroutine.create(function()
       new_query_async()
@@ -733,10 +727,11 @@ local M = {
       utils.log_error("No SQL Server workspace is attached to this buffer")
       return
     end
-    utils.try_resume(coroutine.create(function()
-      workspace.reconnect_async()
-      workspace.initialise_objects_async()
-    end))
+    public_api.reconnect(workspace.bufnr, function(_, err)
+      if err then
+        utils.log_error(err.message)
+      end
+    end)
   end,
 
   edit_connections = function()
@@ -775,7 +770,9 @@ local M = {
       return
     end
     utils.try_resume(coroutine.create(function()
-      workspace.disconnect_async()
+      await_public(function(callback)
+        public_api.disconnect(workspace.bufnr, callback)
+      end)
       clean_cache()
     end))
   end,
@@ -793,9 +790,11 @@ local M = {
       end
       query_results.clear()
       clear_message_buffer()
-      local result = workspace.execute_async(request)
-      if result then -- since cancelled query returns nil, have to check for nil before displaying
-        query_results.display(plugin_opts, result)
+      local execution = await_public(function(callback)
+        public_api.execute({ bufnr = workspace.bufnr, request = request }, callback)
+      end)
+      if not execution.cancelled then
+        query_results.show(plugin_opts, execution.result_sets)
       end
     end))
   end,
@@ -813,9 +812,11 @@ local M = {
       end
       query_results.clear()
       clear_message_buffer()
-      local result = workspace.execute_async(request)
-      if result then
-        query_results.display(plugin_opts, result)
+      local execution = await_public(function(callback)
+        public_api.execute({ bufnr = workspace.bufnr, request = request }, callback)
+      end)
+      if not execution.cancelled then
+        query_results.show(plugin_opts, execution.result_sets)
       end
     end))
   end,
@@ -826,9 +827,11 @@ local M = {
       utils.log_error("No SQL Server lsp is attached. Create a new query or open an existing one.")
       return
     end
-    utils.try_resume(coroutine.create(function()
-      workspace.cancel_async()
-    end))
+    public_api.cancel(workspace.bufnr, function(_, err)
+      if err then
+        utils.log_error(err.message)
+      end
+    end)
   end,
 
   status = status_ui.component,
@@ -917,8 +920,10 @@ local M = {
       if plugin_opts.execute_generated_select_statements and item.execute_immediately then
         query_results.clear()
         clear_message_buffer()
-        local result = workspace.execute_async({ kind = "buffer", text = item.script })
-        query_results.display(plugin_opts, result)
+        local execution = await_public(function(api_callback)
+          public_api.execute({ bufnr = workspace.bufnr, text = item.script, scope = "buffer" }, api_callback)
+        end)
+        query_results.show(plugin_opts, execution.result_sets)
       end
       if callback then
         callback()
@@ -955,8 +960,46 @@ local M = {
   end,
 }
 
+local M = {
+  current_connection = public_api.current_connection,
+  execute = public_api.execute,
+  cancel = public_api.cancel,
+  list_objects = public_api.list_objects,
+  script_object = public_api.script_object,
+  export_results = public_api.export_results,
+  status = status_ui.component,
+  commands = command_handlers,
+}
+
+for name, handler in pairs(command_handlers) do
+  if M[name] == nil then
+    M[name] = handler
+  end
+end
+
+M.connect = function(profile, opts, callback)
+  if profile == nil then
+    return command_handlers.connect()
+  end
+  return public_api.connect(profile, opts, callback)
+end
+
+M.reconnect = function(bufnr, callback)
+  if callback == nil then
+    return command_handlers.reconnect()
+  end
+  return public_api.reconnect(bufnr, callback)
+end
+
+M.disconnect = function(bufnr, callback)
+  if callback == nil then
+    return command_handlers.disconnect()
+  end
+  return public_api.disconnect(bufnr, callback)
+end
+
 M.set_keymaps = function(prefix)
-  interface.set_keymaps(prefix, M)
+  interface.set_keymaps(prefix, command_handlers)
 end
 
 ---Subscribe to structured workspace activity events.
@@ -969,8 +1012,8 @@ end
 M.setup = function(opts, callback)
   utils.try_resume(coroutine.create(function()
     setup_async(opts)
-    interface.set_user_commands(M)
-    interface.set_keymaps(plugin_opts.keymap_prefix, M)
+    interface.set_user_commands(command_handlers)
+    interface.set_keymaps(plugin_opts.keymap_prefix, command_handlers)
     if callback ~= nil then
       callback()
     end

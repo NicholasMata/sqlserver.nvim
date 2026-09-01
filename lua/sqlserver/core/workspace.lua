@@ -332,6 +332,16 @@ function M.create(opts)
     return objects.find_async(connect_params.connection.options, backend.client, intent)
   end
 
+  function workspace.list_objects(filters)
+    assert(connect_params, "Connect before listing database objects")
+    return objects.list(connect_params.connection.options, filters)
+  end
+
+  function workspace.script_object_async(opts)
+    assert(connect_params, "Connect before scripting a database object")
+    return objects.script_async(connect_params.connection.options, backend.client, opts)
+  end
+
   function workspace.is_refreshing()
     return connect_params and objects.is_refreshing(connect_params.connection.options) or false
   end

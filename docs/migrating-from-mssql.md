@@ -155,6 +155,11 @@ require("lualine").setup({
 The workspace publishes state changes to replaceable subscribers instead of
 calling a particular notification, winbar, or statusline integration directly.
 
+Programmatic operations now use the documented callback-based
+[`sqlserver.nvim` public API](public-api.md). Interactive Lua handlers are
+available under `require("sqlserver").commands`; they are separate from the
+UI-independent connection, execution, object, cancellation, and export API.
+
 ## Added commands and keymaps
 
 The original connection, database, object finder, backup/restore, export, and

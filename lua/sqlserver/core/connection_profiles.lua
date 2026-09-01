@@ -141,4 +141,13 @@ function M.failure(message, profile)
   }
 end
 
+---@param profile table
+---@return table
+function M.public_view(profile)
+  local view = vim.deepcopy(profile)
+  view.password = nil
+  view.azureAccountToken = nil
+  return view
+end
+
 return M

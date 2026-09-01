@@ -359,6 +359,53 @@ local find_async = function(connection_options, lsp_client, intent)
   return generate_script_async(item, lsp_client, intent)
 end
 
+local function cached_items(connection_options)
+  local entry = global_cache[connection_key(connection_options)]
+  return entry and entry.cache or {}
+end
+
+local function public_object(item)
+  local metadata = item.metadata or {}
+  return {
+    id = item.nodePath or item.text,
+    name = metadata.name or item.label,
+    schema = metadata.schema,
+    type = item.objectType or item.nodeType,
+    path = item.picker_path,
+  }
+end
+
+local function list_objects(connection_options, filters)
+  filters = filters or {}
+  return vim
+    .iter(cached_items(connection_options))
+    :filter(function(item)
+      local object = public_object(item)
+      return (not filters.name or object.name == filters.name)
+        and (not filters.schema or object.schema == filters.schema)
+        and (not filters.type or object.type == filters.type)
+    end)
+    :map(public_object)
+    :totable()
+end
+
+local function script_object_async(connection_options, client, opts)
+  local target = opts.object or opts
+  local item = vim.iter(cached_items(connection_options)):find(function(candidate)
+    local object = public_object(candidate)
+    if target.id then
+      return object.id == target.id
+    end
+    return object.name == target.name
+      and (not target.schema or object.schema == target.schema)
+      and (not target.type or object.type == target.type)
+  end)
+  if not item then
+    error("SQL Server object was not found in the current metadata cache", 0)
+  end
+  return generate_script_async(item, client, opts.intent or "definition")
+end
+
 local function delete_unused_cache(in_use_connections)
   -- convert to keys first
   local in_use = {}
@@ -385,4 +432,6 @@ return {
   delete_unused_cache = delete_unused_cache,
   is_refreshing = is_refreshing,
   find_async = find_async,
+  list = list_objects,
+  script_async = script_object_async,
 }

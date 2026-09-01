@@ -46,17 +46,18 @@
 
 ## Phase 4: Public API
 
-- `connect(profile)`
-- `disconnect(bufnr)`
+- `connect(profile, opts, callback)`
+- `disconnect(bufnr, callback)` and `reconnect(bufnr, callback)`
 - `current_connection(bufnr)`
-- `execute(opts)`
-- `cancel(bufnr)`
-- `list_objects(opts)`
-- `script_object(opts)`
-- `export_results(opts)`
+- `execute(opts, callback)`
+- `cancel(bufnr, callback)`
+- `list_objects(opts, callback)`
+- `script_object(opts, callback)`
+- `export_results(opts, callback)`
 
-The API should be useful both for user config and for future MCP/agent
-integration.
+The API uses explicit buffers, structured errors, secret-free connection
+snapshots, and UI-independent result models so it is useful both for user
+config and future MCP/agent integration.
 
 ## Later
 

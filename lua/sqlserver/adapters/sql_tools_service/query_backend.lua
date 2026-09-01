@@ -67,6 +67,36 @@ function M.get_result_rows_async(locator)
     :totable()
 end
 
+local export_methods = {
+  csv = "query/saveCsv",
+  json = "query/saveJson",
+  xml = "query/saveXml",
+  xls = "query/saveExcel",
+  xlsx = "query/saveExcel",
+}
+
+---@param locator table
+---@param path string
+---@param format string
+function M.export_result_async(locator, path, format)
+  local method = export_methods[format]
+  if not method then
+    error("Unsupported result export format: " .. tostring(format), 0)
+  end
+  local client = utils.get_lsp_client(locator.ownerUri)
+  local _, err = utils.lsp_request_async(client, method, {
+    FilePath = path,
+    BatchIndex = locator.batchIndex,
+    ResultSetIndex = locator.resultSetIndex,
+    OwnerUri = locator.ownerUri,
+    IncludeHeaders = true,
+    Formatted = true,
+  })
+  if err then
+    error("Could not export query result: " .. err.message, 0)
+  end
+end
+
 ---@param bufnr integer
 ---@param client vim.lsp.Client
 ---@param timeouts? table

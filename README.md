@@ -89,7 +89,9 @@ visual selection, and `<leader>sX` for the complete buffer. Commands are also
 available through `:SQLServer`.
 
 See [Configuration](docs/configuration.md) for all options, commands, keymaps,
-result navigation, statusline usage, and custom activity presenters.
+result navigation, statusline usage, and custom activity presenters. See the
+[Public Lua API](docs/public-api.md) for UI-independent connection, execution,
+object, cancellation, and export operations.
 
 ## Contributing
 
