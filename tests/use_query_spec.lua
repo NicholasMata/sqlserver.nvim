@@ -1,5 +1,6 @@
 local sqlserver = require("sqlserver")
 local utils = require("sqlserver.utils")
+local workspace_registry = require("sqlserver.core.workspace_registry")
 
 return {
 	test_name = "Executing a USE statement should switch database",
@@ -17,7 +18,7 @@ return {
 		end
 
 		utils.defer_async(1000)
-		local db = vim.b[buf].query_manager.get_connect_params().connection.options.database
+		local db = workspace_registry.get(buf).get_connection().database
 		assert(db == "TestDbB", "Expected database to be TestDbB but instead it's " .. db)
 
 		vim.cmd("bdelete!")

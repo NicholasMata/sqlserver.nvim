@@ -33,11 +33,8 @@ local function setup_async()
 end
 
 return {
-	test_name = "Setup should download and extract the sql tools",
+	test_name = "Setup should provision SQL Tools Service",
 	run_test_async = function()
-		vim.fn.delete(tools_folder, "rf")
-		vim.fn.delete(vim.fs.joinpath(vim.fn.stdpath("data"), "sqlserver.nvim/config.json"))
-
 		local download_finished = false
 		vim.defer_fn(function()
 			assert(download_finished, "Download did not complete")

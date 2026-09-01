@@ -107,6 +107,28 @@ local nodeTypes = {
 	},
 }
 
+local object_branch_patterns = {
+	"/Tables",
+	"/Views",
+	"/Programmability/Stored Procedures",
+	"/Programmability/Functions",
+}
+
+local function is_object_branch(node_path, database_path)
+	if node_path == database_path then
+		return true
+	end
+
+	local relative_path = node_path:sub(#database_path + 1)
+	if relative_path == "/Programmability" then
+		return true
+	end
+
+	return vim.iter(object_branch_patterns):any(function(branch)
+		return relative_path == branch or vim.startswith(relative_path, branch .. "/")
+	end)
+end
+
 local get_object_cache_async = function(lsp_client, connection_options, cancellation_token)
 	utils.wait_for_schedule_async()
 	local session = get_session_async(lsp_client, connection_options)
@@ -170,11 +192,10 @@ local get_object_cache_async = function(lsp_client, connection_options, cancella
 			elseif session.target_path and vim.startswith(session.target_path, node.nodePath) then
 				-- We are on our way to the target, expand
 				expand(node.nodePath)
-			elseif session.target_path and vim.startswith(node.nodePath, session.target_path) then
-				-- we have hit our target path, expand inside it
+			elseif session.target_path and is_object_branch(node.nodePath, session.target_path) then
+				-- Only traverse branches containing supported object types.
 				expand(node.nodePath)
-			elseif not session.target_path then
-				-- We are not in a system database. Expand as usual
+			elseif not session.target_path and is_object_branch(node.nodePath, root_path) then
 				expand(node.nodePath)
 			end
 		end
@@ -228,11 +249,21 @@ end
 -- one cache per server and db (ie per connect opts)
 local global_cache = {}
 
-local function is_refreshing(connection_options)
-	local key = connection_options
-	if type(key) == "table" then
-		key = vim.json.encode(connection_options)
+local function connection_key(connection_options)
+	if type(connection_options) ~= "table" then
+		return connection_options
 	end
+
+	return vim.json.encode({
+		server = connection_options.server,
+		database = connection_options.database,
+		user = connection_options.user,
+		authentication_type = connection_options.authenticationType,
+	})
+end
+
+local function is_refreshing(connection_options)
+	local key = connection_key(connection_options)
 
 	return (
 		global_cache[key]
@@ -245,7 +276,7 @@ end
 -- Initialises the cache, unless it already exists
 -- If force is true, then gets a new cache and overwrites
 local initialise_cache_async = function(lsp_client, connection_options, force)
-	local key = vim.json.encode(connection_options)
+	local key = connection_key(connection_options)
 	if not global_cache[key] then
 		global_cache[key] = {}
 	end
@@ -328,7 +359,7 @@ local find_async = function(connection_options, lsp_client)
 	if connection_options and connection_options.database and connection_options.server then
 		title = connection_options.server .. " | " .. connection_options.database
 	end
-	local key = vim.json.encode(connection_options)
+	local key = connection_key(connection_options)
 	local cache = {}
 	if global_cache[key] and global_cache[key].cache then
 		cache = global_cache[key].cache
@@ -345,10 +376,7 @@ local function delete_unused_cache(in_use_connections)
 	-- convert to keys first
 	local in_use = {}
 	for _, in_use_connection in ipairs(in_use_connections) do
-		local key = in_use_connection
-		if type(key) == "table" then
-			key = vim.json.encode(key)
-		end
+		local key = connection_key(in_use_connection)
 		in_use[key] = true
 	end
 

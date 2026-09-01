@@ -27,10 +27,8 @@ INSERT INTO PersonNonAscii
 VALUES
   ('Very Long Name', 40),
   (N'Bøb', 40),
-  -- New line
   ('Bob' + CHAR(10), 40),
-  -- Zero width space
-  (N'Bob' + NCHAR(8203) , 40);
+  (N'Bob' + NCHAR(8203), 40);
 GO
 
 CREATE DATABASE TestDbB;
@@ -44,7 +42,8 @@ CREATE TABLE Car
 );
 INSERT INTO Car
   (Make, PersonId)
-Values
+VALUES
   ('Merc', 1),
   ('Ford', 1),
   ('Hyundai', 2);
+GO

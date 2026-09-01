@@ -4,8 +4,24 @@ on:
   pull_request:
 
 jobs:
+  unit:
+    name: Unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Install Neovim
+        run: |
+          curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz
+          sudo tar -C /opt -xzf nvim-linux-x86_64.tar.gz
+          echo "/opt/nvim-linux-x86_64/bin" >> $GITHUB_PATH
+
+      - name: Run unit tests
+        run: make test-unit
+
   test:
-    name: Test on ${{ matrix.os }}
+    name: Integration tests on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
@@ -33,7 +49,7 @@ jobs:
         run:
           sqlcmd -S "${{ env.DbServer }}" -U "${{ env.DbUser }}" -P "${{
           env.DbPassword }}" -d "${{ env.DbDatabase }}" -i
-          ./.github/workflows/seed.sql -C
+          ./tests/integration/seed.sql -C
 
       - name: Install winget (Windows)
         if: runner.os == 'Windows'
@@ -59,8 +75,7 @@ jobs:
           echo "/opt/nvim-linux-x86_64/bin" >> $GITHUB_PATH
 
       - name: Run Neovim tests
-        run: |
-          nvim -u runtests.lua --headless
+        run: make test-integration
 
       - name: Upload Neovim state folder
         if: failure()

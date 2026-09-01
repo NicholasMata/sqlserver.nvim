@@ -3,16 +3,21 @@ local utils = require("sqlserver.utils")
 return {
 	defer_async = utils.defer_async,
 	get_completion_items = function()
-		-- Trigger <C-x><C-o> to invoke omnifunc
-		vim.api.nvim_feedkeys(vim.api.nvim_replace_termcodes("a<C-x><C-o>", true, false, true), "n", true)
+		local client = utils.get_lsp_client()
+		local cursor = vim.api.nvim_win_get_cursor(0)
+		local result, err = utils.lsp_request_async(client, "textDocument/completion", {
+			textDocument = { uri = utils.lsp_file_uri() },
+			-- Normal-mode cursor columns point at a character. Completion is
+			-- requested at the insertion point immediately after it.
+			position = { line = cursor[1] - 1, character = cursor[2] + 1 },
+			context = { triggerKind = vim.lsp.protocol.CompletionTriggerKind.Invoked },
+		})
+		assert(not err, err and err.message or "Completion request failed")
 
-		-- Completion results are async
-		utils.defer_async(500)
-		local items = vim.fn.complete_info({ "items" }).items or {}
-		vim.cmd("stopinsert")
+		local items = result and (result.items or result) or {}
 		return vim.iter(items)
 			:map(function(item)
-				return item.word or item.abbr
+				return item.label
 			end)
 			:totable()
 	end,

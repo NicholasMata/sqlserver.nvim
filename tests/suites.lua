@@ -1,0 +1,23 @@
+return {
+	unit = {
+		"tests.lsp_nulls_spec",
+		"tests.sql_tools_service_adapter_spec",
+		"tests.workspace_spec",
+	},
+	integration = {
+		"tests.download_spec",
+		"tests.saved_file_completion_spec",
+		"tests.edit_connections_spec",
+		"tests.new_query_completion_spec",
+		"tests.connect_spec",
+		"tests.dbo_completion_spec",
+		"tests.execute_query_spec",
+		"tests.switch_database_spec",
+		"tests.finder_spec",
+		"tests.query_zero_rows_spec",
+		"tests.file_with_space_spec",
+		"tests.non_ascii_spec",
+		"tests.cancel_query_spec",
+		"tests.use_query_spec",
+	},
+}

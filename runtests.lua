@@ -23,7 +23,7 @@ vim.o.completeopt = "menu,menuone,noselect,noinsert"
 
 local src = vim.fn.stdpath("state")
 print_without_prompt("nvim state path: " .. src)
-vim.lsp.set_log_level("debug")
+vim.lsp.log.set_level("debug")
 
 local function copy_state_folder()
 	if vim.env.GITHUB_ACTIONS == "true" then
@@ -52,25 +52,24 @@ local function run_test(test)
 	end
 end
 
-local tests = {
-	require("tests.lsp_nulls_spec"),
-	require("tests.download_spec"),
-	require("tests.saved_file_completion_spec"),
-	require("tests.edit_connections_spec"),
-	require("tests.new_query_completion_spec"),
-	require("tests.connect_spec"),
-	-- Due to the internal timeout (see findings/notes.md),
-	-- This test in inconsistent
-	require("tests.dbo_completion_spec"),
-	require("tests.execute_query_spec"),
-	require("tests.switch_database_spec"),
-	require("tests.finder_spec"),
-	require("tests.query_zero_rows_spec"),
-	require("tests.file_with_space_spec"),
-	require("tests.non_ascii_spec"),
-	require("tests.cancel_query_spec"),
-	require("tests.use_query_spec"),
-}
+local suite_name = vim.env.SQLSERVER_TEST_SUITE or "unit"
+local suites = require("tests.suites")
+local suite = suites[suite_name]
+assert(suite, "Unknown SQLSERVER_TEST_SUITE: " .. suite_name)
+
+if suite_name == "integration" then
+	for _, name in ipairs({ "DbServer", "DbDatabase", "DbUser", "DbPassword" }) do
+		assert(vim.env[name] and vim.env[name] ~= "", name .. " is required for integration tests")
+	end
+end
+
+local tests = vim.iter(suite)
+	:map(function(module)
+		return require(module)
+	end)
+	:totable()
+
+print_without_prompt("Running " .. suite_name .. " test suite")
 
 coroutine.resume(coroutine.create(function()
 	for _, test in ipairs(tests) do

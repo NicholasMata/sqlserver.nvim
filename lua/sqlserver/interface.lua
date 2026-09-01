@@ -1,6 +1,7 @@
 -- Handles how the user user interfaces with this plugin, i.e. keymaps and user commands
-local query_manager_module = require("sqlserver.query_manager")
 local utils = require("sqlserver.utils")
+local workspace_module = require("sqlserver.core.workspace")
+local workspace_registry = require("sqlserver.core.workspace_registry")
 
 return {
 	set_keymaps = function(prefix, M)
@@ -56,24 +57,24 @@ return {
 
 			local normal_group = vim.tbl_deep_extend("keep", wkeygroup, {})
 			normal_group.expand = function()
-				local qm = vim.b.query_manager
-				if qm then
-					local state = qm.get_state()
-					local states = query_manager_module.states
-					if state == states.Connecting then
+				local workspace = workspace_registry.get()
+				if workspace then
+					local state = workspace.get_state()
+					local states = workspace_module.states
+					if state == states.connecting then
 						return {
 							keymaps.new_query,
 							keymaps.new_default_query,
 							keymaps.edit_connections,
 						}
-					elseif state == states.Executing then
+					elseif state == states.executing then
 						return {
 							keymaps.new_query,
 							keymaps.new_default_query,
 							keymaps.edit_connections,
 							keymaps.cancel_query,
 						}
-					elseif state == states.Connected then
+					elseif state == states.connected then
 						return {
 							keymaps.new_query,
 							keymaps.new_default_query,
@@ -89,7 +90,7 @@ return {
 							},
 							keymaps.find_object,
 						}
-					elseif state == states.Disconnected then
+					elseif state == states.disconnected then
 						return {
 							keymaps.new_query,
 							keymaps.new_default_query,
@@ -103,7 +104,7 @@ return {
 								icon = { icon = "", color = "green" },
 							},
 						}
-					elseif state == states.Cancelling then
+					elseif state == states.cancelling then
 						return {
 							keymaps.new_query,
 							keymaps.new_default_query,
@@ -132,16 +133,16 @@ return {
 			local visual_group = vim.tbl_deep_extend("keep", wkeygroup, {})
 			visual_group.mode = "v"
 			visual_group.expand = function()
-				local qm = vim.b.query_manager
-				if not qm then
+				local workspace = workspace_registry.get()
+				if not workspace then
 					return { keymaps.new_query, keymaps.new_default_query, keymaps.edit_connections }
 				end
 
-				local state = qm.get_state()
-				local states = query_manager_module.states
-				if state == states.Connecting or state == states.Executing or state == states.Disconnected then
+				local state = workspace.get_state()
+				local states = workspace_module.states
+				if state == states.connecting or state == states.executing or state == states.disconnected then
 					return {}
-				elseif state == states.Connected then
+				elseif state == states.connected then
 					return { keymaps.execute_query }
 				else
 					utils.log_error("Entered unrecognised query state: " .. state)
@@ -182,7 +183,7 @@ return {
 		}
 
 		local complete = function(_, _, _)
-			local qm = vim.b.query_manager
+			local workspace = workspace_registry.get()
 			if vim.b.query_result_info then
 				return {
 					"NewQuery",
@@ -190,7 +191,7 @@ return {
 					"EditConnections",
 					"SaveQueryResults",
 				}
-			elseif not qm then
+			elseif not workspace then
 				return {
 					"NewQuery",
 					"NewDefaultQuery",
@@ -198,22 +199,22 @@ return {
 				}
 			end
 
-			local state = qm.get_state()
-			local states = query_manager_module.states
-			if state == states.Connecting then
+			local state = workspace.get_state()
+			local states = workspace_module.states
+			if state == states.connecting then
 				return {
 					"NewQuery",
 					"NewDefaultQuery",
 					"EditConnections",
 				}
-			elseif state == states.Executing then
+			elseif state == states.executing then
 				return {
 					"NewQuery",
 					"NewDefaultQuery",
 					"EditConnections",
 					"CancelQuery",
 				}
-			elseif state == states.Connected then
+			elseif state == states.connected then
 				return {
 					"NewQuery",
 					"NewDefaultQuery",
@@ -226,14 +227,14 @@ return {
 					"RestoreDatabase",
 					"Find",
 				}
-			elseif state == states.Disconnected then
+			elseif state == states.disconnected then
 				return {
 					"NewQuery",
 					"NewDefaultQuery",
 					"EditConnections",
 					"Connect",
 				}
-			elseif state == states.Cancelling then
+			elseif state == states.cancelling then
 				return {
 					"NewQuery",
 					"NewDefaultQuery",

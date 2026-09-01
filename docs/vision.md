@@ -49,6 +49,18 @@ This loop should be boringly reliable before adding broad management features.
 - Preserve exact SQL wherever possible so users can review and repeat work.
 - Keep the initial surface small enough to maintain.
 
+## Compatibility Policy
+
+`sqlserver.nvim` does not promise backward compatibility with `mssql.nvim`.
+The inherited implementation is a source of working behavior, tests, and
+protocol knowledge rather than an API contract.
+
+Prefer a coherent `sqlserver.nvim` design over compatibility layers. Existing
+module names, commands, configuration fields, function signatures, and buffer
+state may be replaced when the new design provides clearer ownership and a
+stronger foundation. Preserve useful capabilities deliberately, not inherited
+interfaces accidentally.
+
 ## Backend Direction
 
 Use Microsoft SQL Tools Service where it is valuable:
@@ -80,4 +92,3 @@ These are explicitly out of scope for the early project:
 - Activity Monitor clone
 - replication or AlwaysOn administration
 - broad multi-database support
-

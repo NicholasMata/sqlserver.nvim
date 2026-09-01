@@ -4,6 +4,8 @@
 
 - Rename public module and docs from `mssql` to `sqlserver`.
 - Keep the SQL Tools Service executable/client name where required.
+- Remove inherited API and configuration constraints; compatibility with
+  `mssql.nvim` is not a goal.
 - Document the inherited architecture and known protocol quirks.
 - Keep the LSP null sanitizer until SQL Tools Service responses are normalized
   upstream.
@@ -59,4 +61,3 @@ integration.
 - Read-only/admin mode distinction.
 - Lightweight template/snippet explorer.
 - Performance investigation helpers using DMVs.
-

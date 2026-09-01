@@ -6,3 +6,6 @@
 
 # Neovim logs
 nvim.log
+
+# Isolated local test state
+/.tests/
