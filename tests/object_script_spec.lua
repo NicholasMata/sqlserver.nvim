@@ -21,5 +21,17 @@ return {
     local procedure_definition = object_script.for_intent("StoredProcedure", "definition")
     assert(procedure_definition.script_create_drop == "ScriptCreate")
     assert(procedure_definition.operation == 1)
+
+    for _, function_type in ipairs({ "ScalarValuedFunction", "TableValuedFunction" }) do
+      assert(object_script.for_intent(function_type, "query").operation == 0)
+      assert(object_script.for_intent(function_type, "definition").operation == 1)
+    end
+
+    local supported = object_script.supported_types()
+    assert(vim.tbl_contains(supported, "Table") and vim.tbl_contains(supported, "StoredProcedure"))
+    local valid, err = pcall(object_script.for_intent, "Table", "drop")
+    assert(not valid and err:find("query", 1, true) and err:find("definition", 1, true))
+    valid, err = pcall(object_script.for_intent, "Database", "definition")
+    assert(not valid and err:find("Unsupported", 1, true))
   end,
 }

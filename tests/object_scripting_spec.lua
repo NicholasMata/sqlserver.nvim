@@ -38,10 +38,23 @@ return {
     assert(not procedure_query:upper():find("CREATE", 1, true))
     vim.api.nvim_buf_delete(procedure_bufnr, { force = true })
 
+    for _, expected in ipairs({
+      { object_type = "ScalarValuedFunction", name = "GetCarMake" },
+      { object_type = "TableValuedFunction", name = "CarsForPerson" },
+    }) do
+      select_object(expected.object_type, expected.name)
+      local query, query_bufnr = run_action_async(sqlserver.find_object)
+      assert(query:find(expected.name, 1, true))
+      assert(query:upper():find("SELECT", 1, true))
+      vim.api.nvim_buf_delete(query_bufnr, { force = true })
+    end
+
     local definitions = {
       { object_type = "Table", name = "Car", keyword = "CREATE TABLE" },
       { object_type = "View", name = "CarView", keyword = "CREATE VIEW" },
       { object_type = "StoredProcedure", name = "GetCar", keyword = "CREATE PROCEDURE" },
+      { object_type = "ScalarValuedFunction", name = "GetCarMake", keyword = "CREATE FUNCTION" },
+      { object_type = "TableValuedFunction", name = "CarsForPerson", keyword = "CREATE FUNCTION" },
     }
     for _, expected in ipairs(definitions) do
       select_object(expected.object_type, expected.name)

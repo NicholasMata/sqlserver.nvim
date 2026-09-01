@@ -59,9 +59,18 @@ reports cancellation.
 
 ## Objects
 
+The 1.0 object model is a searchable snapshot of tables, views, stored
+procedures, scalar functions, and table-valued functions in the connected
+database. It is not a hierarchical server explorer.
+
 `list_objects(opts, callback)` returns metadata-cache descriptors containing
 `id`, `name`, `schema`, `type`, and `path`. Filter with `name`, `schema`, or
-`type`, and pass `bufnr` to select the workspace.
+`type`, and pass `bufnr` to select the workspace. During a forced refresh, the
+last successful snapshot remains readable. Before the first snapshot is ready,
+listing returns a `metadata_refreshing` error.
+
+Use `refresh_objects(bufnr, callback)` to replace the complete snapshot. A
+refresh superseded by another refresh completes with `cancelled = true`.
 
 Use a returned descriptor to avoid ambiguous names:
 
@@ -72,6 +81,9 @@ sqlserver.script_object({
   intent = "definition", -- or "query"
 }, callback)
 ```
+
+Only `query` and `definition` are supported intents. `ALTER`, `DROP`, and
+individual tree-node refresh are deliberately outside the 1.0 contract.
 
 ## Result Export
 

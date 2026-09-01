@@ -173,12 +173,23 @@ function M.cancel(bufnr, callback)
   end)
 end
 
+---@param bufnr? integer
+---@param callback fun(result?: table, error?: table)
+function M.refresh_objects(bufnr, callback)
+  run("object_refresh_failed", callback, function()
+    return get_workspace(bufnr).initialise_objects_async(true)
+  end)
+end
+
 ---@param opts? { bufnr?: integer, name?: string, schema?: string, type?: string }
 ---@param callback fun(objects?: table[], error?: table)
 function M.list_objects(opts, callback)
   opts = opts or {}
   run("object_list_failed", callback, function()
     local workspace = get_workspace(opts.bufnr)
+    if workspace.is_refreshing() and not workspace.has_object_cache() then
+      error(api_error("metadata_refreshing", "Database objects are still refreshing"), 0)
+    end
     return workspace.list_objects({ name = opts.name, schema = opts.schema, type = opts.type })
   end)
 end

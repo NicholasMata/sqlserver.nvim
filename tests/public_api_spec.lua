@@ -37,15 +37,22 @@ return {
       cancel_async = function() end,
       rebuild_intellisense = function() end,
     }
+    local refreshing = false
+    local has_cache = true
     local objects = {
-      initialise_cache_async = function() end,
+      initialise_cache_async = function()
+        return { cancelled = false, count = 1 }
+      end,
       is_refreshing = function()
-        return false
+        return refreshing
+      end,
+      has_cache = function()
+        return has_cache
       end,
       list = function(_, filters)
         return { { id = "table-1", name = filters.name or "Person", schema = "dbo", type = "Table" } }
       end,
-      script_async = function(_, _, opts)
+      script_async = function(_, _, _, opts)
         return { script = "SELECT * FROM dbo.Person", intent = opts.intent }
       end,
     }
@@ -73,6 +80,10 @@ return {
     assert(connection.password == nil, "Public connection snapshots must not expose passwords")
     local current = api.current_connection(321)
     assert(current.server == "localhost" and current.password == nil)
+    local refreshed = completed(function(callback)
+      api.refresh_objects(321, callback)
+    end)
+    assert(refreshed.count == 1)
 
     local pending_execution
     backend.execute_async = function()
@@ -111,6 +122,14 @@ return {
       api.list_objects({ bufnr = 321, name = "Person" }, callback)
     end)
     assert(listed[1].id == "table-1")
+    refreshing = true
+    has_cache = false
+    local _, refreshing_error = completed(function(callback)
+      api.list_objects({ bufnr = 321 }, callback)
+    end)
+    assert(refreshing_error.code == "metadata_refreshing")
+    refreshing = false
+    has_cache = true
     local scripted = completed(function(callback)
       api.script_object({ bufnr = 321, id = "table-1", intent = "query" }, callback)
     end)

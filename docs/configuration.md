@@ -300,6 +300,11 @@ but are never executed automatically because they may have side effects.
 Definitions use `CREATE` scripting for tables, views, stored procedures, and
 supported functions. They are always opened as editable SQL and never executed.
 
+The object workflow uses a searchable snapshot of the connected database's
+tables, views, stored procedures, scalar functions, and table-valued functions.
+`RefreshCache` replaces the complete snapshot; individual-node refresh and
+generic `ALTER`/`DROP` actions are outside the 1.0 scope.
+
 ## Commands
 
 Commands use the form `:SQLServer <command>`:

@@ -52,7 +52,10 @@ local get_session_async = function(client, connection_options)
   -- https://github.com/microsoft/sqltoolsservice/blob/49036c6196e73c3791bca5d31e97a16afee00772/src/Microsoft.SqlTools.ServiceLayer/ObjectExplorer/ObjectExplorerService.cs#L537
   connection_options.DatabaseDisplayName = connection_options.DatabaseDisplayName or connection_options.database
 
-  utils.lsp_request_async(client, "objectexplorer/createsession", connection_options)
+  local _, request_err = utils.lsp_request_async(client, "objectexplorer/createsession", connection_options)
+  if request_err then
+    error("SQL Tools Service could not start object exploration: " .. request_err.message, 0)
+  end
   local response, err = wait_for_notification_async(client, "objectexplorer/sessioncreated", object_explorer_timeout)
   if response and response.rootNode and response.rootNode.objectType == "Server" then
     -- If we connect to a system database then the root node will be the server.
@@ -61,7 +64,12 @@ local get_session_async = function(client, connection_options)
       .. "/Databases/System Databases/"
       .. connection_options.DatabaseName
   end
-  utils.safe_assert(not err, vim.inspect(err))
+  if err then
+    error("SQL Server object exploration timed out", 0)
+  end
+  if not (response and response.rootNode and response.sessionId) then
+    error("SQL Tools Service returned an invalid object explorer session", 0)
+  end
   return response
 end
 
@@ -84,14 +92,10 @@ end
       Alter = 6
   }
 --]]
-local supported_node_types = {
-  AggregateFunctionPartitionFunction = true,
-  ScalarValuedFunction = true,
-  StoredProcedure = true,
-  TableValuedFunction = true,
-  Table = true,
-  View = true,
-}
+local supported_node_types = {}
+for _, object_type in ipairs(object_script.supported_types()) do
+  supported_node_types[object_type] = true
+end
 
 local object_branch_patterns = {
   "/Tables",
@@ -126,18 +130,22 @@ local get_object_cache_async = function(lsp_client, connection_options, cancella
   local expand_count = 0
   local co = coroutine.running()
   local expand_complete
+  local finished = false
 
-  local clean_up_and_return = function(return_value)
-    -- disconnect
+  local clean_up_and_return = function(return_value, err)
+    if finished then
+      return
+    end
+    finished = true
     lsp_client:request("objectExplorer/closeSession", {
       sessionId = session_id,
-    }, function(err, result, _, _)
+    }, function(close_err, result, _, _)
       session_id = nil
-      return result, err
+      return result, close_err
     end)
     utils.unregister_lsp_handler(lsp_client, "objectexplorer/expandCompleted", expand_complete)
     if coroutine.status(co) == "suspended" then
-      coroutine.resume(co, return_value)
+      coroutine.resume(co, return_value, err)
     end
   end
 
@@ -146,24 +154,46 @@ local get_object_cache_async = function(lsp_client, connection_options, cancella
     vim.schedule(function()
       -- check for cancellation every time we expand a node in the tree
       if cancellation_token.cancel then
-        clean_up_and_return(false)
+        clean_up_and_return(nil, "cancelled")
         return
       end
       lsp_client:request("objectexplorer/expand", {
         sessionId = session_id,
         nodePath = path,
       }, function(err, result, _, _)
+        if err then
+          clean_up_and_return(nil, "SQL Tools Service could not expand database objects: " .. err.message)
+        end
         return result, err
       end)
     end)
   end
 
-  expand_complete = function(_, expand_result, _)
-    if not expand_result then
+  expand_complete = function(notification_err, expand_result, _)
+    if finished then
+      return
+    end
+    if notification_err then
+      clean_up_and_return(nil, "SQL Tools Service could not expand database objects: " .. notification_err.message)
+      return
+    end
+    if not (expand_result and type(expand_result.nodes) == "table") then
+      clean_up_and_return(nil, "SQL Tools Service returned an invalid object expansion")
       return
     end
     for _, node in ipairs(expand_result.nodes) do
       if supported_node_types[node.objectType] then
+        if
+          type(node.nodePath) ~= "string"
+          or type(node.parentNodePath) ~= "string"
+          or type(node.metadata) ~= "table"
+          or type(node.metadata.name) ~= "string"
+          or type(node.metadata.schema) ~= "string"
+          or type(node.metadata.metadataTypeName) ~= "string"
+        then
+          clean_up_and_return(nil, "SQL Tools Service returned an invalid database object")
+          return
+        end
         local path = node.parentNodePath
         local root_path_length = #root_path
         if session.target_path then
@@ -194,11 +224,23 @@ local get_object_cache_async = function(lsp_client, connection_options, cancella
 
   utils.register_lsp_handler(lsp_client, "objectexplorer/expandCompleted", expand_complete)
 
+  if object_explorer_timeout then
+    vim.defer_fn(function()
+      if not finished then
+        clean_up_and_return(nil, "SQL Server object refresh timed out")
+      end
+    end, object_explorer_timeout)
+  end
+
   expand(session.rootNode.nodePath)
-  return coroutine.yield()
+  local result, err = coroutine.yield()
+  if err then
+    return nil, err
+  end
+  return result
 end
 
-local generate_script_async = function(item, client, intent)
+local generate_script_async = function(item, client, owner_uri, intent)
   local spec = object_script.for_intent(item.objectType, intent)
   local scripting_params = {
     scriptDestination = "ToEditor",
@@ -214,12 +256,12 @@ local generate_script_async = function(item, client, intent)
       typeOfDataToScript = "SchemaOnly",
       scriptStatistics = "ScriptStatsNone",
     },
-    ownerURI = utils.lsp_file_uri(0),
+    ownerURI = owner_uri,
     operation = spec.operation,
   }
   local res, script_err = utils.lsp_request_async(client, "scripting/script", scripting_params)
   if script_err then
-    error("Error generating script: " .. vim.inspect({ err = script_err, scripting_params = scripting_params }), 0)
+    error("SQL Tools Service could not script the selected object: " .. script_err.message, 0)
   end
 
   if not (res and res.script) then
@@ -280,17 +322,28 @@ local initialise_cache_async = function(lsp_client, connection_options, force)
   local cancellation_token = { cancel = false }
   global_cache[key].cancellation_token = cancellation_token
 
-  global_cache[key].refresh_coroutine = coroutine.running()
+  local refresh_coroutine = coroutine.running()
+  global_cache[key].refresh_coroutine = refresh_coroutine
   vim.cmd("redrawstatus")
-  local new_cache = get_object_cache_async(lsp_client, connection_options, cancellation_token)
+  local new_cache, refresh_error = get_object_cache_async(lsp_client, connection_options, cancellation_token)
+  if global_cache[key] and global_cache[key].refresh_coroutine == refresh_coroutine then
+    global_cache[key].refresh_coroutine = nil
+    global_cache[key].cancellation_token = nil
+  end
+  if refresh_error == "cancelled" or cancellation_token.cancel then
+    return { cancelled = true }
+  end
+  if refresh_error then
+    error(refresh_error, 0)
+  end
   if not cancellation_token.cancel then
     global_cache[key].cache = new_cache
   end
+  return { cancelled = false, count = #new_cache }
 end
 
 -- Picker
 local picker_icons = {
-  AggregateFunctionPartitionFunction = "󰡱",
   ScalarValuedFunction = "󰡱",
   StoredProcedure = "󰯁",
   TableValuedFunction = "󰡱",
@@ -341,7 +394,7 @@ local pick_item_async = function(cache, title)
   return coroutine.yield()
 end
 
-local find_async = function(connection_options, lsp_client, intent)
+local find_async = function(connection_options, lsp_client, owner_uri, intent)
   local title = intent == "definition" and "Object Definition" or "Find Query"
   if connection_options and connection_options.database and connection_options.server then
     title = connection_options.server .. " | " .. connection_options.database
@@ -356,12 +409,17 @@ local find_async = function(connection_options, lsp_client, intent)
   if not item then
     return
   end
-  return generate_script_async(item, lsp_client, intent)
+  return generate_script_async(item, lsp_client, owner_uri, intent)
 end
 
 local function cached_items(connection_options)
   local entry = global_cache[connection_key(connection_options)]
   return entry and entry.cache or {}
+end
+
+local function has_cache(connection_options)
+  local entry = global_cache[connection_key(connection_options)]
+  return entry ~= nil and entry.cache ~= nil
 end
 
 local function public_object(item)
@@ -389,7 +447,7 @@ local function list_objects(connection_options, filters)
     :totable()
 end
 
-local function script_object_async(connection_options, client, opts)
+local function script_object_async(connection_options, client, owner_uri, opts)
   local target = opts.object or opts
   local item = vim.iter(cached_items(connection_options)):find(function(candidate)
     local object = public_object(candidate)
@@ -403,7 +461,7 @@ local function script_object_async(connection_options, client, opts)
   if not item then
     error("SQL Server object was not found in the current metadata cache", 0)
   end
-  return generate_script_async(item, client, opts.intent or "definition")
+  return generate_script_async(item, client, owner_uri, opts.intent or "definition")
 end
 
 local function delete_unused_cache(in_use_connections)
@@ -431,6 +489,7 @@ return {
   initialise_cache_async = initialise_cache_async,
   delete_unused_cache = delete_unused_cache,
   is_refreshing = is_refreshing,
+  has_cache = has_cache,
   find_async = find_async,
   list = list_objects,
   script_async = script_object_async,

@@ -1,7 +1,6 @@
 local M = {}
 
 local query_specs = {
-  AggregateFunctionPartitionFunction = { script_create_drop = "ScriptSelect", operation = 0 },
   ScalarValuedFunction = { script_create_drop = "ScriptSelect", operation = 0 },
   StoredProcedure = { script_create_drop = "ScriptCreate", operation = 5 },
   TableValuedFunction = { script_create_drop = "ScriptSelect", operation = 0 },
@@ -10,7 +9,6 @@ local query_specs = {
 }
 
 local definition_specs = {
-  AggregateFunctionPartitionFunction = { script_create_drop = "ScriptCreate", operation = 1 },
   ScalarValuedFunction = { script_create_drop = "ScriptCreate", operation = 1 },
   StoredProcedure = { script_create_drop = "ScriptCreate", operation = 1 },
   TableValuedFunction = { script_create_drop = "ScriptCreate", operation = 1 },
@@ -23,9 +21,13 @@ local definition_specs = {
 ---@return { script_create_drop: string, operation: integer, execute_immediately?: boolean }
 function M.for_intent(object_type, intent)
   local specs = intent == "query" and query_specs or intent == "definition" and definition_specs or nil
-  assert(specs, "Unknown object scripting intent: " .. vim.inspect(intent))
-  assert(specs[object_type], "Unsupported SQL Server object type: " .. vim.inspect(object_type))
+  assert(specs, "Object scripting intent must be 'query' or 'definition'")
+  assert(specs[object_type], "Unsupported SQL Server object type: " .. tostring(object_type))
   return vim.deepcopy(specs[object_type])
+end
+
+function M.supported_types()
+  return vim.tbl_keys(definition_specs)
 end
 
 return M

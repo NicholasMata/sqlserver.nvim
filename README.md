@@ -15,8 +15,8 @@ execution while keeping protocol, workspace, result, and UI concerns separate.
 - Connect query buffers to SQL Server and Azure SQL profiles.
 - Complete, diagnose, format, hover, navigate, and inspect T-SQL signatures
   through Neovim's built-in LSP support and SQL Tools Service.
-- Browse and script databases, schemas, tables, views, procedures, and
-  functions.
+- Search and script tables, views, procedures, and functions in the connected
+  database.
 - Execute the statement under the cursor, a visual selection, or the complete
   buffer.
 - Cancel active queries and inspect persistent workspace activity.

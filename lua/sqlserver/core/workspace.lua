@@ -322,14 +322,20 @@ function M.create(opts)
       finish_operation(operation_id, "error", "Metadata refresh failed")
       error(result, 0)
     end
-    finish_operation(operation_id, "success", "Database objects refreshed")
+    if result and result.cancelled then
+      finish_operation(operation_id, "cancelled", "Database object refresh cancelled")
+      return result
+    end
+    local message = result and result.count and string.format("Database objects refreshed (%d objects)", result.count)
+      or "Database objects refreshed"
+    finish_operation(operation_id, "success", message)
     return result
   end
 
   ---@param intent "query"|"definition"
   function workspace.find_object_async(intent)
     assert(connect_params, "Connect before finding database objects")
-    return objects.find_async(connect_params.connection.options, backend.client, intent)
+    return objects.find_async(connect_params.connection.options, backend.client, backend.owner_uri, intent)
   end
 
   function workspace.list_objects(filters)
@@ -339,11 +345,15 @@ function M.create(opts)
 
   function workspace.script_object_async(opts)
     assert(connect_params, "Connect before scripting a database object")
-    return objects.script_async(connect_params.connection.options, backend.client, opts)
+    return objects.script_async(connect_params.connection.options, backend.client, backend.owner_uri, opts)
   end
 
   function workspace.is_refreshing()
     return connect_params and objects.is_refreshing(connect_params.connection.options) or false
+  end
+
+  function workspace.has_object_cache()
+    return connect_params and objects.has_cache(connect_params.connection.options) or false
   end
 
   function workspace.rebuild_intellisense()

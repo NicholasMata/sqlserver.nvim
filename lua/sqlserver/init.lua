@@ -749,10 +749,11 @@ local command_handlers = {
       utils.log_error("You are currently " .. workspace.get_state())
       return
     end
-    -- Refresh the object cache without blocking editing.
-    coroutine.resume(coroutine.create(function()
-      workspace.initialise_objects_async(true)
-    end))
+    public_api.refresh_objects(workspace.bufnr, function(_, err)
+      if err then
+        utils.log_error(err.message)
+      end
+    end)
 
     -- refresh the intellisense cache, fire and forget
     local success, msg = pcall(function()
@@ -964,6 +965,7 @@ local M = {
   current_connection = public_api.current_connection,
   execute = public_api.execute,
   cancel = public_api.cancel,
+  refresh_objects = public_api.refresh_objects,
   list_objects = public_api.list_objects,
   script_object = public_api.script_object,
   export_results = public_api.export_results,

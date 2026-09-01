@@ -94,8 +94,11 @@ return {
     assert(coroutine.resume(execution))
     assert(workspace.get_state() == workspace_module.states.executing)
     assert(workspace.get_active_operation().message == "Executing query")
-    assert(coroutine.resume(refresh))
+    assert(coroutine.resume(refresh, { cancelled = true }))
     assert(workspace.get_active_operation().message == "Executing query")
+    assert(vim.iter(activity):any(function(event)
+      return event.kind == "metadata" and event.status == "cancelled"
+    end))
     workspace.cancel_async()
     assert(workspace.get_state() == workspace_module.states.cancelling)
     assert(workspace.get_active_operation().message == "Cancelling query")

@@ -28,12 +28,13 @@
 
 ## Phase 2: Object Workflow
 
-- Object explorer for servers, databases, schemas, tables, views, procedures,
-  and functions.
-- Refresh individual nodes.
-- Search objects by name.
-- Script object as `CREATE`, `ALTER`, `DROP`, and `SELECT` where supported.
-- Open definitions in editable buffers.
+- Build a searchable snapshot of tables, views, stored procedures, scalar
+  functions, and table-valued functions in the connected database.
+- Refresh the complete snapshot while retaining the previous successful copy.
+- Filter objects by name, schema, and type.
+- Generate a runnable `query` or editable `definition` through SQL Tools
+  Service.
+- Open generated queries and definitions in editable SQL buffers.
 
 ## Phase 3: Language Intelligence
 
@@ -51,6 +52,7 @@
 - `current_connection(bufnr)`
 - `execute(opts, callback)`
 - `cancel(bufnr, callback)`
+- `refresh_objects(bufnr, callback)`
 - `list_objects(opts, callback)`
 - `script_object(opts, callback)`
 - `export_results(opts, callback)`
@@ -61,6 +63,8 @@ config and future MCP/agent integration.
 
 ## Later
 
+- Hierarchical object browsing and individual-node refresh.
+- Explicit `ALTER` and `DROP` scripting actions with destructive-operation UX.
 - Execution-plan capture and readable summaries.
 - Optional MCP integration.
 - Query history and saved query library.
