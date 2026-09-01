@@ -98,6 +98,12 @@ semantic decorations, and the `sqlserver-result` view owns Neovim buffers,
 windows, and result-set navigation. Renderers must not fetch protocol data, and
 models must not depend on a particular table format or Neovim window layout.
 
+The SQL Tools Service adapter translates protocol cells into plugin-owned result
+cells. Models preserve display values, invariant-culture values, and database
+null identity so renderers do not infer SQL semantics from formatted text.
+Execution summaries likewise preserve row counts and error state independently
+from how activity or result buffers present them.
+
 Exact SQL remains the reviewable artifact. Generated or destructive SQL should
 be visible to the user, and destructive execution must be explicit.
 

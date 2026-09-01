@@ -18,9 +18,9 @@
 - Execute current statement, visual selection, or whole buffer.
 - Cancel running query.
 - Split messages/errors from tabular results.
-- Handle multiple result sets.
+- Preserve multiple and partial result sets when a batch reports an error.
 - Export results to CSV and JSON.
-- Apply row limits and truncation consistently.
+- Preserve typed cell metadata and apply row limits and truncation consistently.
 
 ## Phase 2: Object Workflow
 

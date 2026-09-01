@@ -7,6 +7,18 @@ local function request_async(client, method, params)
   return result
 end
 
+local function request_until_async(client, method, params, predicate)
+  local result
+  for _ = 1, 5 do
+    result = request_async(client, method, params)
+    if predicate(result) then
+      return result
+    end
+    utils.defer_async(500)
+  end
+  return result
+end
+
 return {
   test_name = "SQL language intelligence should be available",
   run_test_async = function()
@@ -26,10 +38,12 @@ return {
 
     local position = { line = 0, character = 19 }
     local text_document = { uri = utils.lsp_file_uri(bufnr) }
-    local hover = request_async(client, "textDocument/hover", {
+    local hover = request_until_async(client, "textDocument/hover", {
       textDocument = text_document,
       position = position,
-    })
+    }, function(result)
+      return result and result.contents
+    end)
     assert(hover and hover.contents, "SQL Tools Service returned no hover information for dbo.Car")
 
     local definition = request_async(client, "textDocument/definition", {

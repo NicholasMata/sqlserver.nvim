@@ -29,8 +29,9 @@ function M.render(result_set, opts)
   for row_index, row in ipairs(result_set.rows) do
     rows[row_index] = {}
     truncated[row_index] = {}
-    for column_index, value in ipairs(row) do
-      rows[row_index][column_index], truncated[row_index][column_index] = truncate(value, opts.max_cell_width)
+    for column_index, cell in ipairs(row) do
+      rows[row_index][column_index], truncated[row_index][column_index] =
+        truncate(cell.display_value, opts.max_cell_width)
     end
   end
 
@@ -79,7 +80,7 @@ function M.render(result_set, opts)
           end_col = end_col,
           highlight = "SqlServerResultTruncated",
         })
-      elseif value == "NULL" then
+      elseif result_set.rows[row_index][column_index].is_null then
         table.insert(decorations, {
           line = row_index + 1,
           start_col = byte_col,

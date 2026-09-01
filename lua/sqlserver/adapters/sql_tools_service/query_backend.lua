@@ -1,6 +1,40 @@
 local utils = require("sqlserver.utils")
+local result_cell = require("sqlserver.core.result_cell")
 
 local M = {}
+
+---@param locator table
+---@return SqlServerResultCell[][]
+function M.get_result_rows_async(locator)
+  if not (locator and locator.rowsCount and locator.rowsCount > 0) then
+    return {}
+  end
+
+  local client = utils.get_lsp_client(locator.ownerUri)
+  local result, err = utils.lsp_request_async(client, "query/subset", locator)
+  if err then
+    error("Error getting rows: " .. vim.inspect(err), 0)
+  end
+  if not (result and result.resultSubset and result.resultSubset.rows) then
+    error("SQL Tools Service returned no result rows", 0)
+  end
+
+  return vim
+    .iter(result.resultSubset.rows)
+    :map(function(row)
+      return vim
+        .iter(row)
+        :map(function(cell)
+          return result_cell.create({
+            display_value = cell.displayValue,
+            invariant_value = cell.invariantCultureDisplayValue ~= vim.NIL and cell.invariantCultureDisplayValue or nil,
+            is_null = cell.isNull,
+          })
+        end)
+        :totable()
+    end)
+    :totable()
+end
 
 ---@param bufnr integer
 ---@param client vim.lsp.Client

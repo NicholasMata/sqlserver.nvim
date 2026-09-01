@@ -1,5 +1,6 @@
 local M = {}
 local uv = vim.uv or vim.loop
+local query_summary = require("sqlserver.core.query_summary")
 
 M.states = {
   disconnected = "disconnected",
@@ -192,13 +193,12 @@ function M.create(opts)
       finish_operation(operation_id, "error", "Query returned no results")
       error("Could not execute query: no results returned", 0)
     end
-    local rows = vim.iter(result.batchSummaries):fold(0, function(total, batch)
-      return total
-        + vim.iter(batch.resultSetSummaries or {}):fold(0, function(batch_total, result_set)
-          return batch_total + (result_set.rowCount or 0)
-        end)
-    end)
-    finish_operation(operation_id, "success", string.format("Query completed (%d rows)", rows))
+    local summary = query_summary.create(result)
+    if summary.has_error then
+      finish_operation(operation_id, "error", string.format("Query completed with errors (%d rows)", summary.row_count))
+    else
+      finish_operation(operation_id, "success", string.format("Query completed (%d rows)", summary.row_count))
+    end
     return result
   end
 

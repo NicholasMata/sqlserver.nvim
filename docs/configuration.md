@@ -57,6 +57,12 @@ When `max_rows` is reached, the result buffer reports how many rows are shown.
 Cell-width truncation changes only the rendered table, not the underlying
 plugin-owned result model.
 
+Database `NULL` is tracked separately from its displayed text, so a string whose
+value is literally `NULL` is not treated as a null value. Unicode, decimal,
+datetime, and binary display values are preserved at the SQL Tools Service
+adapter boundary together with invariant-culture values when the service
+provides them.
+
 ### Messages and activity
 
 `view_messages_in` controls SQL Server messages:
@@ -193,6 +199,15 @@ When unset, files are stored under `sqlserver.nvim` inside
 `vim.fn.stdpath("data")`.
 
 ## Query execution
+
+Successful result sets are retained even when another statement in the same
+batch raises an error. In that case the result buffers remain available, the SQL
+error is recorded in workspace activity, and the query operation finishes with
+an error state and the total number of rows that were returned.
+
+Cancellation remains in progress until SQL Tools Service reports query
+completion. Once cancellation completes, the same connected query buffer can
+execute another statement without reconnecting.
 
 | Default suffix | Command | Behavior |
 | --- | --- | --- |

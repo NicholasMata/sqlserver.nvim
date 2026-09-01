@@ -2,13 +2,13 @@ local M = {}
 
 ---@class SqlServerResultSet
 ---@field columns string[]
----@field rows any[][]
+---@field rows SqlServerResultCell[][]
 ---@field row_count integer
 ---@field displayed_row_count integer
 ---@field truncated boolean
 ---@field locator table
 
----@param opts { columns: string[], rows: any[][], row_count: integer, locator: table }
+---@param opts { columns: string[], rows: SqlServerResultCell[][], row_count: integer, locator: table }
 ---@return SqlServerResultSet
 function M.create(opts)
   assert(type(opts.columns) == "table", "Result columns are required")

@@ -1,5 +1,6 @@
 local sqlserver = require("sqlserver")
 local test_utils = require("tests.utils")
+local utils = require("sqlserver.utils")
 local workspace_registry = require("sqlserver.core.workspace_registry")
 
 return {
@@ -13,7 +14,7 @@ return {
 
     local workspace = workspace_registry.get()
 
-    local timeout = vim.uv.hrtime() + 10 * 1e9
+    local timeout = vim.uv.hrtime() + 30 * 1e9
     while workspace.get_state() ~= "connected" and vim.uv.hrtime() < timeout do
       test_utils.defer_async(100)
     end
@@ -22,7 +23,15 @@ return {
     local state = workspace.get_state()
     assert(state == "connected", "Query manager should be 'Connected' after cancellation, but was '" .. state .. "'")
 
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "SELECT 7 AS AfterCancellation" })
+    sqlserver.execute_query()
+    local query_buffer = vim.api.nvim_get_current_buf()
+    local client = vim.lsp.get_clients({ name = "mssql_ls", bufnr = query_buffer })[1]
+    local _, err = utils.wait_for_notification_async(query_buffer, client, "query/complete", 30000)
+    assert(not err, err and err.message or "Query after cancellation timed out")
     test_utils.defer_async(2000)
+    assert(workspace.get_state() == "connected", "Workspace did not recover after executing a second query")
+    assert(workspace.get_activity()[#workspace.get_activity()].status == "success")
     vim.cmd("bdelete!")
   end,
 }

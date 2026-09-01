@@ -1,6 +1,7 @@
 local query_result = require("sqlserver.core.query_result")
 local result_view = require("sqlserver.ui.results.view")
 local utils = require("sqlserver.utils")
+local query_backend = require("sqlserver.adapters.sql_tools_service.query_backend")
 
 local M = {}
 local generation = 0
@@ -8,26 +9,24 @@ local generation = 0
 local function describe_result_sets(result, opts)
   local descriptors = {}
   for batch_index, batch in ipairs(result.batchSummaries or {}) do
-    if not batch.hasError then
-      for result_set_index, result_set in ipairs(batch.resultSetSummaries or {}) do
-        local columns = vim
-          .iter(result_set.columnInfo or {})
-          :map(function(column)
-            return column.columnName
-          end)
-          :totable()
-        table.insert(descriptors, {
-          columns = columns,
-          row_count = result_set.rowCount,
-          locator = {
-            ownerUri = result.ownerUri,
-            batchIndex = batch_index - 1,
-            resultSetIndex = result_set_index - 1,
-            rowsStartIndex = 0,
-            rowsCount = math.min(result_set.rowCount, opts.results.max_rows),
-          },
-        })
-      end
+    for result_set_index, result_set in ipairs(batch.resultSetSummaries or {}) do
+      local columns = vim
+        .iter(result_set.columnInfo or {})
+        :map(function(column)
+          return column.columnName
+        end)
+        :totable()
+      table.insert(descriptors, {
+        columns = columns,
+        row_count = result_set.rowCount,
+        locator = {
+          ownerUri = result.ownerUri,
+          batchIndex = batch_index - 1,
+          resultSetIndex = result_set_index - 1,
+          rowsStartIndex = 0,
+          rowsCount = math.min(result_set.rowCount, opts.results.max_rows),
+        },
+      })
     end
   end
   return descriptors
@@ -49,7 +48,7 @@ function M.display(opts, result)
           result_sets,
           query_result.create({
             columns = descriptor.columns,
-            rows = utils.get_rows_async(descriptor.locator),
+            rows = query_backend.get_result_rows_async(descriptor.locator),
             row_count = descriptor.row_count,
             locator = descriptor.locator,
           })
