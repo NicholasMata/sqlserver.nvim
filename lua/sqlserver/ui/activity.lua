@@ -16,9 +16,18 @@ local config = { height = 12, native_progress = true }
 local event_icons = {
   running = "◐",
   success = "✓",
+  warning = "!",
   error = "✕",
   cancelled = "○",
   info = "·",
+}
+
+local native_progress_status = {
+  running = "running",
+  success = "success",
+  warning = "failed",
+  error = "failed",
+  cancelled = "failed",
 }
 
 local function ensure_redraw_timer()
@@ -26,14 +35,18 @@ local function ensure_redraw_timer()
     return
   end
   redraw_timer = uv.new_timer()
-  redraw_timer:start(
+  local timer = redraw_timer
+  timer:start(
     0,
     250,
     vim.schedule_wrap(function()
+      if redraw_timer ~= timer or timer:is_closing() then
+        return
+      end
       vim.cmd("redrawstatus!")
       if not next(active_operations) then
-        redraw_timer:stop()
-        redraw_timer:close()
+        timer:stop()
+        timer:close()
         redraw_timer = nil
         return
       end
@@ -58,10 +71,18 @@ local function present_progress(workspace, event)
       status = "running",
     }
   if event.status ~= "running" then
-    progress.status = event.status
+    progress.status = native_progress_status[event.status]
   end
 
-  local ok, id = pcall(vim.api.nvim_echo, { { event.message } }, false, progress)
+  local chunks = { { event.message } }
+  if event.status == "warning" then
+    progress.title = nil
+    chunks = {
+      { event.title .. ":", "WarningMsg" },
+      { " " .. event.message },
+    }
+  end
+  local ok, id = pcall(vim.api.nvim_echo, chunks, false, progress)
   if ok and not progress.id then
     progress.id = id
   end

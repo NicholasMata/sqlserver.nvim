@@ -75,6 +75,16 @@ provides them.
 Open the default activity view with `:SQLServer Activity` or the `a` mapping
 suffix. Press `q` in the activity window to close it.
 
+With `ui.native_progress = true`, active operations also use Neovim's built-in
+progress messages in the command area. Terminal query errors are translated to
+Neovim's `failed` progress state, so `Executing query` is replaced by the final
+`Query completed with errors` message instead of remaining stale.
+
+Mixed outcomes that return rows and report errors highlight the
+`SQL Server query` progress title as a warning and use a `warning` activity
+state. Each underlying SQL error notification remains an error. Executions that
+return no rows and report an error use the red `Query failed` presentation.
+
 The `ui` object configures persistent presentation:
 
 ```lua
@@ -204,6 +214,20 @@ Successful result sets are retained even when another statement in the same
 batch raises an error. In that case the result buffers remain available, the SQL
 error is recorded in workspace activity, and the query operation finishes with
 an error state and the total number of rows that were returned.
+
+Every SQL Server error also produces its own Neovim error notification,
+regardless of `view_messages_in`. Result buffers from the previous execution are
+cleared when a new execution starts. Empty result slots from failed batches are
+omitted, while mixed executions display the rows SQL Server actually returned.
+Result-buffer names keep their execution ordinal when failed result sets are
+omitted; if the first batch fails and the second succeeds, the surviving buffer
+is named `results 2.sqlresult`.
+
+Statements without a `GO` separator execute in one SQL Server batch. A
+batch-terminating error can prevent later statements from running. Use `GO` when
+later statements should execute as independent batches after an earlier error;
+the plugin does not silently split T-SQL statements because doing so would
+change variable, transaction, temporary-table, and other batch semantics.
 
 Cancellation remains in progress until SQL Tools Service reports query
 completion. Once cancellation completes, the same connected query buffer can

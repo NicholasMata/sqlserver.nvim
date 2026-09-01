@@ -2,7 +2,7 @@ local M = {}
 
 ---@class SqlServerActivityEvent
 ---@field kind string
----@field status "running"|"success"|"error"|"cancelled"|"info"
+---@field status "running"|"success"|"warning"|"error"|"cancelled"|"info"
 ---@field message string
 ---@field title? string
 ---@field operation_id? integer

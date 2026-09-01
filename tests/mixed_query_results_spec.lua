@@ -32,8 +32,12 @@ THROW 50000, 'Expected integration error', 1;
       "SQL Tools Service did not preserve the result returned before the error"
     )
 
-    test_utils.defer_async(2000)
-    local result_buffer = find_result_buffer()
+    local result_buffer
+    local timeout = vim.uv.hrtime() + 10 * 1e9
+    while not result_buffer and vim.uv.hrtime() < timeout do
+      test_utils.defer_async(100)
+      result_buffer = find_result_buffer()
+    end
     assert(result_buffer, "The result returned before the error was not displayed")
     local rendered = table.concat(vim.api.nvim_buf_get_lines(result_buffer, 0, -1, false), "\n")
     assert(rendered:find("42", 1, true), "The preserved result does not contain its returned value")
@@ -41,7 +45,7 @@ THROW 50000, 'Expected integration error', 1;
     local workspace = workspace_registry.get(query_buffer)
     local activity = workspace.get_activity()
     local execution = activity[#activity]
-    assert(execution.kind == "query" and execution.status == "error")
+    assert(execution.kind == "query" and execution.status == "warning")
     assert(execution.message:find("1 rows", 1, true))
     assert(
       vim.iter(activity):any(function(event)

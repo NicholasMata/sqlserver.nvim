@@ -195,7 +195,15 @@ function M.create(opts)
     end
     local summary = query_summary.create(result)
     if summary.has_error then
-      finish_operation(operation_id, "error", string.format("Query completed with errors (%d rows)", summary.row_count))
+      if summary.row_count > 0 then
+        finish_operation(
+          operation_id,
+          "warning",
+          string.format("Query completed with errors (%d rows)", summary.row_count)
+        )
+      else
+        finish_operation(operation_id, "error", "Query failed")
+      end
     else
       finish_operation(operation_id, "success", string.format("Query completed (%d rows)", summary.row_count))
     end

@@ -8,25 +8,31 @@ local generation = 0
 
 local function describe_result_sets(result, opts)
   local descriptors = {}
+  local ordinal = 0
   for batch_index, batch in ipairs(result.batchSummaries or {}) do
     for result_set_index, result_set in ipairs(batch.resultSetSummaries or {}) do
-      local columns = vim
-        .iter(result_set.columnInfo or {})
-        :map(function(column)
-          return column.columnName
-        end)
-        :totable()
-      table.insert(descriptors, {
-        columns = columns,
-        row_count = result_set.rowCount,
-        locator = {
-          ownerUri = result.ownerUri,
-          batchIndex = batch_index - 1,
-          resultSetIndex = result_set_index - 1,
-          rowsStartIndex = 0,
-          rowsCount = math.min(result_set.rowCount, opts.results.max_rows),
-        },
-      })
+      ordinal = ordinal + 1
+      local failed_without_rows = batch.hasError and result_set.rowCount == 0
+      if not failed_without_rows then
+        local columns = vim
+          .iter(result_set.columnInfo or {})
+          :map(function(column)
+            return column.columnName
+          end)
+          :totable()
+        table.insert(descriptors, {
+          columns = columns,
+          row_count = result_set.rowCount,
+          ordinal = ordinal,
+          locator = {
+            ownerUri = result.ownerUri,
+            batchIndex = batch_index - 1,
+            resultSetIndex = result_set_index - 1,
+            rowsStartIndex = 0,
+            rowsCount = math.min(result_set.rowCount, opts.results.max_rows),
+          },
+        })
+      end
     end
   end
   return descriptors
@@ -51,6 +57,7 @@ function M.display(opts, result)
             rows = query_backend.get_result_rows_async(descriptor.locator),
             row_count = descriptor.row_count,
             locator = descriptor.locator,
+            ordinal = descriptor.ordinal,
           })
         )
       end
@@ -59,6 +66,11 @@ function M.display(opts, result)
       end
     end))
   end)
+end
+
+function M.clear()
+  generation = generation + 1
+  result_view.clear()
 end
 
 M.next_result = result_view.next_result

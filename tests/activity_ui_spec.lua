@@ -59,5 +59,40 @@ return {
     assert(contents:find("Changed  database context", 1, true))
     assert(vim.api.nvim_win_get_height(0) == 8)
     activity_ui.toggle(workspace)
+
+    local original_echo = vim.api.nvim_echo
+    local progress_updates = {}
+    vim.api.nvim_echo = function(chunks, _, opts)
+      table.insert(progress_updates, { status = opts.status, chunks = chunks, title = opts.title })
+      return opts.id or 1
+    end
+    activity_ui.setup({ native_progress = true })
+    local progress_workspace = { bufnr = 42 }
+    activity_ui.on_event(progress_workspace, {
+      operation_id = 1,
+      title = "SQL Server query",
+      message = "Executing query",
+      status = "running",
+    })
+    activity_ui.on_event(progress_workspace, {
+      operation_id = 1,
+      title = "SQL Server query",
+      message = "Query failed",
+      status = "error",
+    })
+    activity_ui.on_event(progress_workspace, {
+      operation_id = 2,
+      title = "SQL Server query",
+      message = "Query completed with errors (1 rows)",
+      status = "warning",
+    })
+    vim.api.nvim_echo = original_echo
+    assert(progress_updates[1].status == "running")
+    assert(progress_updates[2].status == "failed", "Activity errors must use Neovim's failed progress status")
+    assert(progress_updates[3].status == "failed", "Mixed outcomes must terminate Neovim progress")
+    assert(progress_updates[3].title == nil, "Warning progress must render its own highlighted title")
+    assert(progress_updates[3].chunks[1][1] == "SQL Server query:")
+    assert(progress_updates[3].chunks[1][2] == "WarningMsg", "Mixed outcomes must highlight the title")
+    assert(progress_updates[3].chunks[2][2] == nil, "Mixed-outcome details must use normal highlighting")
   end,
 }

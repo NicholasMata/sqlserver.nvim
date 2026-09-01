@@ -7,8 +7,9 @@ local M = {}
 ---@field displayed_row_count integer
 ---@field truncated boolean
 ---@field locator table
+---@field ordinal integer
 
----@param opts { columns: string[], rows: SqlServerResultCell[][], row_count: integer, locator: table }
+---@param opts { columns: string[], rows: SqlServerResultCell[][], row_count: integer, locator: table, ordinal?: integer }
 ---@return SqlServerResultSet
 function M.create(opts)
   assert(type(opts.columns) == "table", "Result columns are required")
@@ -23,6 +24,7 @@ function M.create(opts)
     displayed_row_count = #opts.rows,
     truncated = #opts.rows < opts.row_count,
     locator = vim.deepcopy(opts.locator),
+    ordinal = opts.ordinal or 1,
   }
 end
 

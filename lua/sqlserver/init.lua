@@ -80,6 +80,9 @@ local function enable_lsp(opts)
       if workspace then
         workspace.record_message(message, is_error)
       end
+      if is_error then
+        utils.log_error(message)
+      end
       opts.view_messages_in(message, is_error)
     end,
     on_connection_changed = function(result)
@@ -228,9 +231,7 @@ end
 local view_message_options = {
   activity = function() end,
   notification = function(message, is_error)
-    if is_error then
-      utils.log_error(message)
-    else
+    if not is_error then
       utils.log_info(message)
     end
   end,
@@ -780,6 +781,7 @@ local M = {
       if workspace.get_state() == workspace_module.states.disconnected then
         connect_to_default(workspace, plugin_opts)
       end
+      query_results.clear()
       clear_message_buffer()
       local result = workspace.execute_async(request)
       if result then -- since cancelled query returns nil, have to check for nil before displaying
@@ -799,6 +801,7 @@ local M = {
       if workspace.get_state() == workspace_module.states.disconnected then
         connect_to_default(workspace, plugin_opts)
       end
+      query_results.clear()
       clear_message_buffer()
       local result = workspace.execute_async(request)
       if result then
@@ -902,6 +905,7 @@ local M = {
       local buf = insert_query_into_buffer(item.script)
       workspace = workspace_registry.get(buf)
       if plugin_opts.execute_generated_select_statements and item.execute_immediately then
+        query_results.clear()
         clear_message_buffer()
         local result = workspace.execute_async({ kind = "buffer", text = item.script })
         query_results.display(plugin_opts, result)

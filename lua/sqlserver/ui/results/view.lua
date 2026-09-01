@@ -18,7 +18,7 @@ local function define_highlights()
   end
 end
 
-local function clear()
+function M.clear()
   for _, bufnr in ipairs(result_buffers) do
     if vim.api.nvim_buf_is_valid(bufnr) and sessions[bufnr] then
       vim.api.nvim_buf_delete(bufnr, { force = true })
@@ -53,14 +53,14 @@ end
 ---@param result_sets SqlServerResultSet[]
 ---@param opts table
 function M.show(result_sets, opts)
-  clear()
+  M.clear()
   define_highlights()
   local buffers = {}
 
   for index, result_set in ipairs(result_sets) do
     local rendered = renderer.render(result_set, { max_cell_width = opts.results.max_cell_width })
     local bufnr = vim.api.nvim_create_buf(false, false)
-    local suffix = #result_sets > 1 and (" " .. index) or ""
+    local suffix = (#result_sets > 1 or result_set.ordinal > 1) and (" " .. result_set.ordinal) or ""
     vim.api.nvim_buf_set_name(bufnr, "results" .. suffix .. ".sqlresult")
     vim.api.nvim_set_option_value("buflisted", true, { buf = bufnr })
     vim.api.nvim_set_option_value("buftype", "nofile", { buf = bufnr })
