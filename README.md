@@ -1,8 +1,8 @@
 # sqlserver.nvim
 
-<p align="center">
-  <video src="docs/assets/query-workflow-demo.mov" controls></video>
-</p>
+
+https://github.com/user-attachments/assets/034df3b6-6755-4ea6-8361-88dd8d0ddf2c
+
 
 Stay in Neovim for the daily SQL Server workflow—from connecting and exploring
 objects to executing T-SQL and inspecting results.
