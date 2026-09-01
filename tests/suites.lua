@@ -21,6 +21,7 @@ return {
     "tests.execute_query_spec",
     "tests.multiple_result_sets_spec",
     "tests.switch_database_spec",
+    "tests.language_intelligence_spec",
     "tests.finder_spec",
     "tests.object_scripting_spec",
     "tests.query_zero_rows_spec",

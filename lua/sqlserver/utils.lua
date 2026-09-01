@@ -193,7 +193,7 @@ return {
     local resumed = false
     local handler
     handler = function(err, result, _)
-      if not resumed and result and result.ownerUri == owner_uri then
+      if not resumed and result and (result.ownerUri or result.uri) == owner_uri then
         resumed = true
         unregister_lsp_handler(client, method, handler)
         try_resume(this, result, err)

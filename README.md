@@ -13,7 +13,8 @@ execution while keeping protocol, workspace, result, and UI concerns separate.
 ## Features
 
 - Connect query buffers to SQL Server and Azure SQL profiles.
-- Complete and format T-SQL with SQL Tools Service.
+- Complete, diagnose, format, hover, navigate, and inspect T-SQL signatures
+  through Neovim's built-in LSP support and SQL Tools Service.
 - Browse and script databases, schemas, tables, views, procedures, and
   functions.
 - Execute the statement under the cursor, a visual selection, or the complete

@@ -34,10 +34,11 @@
 ## Phase 3: Language Intelligence
 
 - Harden SQL Tools Service startup and version handling.
-- Completion compatibility with `nvim-cmp` and `blink.cmp`.
-- Signature help and hover without invalid `vim.NIL` values.
-- Go to definition where SQL Tools Service provides useful locations.
-- Formatting with user-configurable SQL Tools Service settings.
+- Preserve standard Neovim LSP behavior rather than owning a parallel UI.
+- Keep completion compatible with Neovim's LSP completion consumers.
+- Sanitize malformed SQL Tools Service completion and signature responses.
+- Verify diagnostics, hover, signature help, definitions, and formatting across
+  connection and database changes.
 
 ## Phase 4: Public API
 

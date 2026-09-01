@@ -155,6 +155,29 @@ sql_buffer_options = {
 `lsp_settings` is passed to SQL Tools Service. See
 [LSP Settings](Lsp-Settings.md) for supported formatting settings.
 
+SQL Tools Service attaches as a standard Neovim LSP client. The plugin relies
+on Neovim's built-in LSP interfaces for completion, diagnostics, hover,
+signature help, definitions, and document formatting instead of introducing a
+second set of SQL-specific UI abstractions. Existing LSP mappings and completion
+plugins therefore continue to work.
+
+For example, these mappings use only Neovim APIs:
+
+```lua
+vim.keymap.set("n", "K", vim.lsp.buf.hover)
+vim.keymap.set("n", "gd", vim.lsp.buf.definition)
+vim.keymap.set("i", "<C-s>", vim.lsp.buf.signature_help)
+vim.keymap.set("n", "<leader>f", function()
+  vim.lsp.buf.format({ async = true })
+end)
+```
+
+Schema-aware results become available after the query buffer connects and SQL
+Tools Service reports that IntelliSense is ready. `:SQLServer RefreshCache`
+rebuilds IntelliSense metadata for the current connection. The integration
+suite verifies completion, diagnostics, hover, signature help, definitions, and
+formatting after switching databases.
+
 `execute_generated_select_statements` defaults to `true`. When enabled, choosing
 a table or view in the object finder immediately executes its generated
 `SELECT` statement. Set it to `false` to open the generated SQL without running
