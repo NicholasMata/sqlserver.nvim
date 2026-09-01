@@ -1,92 +1,127 @@
-name: End To End Tests
+name: Test
 
 on:
   pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
-  unit:
-    name: Unit tests
-    runs-on: ubuntu-latest
+  unit-unix:
+    name: Unit tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - name: Install StyLua
         run: cargo install stylua --version 2.5.2 --locked
 
-      - name: Check Lua formatting
-        run: make format-check
-
-      - name: Install Neovim
+      - name: Install Neovim 0.11.4
+        env:
+          NVIM_VERSION: v0.11.4
         run: |
-          curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz
-          sudo tar -C /opt -xzf nvim-linux-x86_64.tar.gz
-          echo "/opt/nvim-linux-x86_64/bin" >> $GITHUB_PATH
+          if [ "${{ runner.os }}" = "Linux" ]; then
+            archive=nvim-linux-x86_64.tar.gz
+          elif [ "$(uname -m)" = "arm64" ]; then
+            archive=nvim-macos-arm64.tar.gz
+          else
+            archive=nvim-macos-x86_64.tar.gz
+          fi
+          curl -fsSL "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/${archive}" \
+            -o "$RUNNER_TEMP/$archive"
+          mkdir -p "$RUNNER_TEMP/neovim"
+          tar -xzf "$RUNNER_TEMP/$archive" -C "$RUNNER_TEMP/neovim" --strip-components=1
+          echo "$RUNNER_TEMP/neovim/bin" >> "$GITHUB_PATH"
+
+      - name: Check formatting
+        run: make format-check
 
       - name: Run unit tests
         run: make test-unit
 
-  test:
-    name: Integration tests on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      matrix:
-        os: [ubuntu-latest, windows-latest]
-        # Getting problems on mac os
-        # os: [ubuntu-latest, macos-latest, windows-latest]
+      - name: Assert clean repository
+        run: test -z "$(git status --porcelain --untracked-files=all)"
 
-    env:
-      DbServer: localhost
-      DbUser: sa
-      DbPassword: Test_Password_123
-      DbDatabase: tempdb
-
+  unit-windows:
+    name: Unit tests (windows-latest)
+    runs-on: windows-latest
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Install sql server
-        uses: potatoqualitee/mssqlsuite@v1.8
         with:
-          install: sqlengine, sqlclient
-          sa-password: ${{ env.DbPassword }}
+          persist-credentials: false
 
-      - name: Run sqlcmd
-        run:
-          sqlcmd -S "${{ env.DbServer }}" -U "${{ env.DbUser }}" -P "${{
-          env.DbPassword }}" -d "${{ env.DbDatabase }}" -i
-          ./tests/integration/seed.sql -C
+      - name: Install StyLua
+        run: cargo install stylua --version 2.5.2 --locked
 
-      - name: Install winget (Windows)
-        if: runner.os == 'Windows'
-        uses: Cyberboss/install-winget@v1
-
-      - name: Install Neovim (Windows) and add to PATH
-        if: runner.os == 'Windows'
+      - name: Install Neovim 0.11.4
+        shell: pwsh
         run: |
-          winget install Neovim.Neovim --silent --accept-package-agreements --accept-source-agreements
-          echo "$Env:ProgramFiles\Neovim\bin" | Out-File -Append -FilePath $env:GITHUB_PATH -Encoding utf8
+          $archive = "$env:RUNNER_TEMP\nvim-win64.zip"
+          Invoke-WebRequest "https://github.com/neovim/neovim/releases/download/v0.11.4/nvim-win64.zip" -OutFile $archive
+          Expand-Archive $archive "$env:RUNNER_TEMP\neovim"
+          "$env:RUNNER_TEMP\neovim\nvim-win64\bin" | Out-File -Append -FilePath $env:GITHUB_PATH
 
-      - name: Install Neovim (macOS)
-        if: runner.os == 'macOS'
+      - name: Check formatting
+        run: stylua --check lua ftplugin tests runtests.lua
+
+      - name: Run unit tests
+        shell: pwsh
         run: |
-          brew install neovim
+          $root = "$env:GITHUB_WORKSPACE\.tests"
+          $env:XDG_CONFIG_HOME = "$root\config"
+          $env:XDG_DATA_HOME = "$root\data"
+          $env:XDG_STATE_HOME = "$root\state"
+          $env:XDG_CACHE_HOME = "$root\cache"
+          $env:SQLSERVER_TEST_SUITE = "unit"
+          nvim --headless --clean -u runtests.lua
 
-      - name: Install Neovim (Linux)
-        if: runner.os == 'Linux'
+      - name: Assert clean repository
+        shell: pwsh
         run: |
-          curl -LO https://github.com/neovim/neovim/releases/latest/download/nvim-linux-x86_64.tar.gz
-          sudo rm -rf /opt/nvim
-          sudo tar -C /opt -xzf nvim-linux-x86_64.tar.gz
-          echo "/opt/nvim-linux-x86_64/bin" >> $GITHUB_PATH
+          if (git status --porcelain --untracked-files=all) {
+            throw "Tests changed the repository"
+          }
 
-      - name: Run Neovim tests
+  integration-linux:
+    name: Integration tests (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Neovim 0.11.4
+        run: |
+          curl -fsSL https://github.com/neovim/neovim/releases/download/v0.11.4/nvim-linux-x86_64.tar.gz \
+            -o "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz"
+          sudo tar -C /opt -xzf "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz"
+          echo "/opt/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+
+      - name: Start and seed SQL Server
+        run: make test-env-seed
+
+      - name: Run integration tests
         run: make test-integration
 
-      - name: Upload Neovim state folder
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: nvim-state-dump
-          path: nvim-state-dump
-          if-no-files-found: ignore
+      - name: Assert process cleanup
+        if: always()
+        run: make assert-no-process-leaks
+
+      - name: Assert clean repository
+        if: always()
+        run: test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Stop SQL Server
+        if: always()
+        run: make test-env-down

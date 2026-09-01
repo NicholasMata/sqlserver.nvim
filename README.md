@@ -94,9 +94,12 @@ result navigation, statusline usage, and custom activity presenters. See the
 [Public Lua API](docs/public-api.md) for UI-independent connection, execution,
 object, cancellation, and export operations.
 
+Release changes are tracked in the [changelog](CHANGELOG.md).
+
 ## Contributing
 
 Run `make test` for unit tests and `make lint` for formatting verification before
 submitting changes. See [CONTRIBUTING.md](CONTRIBUTING.md) for the complete local
 test environment, Docker integration workflow, coding style, and commit-message
-rules.
+rules. Maintainers use the [release checklist](docs/releasing.md) for automated
+and manual `1.0.0` acceptance.

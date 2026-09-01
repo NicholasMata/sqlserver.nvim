@@ -9,6 +9,7 @@ nvim.log
 
 # Isolated local test state
 /.tests/
+/untitled-*.sql
 
 # macOS metadata
 .DS_Store

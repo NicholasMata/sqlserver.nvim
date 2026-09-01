@@ -17,7 +17,7 @@ export SQLSERVER_PORT ?= 1433
 .NOTPARALLEL: test-all test-integration-local
 
 .PHONY: format format-check lint
-.PHONY: test test-unit test-integration test-integration-local test-all
+.PHONY: test test-unit test-integration test-integration-local test-all assert-no-process-leaks
 .PHONY: test-env-up test-env-seed test-env-reset test-env-down
 
 test: test-unit
@@ -37,10 +37,14 @@ test-unit:
 test-integration:
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=integration \
 		$(NVIM) --headless --clean -u runtests.lua
+	$(MAKE) assert-no-process-leaks
 
 test-integration-local: test-env-seed test-integration
 
 test-all: test-unit test-integration-local
+
+assert-no-process-leaks:
+	@tests/assert-no-process-leaks.sh "$(CURDIR)"
 
 test-env-up:
 	$(COMPOSE) up --detach --wait --wait-timeout 180

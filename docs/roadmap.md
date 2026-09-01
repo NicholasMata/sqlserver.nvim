@@ -62,6 +62,17 @@ The API uses explicit buffers, structured errors, secret-free connection
 snapshots, and UI-independent result models so it is useful both for user
 config and future MCP/agent integration.
 
+## 1.0 Release Acceptance
+
+Core query, object, language, lifecycle, public API, and managed SQL Tools
+Service work is implemented and covered by unit and integration tests. The
+remaining release gate is tracked in [the 1.0 checklist](releasing.md):
+
+- verify unit tests on every supported operating system;
+- verify Docker-backed integration and process cleanup on Linux;
+- complete and record the manual core-loop acceptance pass;
+- finalize the changelog and tag from a clean commit.
+
 ## Later
 
 - Hierarchical object browsing and individual-node refresh.

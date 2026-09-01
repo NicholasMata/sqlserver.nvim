@@ -50,6 +50,10 @@ Stop and remove the test database and its volumes with:
 make test-env-down
 ```
 
+The integration target waits briefly for shutdown and fails if its headless
+Neovim or SQL Tools Service process remains. Run the assertion independently
+with `make assert-no-process-leaks`.
+
 Microsoft supports its SQL Server Linux container images only on x86-64 Linux
 hosts. The Compose configuration requests `linux/amd64`, but emulation on ARM
 is not officially supported. Use a reachable SQL Server instance if the
@@ -89,3 +93,9 @@ Follow [Tim Pope's commit message guidance](https://tbaggery.com/2008/04/19/a-no
 - explain what changed and why.
 
 Agents and AI coding tools must also follow [AGENTS.md](AGENTS.md).
+
+## Releases
+
+User-visible changes belong under `Unreleased` in [CHANGELOG.md](CHANGELOG.md).
+Maintainers must complete [the release checklist](docs/releasing.md), including
+the documented manual core-loop pass, before tagging a stable release.
