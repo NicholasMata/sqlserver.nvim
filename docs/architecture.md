@@ -87,6 +87,12 @@ Introduce plugin-owned models at backend boundaries. In particular, query
 execution should normalize batches, result sets, columns, rows, messages,
 errors, timings, truncation, and cancellation before passing data to renderers.
 
+Query results currently cross three explicit boundaries: the query-result
+model owns normalized data, the result renderer produces display text and
+semantic decorations, and the `sqlserver-result` view owns Neovim buffers,
+windows, and result-set navigation. Renderers must not fetch protocol data, and
+models must not depend on a particular table format or Neovim window layout.
+
 Exact SQL remains the reviewable artifact. Generated or destructive SQL should
 be visible to the user, and destructive execution must be explicit.
 

@@ -6,6 +6,7 @@ return {
 		"tests.activity_stream_spec",
 		"tests.ui_options_spec",
 		"tests.activity_ui_spec",
+		"tests.query_result_renderer_spec",
 	},
 	integration = {
 		"tests.download_spec",
@@ -15,6 +16,7 @@ return {
 		"tests.connect_spec",
 		"tests.dbo_completion_spec",
 		"tests.execute_query_spec",
+		"tests.multiple_result_sets_spec",
 		"tests.switch_database_spec",
 		"tests.finder_spec",
 		"tests.query_zero_rows_spec",

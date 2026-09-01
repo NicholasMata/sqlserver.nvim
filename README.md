@@ -14,6 +14,28 @@ Studio. The goal is to make the core SQL Server loop reliable inside Neovim:
 - script database objects into editable buffers
 - expose Lua APIs that can later support MCP and agent workflows
 
+Queries that return multiple result sets create one buffer per set while using
+one results window. The first result is shown initially; use `]r` and `[r` from
+a result buffer, or `:SQLServer NextResult` and `:SQLServer PreviousResult`, to
+move between them. Each result uses the dedicated `sqlserver-result` filetype
+and can be saved independently. The renderer highlights headers and truncation
+without embedding presentation markup in the result data.
+
+Result retrieval and display limits can be configured independently:
+
+```lua
+require("sqlserver").setup({
+  results = {
+    max_rows = 100,
+    max_cell_width = 100,
+  },
+})
+```
+
+When `max_rows` is reached, the result buffer says how many rows are shown.
+Cell truncation only affects the rendered table, leaving the plugin-owned
+result model available for future renderers and exporters.
+
 ## Status
 
 This is a starter repo. The initial codebase is seeded from the existing

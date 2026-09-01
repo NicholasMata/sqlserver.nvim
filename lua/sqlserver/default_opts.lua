@@ -8,8 +8,7 @@ return {
   "vsplit"                  - Open results in a vertical split
   "current_window"          - Open results in the current window
   function (bufnr) ... end  - Function which takes the buffer number of the results buffer to open 
-                              (called for each results buffer if there are multiple). Use this 
-                              to open the buffer in a custom way
+                              (called once with the first result set). Use this to open the results area
   --]]
 	open_results_in = "split",
 
@@ -31,11 +30,13 @@ return {
 		height = 12,
 	},
 
-	-- Max rows to return for queries. Needed so that large results don't crash neovim.
-	max_rows = 100,
-
-	-- If a result row has a field text length larger than this it will be truncated when displayed
-	max_column_width = 100,
+	-- Result retrieval and rendering limits.
+	results = {
+		-- Limit fetched rows so large result sets do not overwhelm Neovim.
+		max_rows = 100,
+		-- Truncate cells wider than this while preserving the underlying result model.
+		max_cell_width = 100,
+	},
 
 	-- When choosing a table/view in the finder, immediately execute the generated SELECT statement
 	execute_generated_select_statements = true,
@@ -57,12 +58,6 @@ return {
 		shiftwidth = 4,
 		softtabstop = 4,
 	},
-
-	-- The file extension of buffers that show query results
-	results_buffer_extension = "md",
-
-	-- The filetype (used in neovim to determine the language) of buffers that show query results. Set this to "" to disable markdown rendering.
-	results_buffer_filetype = "markdown",
 
 	-- Path to a json connections file (see docs/Connections-Json.md)
 	-- If nil, it's stored in the data_dir

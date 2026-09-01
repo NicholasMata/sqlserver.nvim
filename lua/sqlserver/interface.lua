@@ -185,6 +185,8 @@ return {
 			NewQuery = M.new_query,
 			NewDefaultQuery = M.new_default_query,
 			SaveQueryResults = M.save_query_results,
+			NextResult = M.next_result,
+			PreviousResult = M.previous_result,
 			Find = M.find_object,
 			CancelQuery = M.cancel_query,
 		}
@@ -197,6 +199,8 @@ return {
 					"NewDefaultQuery",
 					"EditConnections",
 					"SaveQueryResults",
+					"NextResult",
+					"PreviousResult",
 				}
 			elseif not workspace then
 				return {

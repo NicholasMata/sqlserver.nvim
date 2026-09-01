@@ -1,6 +1,6 @@
 local downloader = require("sqlserver.tools_downloader")
 local utils = require("sqlserver.utils")
-local display_query_results = require("sqlserver.display_query_results")
+local query_results = require("sqlserver.display_query_results")
 local interface = require("sqlserver.interface")
 local default_opts = require("sqlserver.default_opts")
 local finder = require("sqlserver.find_object")
@@ -170,7 +170,10 @@ local show_results_buffer_options = {
 		local original_window = vim.api.nvim_get_current_win()
 
 		-- open a split if we haven't done already
-		if not (sqlserver_window and vim.api.nvim_win_is_valid(sqlserver_window)) then
+		if
+			not (sqlserver_window and vim.api.nvim_win_is_valid(sqlserver_window))
+			or sqlserver_window == original_window
+		then
 			vim.cmd("split")
 			sqlserver_window = vim.api.nvim_get_current_win()
 		end
@@ -183,7 +186,10 @@ local show_results_buffer_options = {
 		local original_window = vim.api.nvim_get_current_win()
 
 		-- open a split if we haven't done already
-		if not (sqlserver_window and vim.api.nvim_win_is_valid(sqlserver_window)) then
+		if
+			not (sqlserver_window and vim.api.nvim_win_is_valid(sqlserver_window))
+			or sqlserver_window == original_window
+		then
 			vim.cmd("vsplit")
 			sqlserver_window = vim.api.nvim_get_current_win()
 		end
@@ -620,7 +626,9 @@ end
 
 local function save_query_results_async(result_info)
 	utils.wait_for_schedule_async()
-	local success, lsp_client = pcall(utils.get_lsp_client, result_info.subset_params.ownerUri)
+	local subset_params = result_info.subset_params
+
+	local success, lsp_client = pcall(utils.get_lsp_client, subset_params.ownerUri)
 	if not success then
 		error("The buffer with the sql query has been closed, can't save query results")
 	end
@@ -633,9 +641,9 @@ local function save_query_results_async(result_info)
 
 	local params = {
 		FilePath = file,
-		BatchIndex = result_info.subset_params.batchIndex,
-		ResultSetIndex = result_info.subset_params.resultSetIndex,
-		OwnerUri = result_info.subset_params.ownerUri,
+		BatchIndex = subset_params.batchIndex,
+		ResultSetIndex = subset_params.resultSetIndex,
+		OwnerUri = subset_params.ownerUri,
 		IncludeHeaders = true,
 		Formatted = true,
 	}
@@ -772,7 +780,7 @@ local M = {
 			clear_message_buffer()
 			local result = workspace.execute_async(query)
 			if result then -- since cancelled query returns nil, have to check for nil before displaying
-				display_query_results(plugin_opts, result)
+				query_results.display(plugin_opts, result)
 			end
 		end))
 	end,
@@ -836,6 +844,18 @@ local M = {
 		end))
 	end,
 
+	next_result = function()
+		if not query_results.next_result() then
+			utils.log_error("Go to a query result buffer with multiple results")
+		end
+	end,
+
+	previous_result = function()
+		if not query_results.previous_result() then
+			utils.log_error("Go to a query result buffer with multiple results")
+		end
+	end,
+
 	find_object = function(callback)
 		local workspace = workspace_registry.get()
 		if not workspace then
@@ -862,7 +882,7 @@ local M = {
 			if plugin_opts.execute_generated_select_statements and item.select then
 				clear_message_buffer()
 				local result = workspace.execute_async(item.script)
-				display_query_results(plugin_opts, result)
+				query_results.display(plugin_opts, result)
 			end
 			if callback then
 				callback()
