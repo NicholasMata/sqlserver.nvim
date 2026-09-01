@@ -1,0 +1,31 @@
+local query_backend = require("sqlserver.adapters.sql_tools_service.query_backend")
+local utils = require("sqlserver.utils")
+
+return {
+  test_name = "Query backend should translate execution scopes",
+  run_test_async = function()
+    local original_request = utils.lsp_request_async
+    local original_wait = utils.wait_for_notification_async
+    local requests = {}
+    utils.lsp_request_async = function(_, method, params)
+      table.insert(requests, { method = method, params = params })
+      return {}
+    end
+    utils.wait_for_notification_async = function()
+      return { batchSummaries = {} }
+    end
+
+    local backend = query_backend.create(0, {})
+    backend.execute_async({ kind = "statement", position = { line = 3, column = 7 } })
+    backend.execute_async({ kind = "selection", text = "SELECT 1" })
+    backend.execute_async({ kind = "buffer", text = "SELECT 2" })
+
+    utils.lsp_request_async = original_request
+    utils.wait_for_notification_async = original_wait
+
+    assert(requests[1].method == "query/executedocumentstatement")
+    assert(requests[1].params.line == 3 and requests[1].params.column == 7)
+    assert(requests[2].method == "query/executeString" and requests[2].params.query == "SELECT 1")
+    assert(requests[3].method == "query/executeString" and requests[3].params.query == "SELECT 2")
+  end,
+}
