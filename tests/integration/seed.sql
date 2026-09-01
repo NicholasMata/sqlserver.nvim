@@ -47,3 +47,16 @@ VALUES
   ('Ford', 1),
   ('Hyundai', 2);
 GO
+CREATE VIEW CarView AS
+SELECT ID, Make, PersonId
+FROM dbo.Car;
+GO
+CREATE PROCEDURE GetCar
+  @ID INT
+AS
+BEGIN
+  SELECT ID, Make, PersonId
+  FROM dbo.Car
+  WHERE ID = @ID;
+END;
+GO

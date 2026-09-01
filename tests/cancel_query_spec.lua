@@ -10,9 +10,13 @@ return {
 
     sqlserver.execute_query()
     sqlserver.cancel_query()
-    test_utils.defer_async(1000)
 
     local workspace = workspace_registry.get()
+
+    local timeout = vim.uv.hrtime() + 10 * 1e9
+    while workspace.get_state() ~= "connected" and vim.uv.hrtime() < timeout do
+      test_utils.defer_async(100)
+    end
 
     -- ensure we're still connected after cancelation
     local state = workspace.get_state()

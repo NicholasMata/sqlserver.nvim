@@ -165,10 +165,17 @@ implementation adds:
 | --- | --- | --- |
 | `a` | `Activity` | Toggle workspace activity |
 | `X` | `ExecuteBuffer` | Execute the complete query buffer |
+| `o` | `ObjectDefinition` | Script a database object's definition |
 | none | `NextResult` | Display the next result set |
 | none | `PreviousResult` | Display the previous result set |
 
 Result buffers also provide the buffer-local `]r` and `[r` mappings.
+
+`Find` now always builds runnable SQL: `SELECT` for a table or view and `EXEC`
+for a stored procedure. It no longer opens procedure definitions. Use
+`ObjectDefinition` for `CREATE TABLE`, view definitions, procedure definitions,
+and supported function definitions. Generated procedure calls are not executed
+automatically.
 
 ## Internal architecture
 

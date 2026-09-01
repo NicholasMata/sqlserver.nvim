@@ -53,6 +53,11 @@ The main service boundaries are:
 - metadata and object explorer
 - result model and exporters
 
+Object scripting uses an explicit plugin-owned intent. Query intent produces
+runnable SQL for the selected object, while definition intent produces its
+schema definition. SQL Tools Service operation numbers remain an adapter detail
+and must not determine user-facing behavior implicitly.
+
 ### Backend adapters
 
 Adapters translate between plugin-owned operations and backend-specific

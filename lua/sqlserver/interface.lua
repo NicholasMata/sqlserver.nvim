@@ -49,8 +49,14 @@ return {
       find_object = {
         "f",
         M.find_object,
-        desc = "Find",
+        desc = "Find Query",
         icon = { icon = "", color = "green" },
+      },
+      object_definition = {
+        "o",
+        M.show_object_definition,
+        desc = "Object Definition",
+        icon = { icon = "󰈙", color = "blue" },
       },
     }
 
@@ -102,6 +108,7 @@ return {
                 icon = { icon = "", color = "yellow" },
               },
               keymaps.find_object,
+              keymaps.object_definition,
             })
           elseif state == states.disconnected then
             return with_activity({
@@ -202,6 +209,7 @@ return {
       NextResult = M.next_result,
       PreviousResult = M.previous_result,
       Find = M.find_object,
+      ObjectDefinition = M.show_object_definition,
       CancelQuery = M.cancel_query,
     }
 
@@ -256,6 +264,7 @@ return {
           "BackupDatabase",
           "RestoreDatabase",
           "Find",
+          "ObjectDefinition",
         })
       elseif state == states.disconnected then
         return with_activity({

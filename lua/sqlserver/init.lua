@@ -895,17 +895,45 @@ local M = {
     end
 
     utils.try_resume(coroutine.create(function()
-      local item = workspace.find_object_async()
+      local item = workspace.find_object_async("query")
       if not item then
         return
       end
       local buf = insert_query_into_buffer(item.script)
       workspace = workspace_registry.get(buf)
-      if plugin_opts.execute_generated_select_statements and item.select then
+      if plugin_opts.execute_generated_select_statements and item.execute_immediately then
         clear_message_buffer()
         local result = workspace.execute_async({ kind = "buffer", text = item.script })
         query_results.display(plugin_opts, result)
       end
+      if callback then
+        callback()
+      end
+    end))
+  end,
+
+  show_object_definition = function(callback)
+    local workspace = workspace_registry.get()
+    if not workspace then
+      utils.log_error("No SQL Server lsp is attached. Create a new query or open an exising one.")
+      return
+    end
+    if workspace.get_state() ~= workspace_module.states.connected then
+      utils.log_error("You are currently " .. workspace.get_state())
+      return
+    end
+
+    if workspace.is_refreshing() then
+      workspace.record_message("Database objects are still refreshing", false)
+      return
+    end
+
+    utils.try_resume(coroutine.create(function()
+      local item = workspace.find_object_async("definition")
+      if not item then
+        return
+      end
+      insert_query_into_buffer(item.script)
       if callback then
         callback()
       end

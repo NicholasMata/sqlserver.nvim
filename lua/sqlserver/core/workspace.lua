@@ -253,9 +253,10 @@ function M.create(opts)
     return result
   end
 
-  function workspace.find_object_async()
+  ---@param intent "query"|"definition"
+  function workspace.find_object_async(intent)
     assert(connect_params, "Connect before finding database objects")
-    return objects.find_async(connect_params.connection.options, backend.client)
+    return objects.find_async(connect_params.connection.options, backend.client, intent)
   end
 
   function workspace.is_refreshing()

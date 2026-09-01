@@ -9,6 +9,7 @@ return {
     "tests.query_result_renderer_spec",
     "tests.query_selection_spec",
     "tests.query_backend_spec",
+    "tests.object_script_spec",
   },
   integration = {
     "tests.download_spec",
@@ -21,6 +22,7 @@ return {
     "tests.multiple_result_sets_spec",
     "tests.switch_database_spec",
     "tests.finder_spec",
+    "tests.object_scripting_spec",
     "tests.query_zero_rows_spec",
     "tests.file_with_space_spec",
     "tests.non_ascii_spec",

@@ -182,6 +182,22 @@ Current-statement parsing is delegated to SQL Tools Service. If a disconnected
 query is executed, the plugin attempts to connect with the profile named
 `default`.
 
+## Object scripting
+
+The object picker has two consistent actions:
+
+| Default suffix | Command | Behavior |
+| --- | --- | --- |
+| `f` | `Find` | Build `SELECT` SQL for a table/view or `EXEC` SQL for a procedure |
+| `o` | `ObjectDefinition` | Script the selected object's definition |
+
+When `execute_generated_select_statements` is enabled, generated table and view
+queries execute immediately. Procedure calls are inserted into a query buffer
+but are never executed automatically because they may have side effects.
+
+Definitions use `CREATE` scripting for tables, views, stored procedures, and
+supported functions. They are always opened as editable SQL and never executed.
+
 ## Commands
 
 Commands use the form `:SQLServer <command>`:
@@ -197,7 +213,8 @@ Commands use the form `:SQLServer <command>`:
 | `NewQuery` | Open a query buffer |
 | `NewDefaultQuery` | Open a query using the `default` profile |
 | `SwitchDatabase` | Change database on the current server |
-| `Find` | Find and script a database object |
+| `Find` | Build a runnable query for a database object |
+| `ObjectDefinition` | Script a database object's definition |
 | `RefreshCache` | Refresh metadata and IntelliSense caches |
 | `EditConnections` | Edit connection profiles |
 | `SaveQueryResults` | Export the current result set |

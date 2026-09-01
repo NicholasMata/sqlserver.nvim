@@ -40,6 +40,17 @@ return {
           error("The index " .. index .. " is out of range in the items: " .. vim.inspect(items))
         end
         item = items[index]
+      elseif type(item) == "function" then
+        for candidate_index, candidate in ipairs(items) do
+          if item(candidate) then
+            index = candidate_index
+            item = candidate
+            break
+          end
+        end
+        if not index then
+          error("No picker item matched the test predicate: " .. vim.inspect(items))
+        end
       end
       vim.defer_fn(function()
         on_choice(item, index)

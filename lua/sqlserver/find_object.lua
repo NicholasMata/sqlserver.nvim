@@ -1,4 +1,5 @@
 local utils = require("sqlserver.utils")
+local object_script = require("sqlserver.core.object_script")
 
 ---Same as utils.wait_for_notification_async but ignores any owner uri
 ---@param client vim.lsp.Client
@@ -80,31 +81,13 @@ end
       Alter = 6
   }
 --]]
-local nodeTypes = {
-  AggregateFunctionPartitionFunction = {
-    scriptCreateDrop = "ScriptCreate",
-    operation = 6,
-  },
-  ScalarValuedFunction = {
-    scriptCreateDrop = "ScriptCreate",
-    operation = 6,
-  },
-  StoredProcedure = {
-    scriptCreateDrop = "ScriptCreate",
-    operation = 6,
-  },
-  TableValuedFunction = {
-    scriptCreateDrop = "ScriptCreate",
-    operation = 6,
-  },
-  Table = {
-    scriptCreateDrop = "ScriptSelect",
-    operation = 0,
-  },
-  View = {
-    scriptCreateDrop = "ScriptSelect",
-    operation = 0,
-  },
+local supported_node_types = {
+  AggregateFunctionPartitionFunction = true,
+  ScalarValuedFunction = true,
+  StoredProcedure = true,
+  TableValuedFunction = true,
+  Table = true,
+  View = true,
 }
 
 local object_branch_patterns = {
@@ -177,7 +160,7 @@ local get_object_cache_async = function(lsp_client, connection_options, cancella
       return
     end
     for _, node in ipairs(expand_result.nodes) do
-      if nodeTypes[node.objectType] then
+      if supported_node_types[node.objectType] then
         local path = node.parentNodePath
         local root_path_length = #root_path
         if session.target_path then
@@ -212,7 +195,8 @@ local get_object_cache_async = function(lsp_client, connection_options, cancella
   return coroutine.yield()
 end
 
-local generate_script_async = function(item, client)
+local generate_script_async = function(item, client, intent)
+  local spec = object_script.for_intent(item.objectType, intent)
   local scripting_params = {
     scriptDestination = "ToEditor",
     scriptingObjects = {
@@ -223,12 +207,12 @@ local generate_script_async = function(item, client)
       },
     },
     scriptOptions = {
-      scriptCreateDrop = nodeTypes[item.objectType].scriptCreateDrop,
+      scriptCreateDrop = spec.script_create_drop,
       typeOfDataToScript = "SchemaOnly",
       scriptStatistics = "ScriptStatsNone",
     },
     ownerURI = utils.lsp_file_uri(0),
-    operation = nodeTypes[item.objectType].operation,
+    operation = spec.operation,
   }
   local res, script_err = utils.lsp_request_async(client, "scripting/script", scripting_params)
   if script_err then
@@ -242,7 +226,7 @@ local generate_script_async = function(item, client)
   return {
     -- strip carriage returns
     script = res.script:gsub("\r", ""),
-    select = scripting_params.operation == 0,
+    execute_immediately = spec.execute_immediately == true,
   }
 end
 
@@ -354,8 +338,8 @@ local pick_item_async = function(cache, title)
   return coroutine.yield()
 end
 
-local find_async = function(connection_options, lsp_client)
-  local title = "Find"
+local find_async = function(connection_options, lsp_client, intent)
+  local title = intent == "definition" and "Object Definition" or "Find Query"
   if connection_options and connection_options.database and connection_options.server then
     title = connection_options.server .. " | " .. connection_options.database
   end
@@ -369,7 +353,7 @@ local find_async = function(connection_options, lsp_client)
   if not item then
     return
   end
-  return generate_script_async(item, lsp_client)
+  return generate_script_async(item, lsp_client, intent)
 end
 
 local function delete_unused_cache(in_use_connections)
