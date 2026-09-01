@@ -100,7 +100,11 @@ local function format_event(event)
   local message = tostring(event.message):gsub("\r?\n", "  ")
   local line = string.format("%s  %s  %s", event.time, icon, message)
   if event.duration_ms then
-    line = line .. string.format("  %.0f ms", event.duration_ms)
+    if event.server_duration_ms then
+      line = line .. string.format("  server %.0f ms · total %.0f ms", event.server_duration_ms, event.duration_ms)
+    else
+      line = line .. string.format("  %.0f ms", event.duration_ms)
+    end
   end
   return line
 end

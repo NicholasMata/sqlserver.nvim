@@ -13,6 +13,7 @@ return {
       activity = { "a", M.toggle_activity, desc = "Activity", icon = { icon = "󰋼", color = "blue" } },
       new_query = { "n", M.new_query, desc = "New Query", icon = { icon = "", color = "yellow" } },
       connect = { "c", M.connect, desc = "Connect", icon = { icon = "󱘖", color = "green" } },
+      reconnect = { "R", M.reconnect, desc = "Reconnect", icon = { icon = "󰑓", color = "yellow" } },
       disconnect = { "q", M.disconnect, desc = "Disconnect", icon = { icon = "", color = "red" } },
       cancel_query = { "l", M.cancel_query, desc = "Cancel Query", icon = { icon = "", color = "red" } },
       execute_query = {
@@ -111,7 +112,7 @@ return {
               keymaps.object_definition,
             })
           elseif state == states.disconnected then
-            return with_activity({
+            local items = {
               keymaps.new_query,
               keymaps.new_default_query,
               keymaps.edit_connections,
@@ -129,7 +130,11 @@ return {
                 desc = "Execute Buffer On Default",
                 icon = { icon = "", color = "green" },
               },
-            })
+            }
+            if workspace.can_reconnect() then
+              table.insert(items, keymaps.reconnect)
+            end
+            return with_activity(items)
           elseif state == states.cancelling then
             return with_activity({
               keymaps.new_query,
@@ -195,6 +200,7 @@ return {
     local commands = {
       Activity = M.toggle_activity,
       Connect = M.connect,
+      Reconnect = M.reconnect,
       Disconnect = M.disconnect,
       BackupDatabase = M.backup_database,
       RestoreDatabase = M.restore_database,
@@ -267,12 +273,16 @@ return {
           "ObjectDefinition",
         })
       elseif state == states.disconnected then
-        return with_activity({
+        local items = {
           "NewQuery",
           "NewDefaultQuery",
           "EditConnections",
           "Connect",
-        })
+        }
+        if workspace.can_reconnect() then
+          table.insert(items, "Reconnect")
+        end
+        return with_activity(items)
       elseif state == states.cancelling then
         return with_activity({
           "NewQuery",

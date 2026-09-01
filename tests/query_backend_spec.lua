@@ -25,6 +25,9 @@ return {
           },
         }
       end
+      if method == "connection/listdatabases" then
+        return { databaseNames = { "master" } }
+      end
       return {}
     end
     utils.get_lsp_client = function()
@@ -39,6 +42,7 @@ return {
     backend.execute_async({ kind = "selection", text = "SELECT 1" })
     backend.execute_async({ kind = "buffer", text = "SELECT 2" })
     local rows = query_backend.get_result_rows_async({ ownerUri = "file:///query.sql", rowsCount = 1 })
+    assert(backend.is_connected_async())
 
     utils.lsp_request_async = original_request
     utils.wait_for_notification_async = original_wait
@@ -49,6 +53,7 @@ return {
     assert(requests[2].method == "query/executeString" and requests[2].params.query == "SELECT 1")
     assert(requests[3].method == "query/executeString" and requests[3].params.query == "SELECT 2")
     assert(requests[4].method == "query/subset")
+    assert(requests[5].method == "connection/listdatabases")
     assert(rows[1][1].display_value == "NULL" and rows[1][1].is_null)
     assert(rows[1][1].invariant_value == nil)
   end,

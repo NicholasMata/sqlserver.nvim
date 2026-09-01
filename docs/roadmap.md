@@ -17,10 +17,12 @@
 - New query buffers bound to a connection and database.
 - Execute current statement, visual selection, or whole buffer.
 - Cancel running query.
+- Detect connection loss and reconnect with the previous profile.
 - Split messages/errors from tabular results.
 - Preserve multiple and partial result sets when a batch reports an error.
 - Export results to CSV and JSON.
 - Preserve typed cell metadata and apply row limits and truncation consistently.
+- Normalize SQL Tools Service batch timings in query activity.
 
 ## Phase 2: Object Workflow
 

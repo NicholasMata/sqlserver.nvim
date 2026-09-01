@@ -77,8 +77,14 @@ local function enable_lsp(opts)
   sql_tools_service.enable(opts, {
     on_query_message = function(message, is_error, owner_uri)
       local workspace = workspace_registry.find_by_owner_uri(owner_uri)
+      local is_cancellation_message = is_error
+        and workspace
+        and workspace.get_state() == workspace_module.states.cancelling
       if workspace then
-        workspace.record_message(message, is_error)
+        workspace.record_message(message, is_error and not is_cancellation_message)
+      end
+      if is_cancellation_message then
+        return
       end
       if is_error then
         utils.log_error(message)
@@ -725,6 +731,18 @@ local M = {
     end
     utils.try_resume(coroutine.create(function()
       connect_async(plugin_opts, workspace)
+      workspace.initialise_objects_async()
+    end))
+  end,
+
+  reconnect = function()
+    local workspace = workspace_registry.get()
+    if not workspace then
+      utils.log_error("No SQL Server workspace is attached to this buffer")
+      return
+    end
+    utils.try_resume(coroutine.create(function()
+      workspace.reconnect_async()
       workspace.initialise_objects_async()
     end))
   end,

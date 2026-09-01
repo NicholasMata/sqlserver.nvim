@@ -213,7 +213,7 @@ When unset, files are stored under `sqlserver.nvim` inside
 Successful result sets are retained even when another statement in the same
 batch raises an error. In that case the result buffers remain available, the SQL
 error is recorded in workspace activity, and the query operation finishes with
-an error state and the total number of rows that were returned.
+a warning state and the total number of rows that were returned.
 
 Every SQL Server error also produces its own Neovim error notification,
 regardless of `view_messages_in`. Result buffers from the previous execution are
@@ -231,7 +231,16 @@ change variable, transaction, temporary-table, and other batch semantics.
 
 Cancellation remains in progress until SQL Tools Service reports query
 completion. Once cancellation completes, the same connected query buffer can
-execute another statement without reconnecting.
+execute another statement without reconnecting. Server abort messages caused by
+that requested cancellation remain informational activity details instead of
+producing misleading SQL error notifications.
+
+Query activity records both total client-observed duration and normalized
+server execution duration when SQL Tools Service supplies batch timings. If a
+protocol failure occurs, or an error-only execution fails a connection probe,
+the workspace transitions to disconnected while retaining its last connection
+profile. Use `:SQLServer Reconnect` or the `R` mapping suffix to retry that exact
+connection without selecting the profile again.
 
 | Default suffix | Command | Behavior |
 | --- | --- | --- |
@@ -268,6 +277,7 @@ Commands use the form `:SQLServer <command>`:
 | --- | --- |
 | `Activity` | Toggle workspace activity |
 | `Connect` | Connect the current query buffer |
+| `Reconnect` | Retry the query buffer's previous connection |
 | `Disconnect` | Disconnect the current query buffer |
 | `ExecuteQuery` | Execute the statement under the cursor |
 | `ExecuteBuffer` | Execute the complete buffer |

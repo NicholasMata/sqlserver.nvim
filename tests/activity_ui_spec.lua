@@ -16,6 +16,16 @@ return {
           return { connectionSummary = { databaseName = "ApplicationDb" } }
         end,
         disconnect_async = function() end,
+        execute_async = function()
+          return {
+            batchSummaries = {
+              {
+                executionElapsed = "00:00:00.1250000",
+                resultSetSummaries = { { rowCount = 1 } },
+              },
+            },
+          }
+        end,
       },
       objects = {
         initialise_cache_async = function() end,
@@ -34,6 +44,7 @@ return {
       connection = { options = { server = "localhost", database = "master" } },
     })
     workspace.record_message("Changed\ndatabase context", false)
+    workspace.execute_async({ kind = "buffer", text = "SELECT 1" })
 
     local status = status_ui.render(workspace)
     assert(status:find("localhost", 1, true))
@@ -57,6 +68,7 @@ return {
     local contents = table.concat(lines, "\n")
     assert(contents:find("SQL Server Activity", 1, true))
     assert(contents:find("Changed  database context", 1, true))
+    assert(contents:find("server 125 ms · total", 1, true))
     assert(vim.api.nvim_win_get_height(0) == 8)
     activity_ui.toggle(workspace)
 

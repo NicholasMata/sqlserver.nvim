@@ -6,6 +6,14 @@ local workspace_registry = require("sqlserver.core.workspace_registry")
 return {
   test_name = "Cancelling a query returns the workspace to connected",
   run_test_async = function()
+    local original_notify = vim.notify
+    local errors = {}
+    vim.notify = function(message, level, opts)
+      if level == vim.log.levels.ERROR then
+        table.insert(errors, message)
+      end
+      return original_notify(message, level, opts)
+    end
     local query = "WAITFOR DELAY '00:00:30' SELECT 1 AS test"
     vim.api.nvim_buf_set_lines(0, 0, -1, false, { query })
 
@@ -32,6 +40,10 @@ return {
     test_utils.defer_async(2000)
     assert(workspace.get_state() == "connected", "Workspace did not recover after executing a second query")
     assert(workspace.get_activity()[#workspace.get_activity()].status == "success")
+    vim.notify = original_notify
+    assert(not vim.iter(errors):any(function(message)
+      return message:find("batch is aborted", 1, true)
+    end), "Expected cancellation abort messages to remain internal activity details")
     vim.cmd("bdelete!")
   end,
 }

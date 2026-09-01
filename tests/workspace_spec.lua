@@ -108,6 +108,43 @@ return {
     workspace.disconnect_async()
     assert(workspace.get_state() == workspace_module.states.disconnected)
     assert(workspace.get_connection() == nil)
+    assert(workspace.can_reconnect())
+
+    objects.initialise_cache_async = function() end
+    workspace.reconnect_async()
+    assert(workspace.get_state() == workspace_module.states.connected)
+
+    backend.execute_async = function()
+      return { batchSummaries = { { hasError = true, resultSetSummaries = {} } } }
+    end
+    backend.is_connected_async = function()
+      return true
+    end
+    workspace.execute_async({ kind = "buffer", text = "SELECT invalid" })
+    assert(workspace.get_state() == workspace_module.states.connected)
+    assert(workspace.get_activity()[#workspace.get_activity()].message == "Query failed")
+
+    backend.is_connected_async = function()
+      return false
+    end
+    workspace.execute_async({ kind = "buffer", text = "SELECT invalid" })
+    assert(workspace.get_state() == workspace_module.states.disconnected)
+    assert(workspace.get_activity()[#workspace.get_activity()].message == "Connection lost")
+
+    workspace.reconnect_async()
+    backend.execute_async = function()
+      error("transport closed")
+    end
+    local execution_ok = pcall(function()
+      workspace.execute_async({ kind = "buffer", text = "SELECT 1" })
+    end)
+    assert(not execution_ok)
+    assert(workspace.get_state() == workspace_module.states.disconnected)
+    assert(workspace.get_connection().database == "ApplicationDb")
+    assert(workspace.get_activity()[#workspace.get_activity()].message == "Connection lost")
+
+    workspace.reconnect_async()
+    workspace.disconnect_async()
     assert(#workspace.get_activity() == #activity)
     assert(registry.detach(99) == workspace)
   end,

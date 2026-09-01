@@ -115,6 +115,11 @@ function M.create(bufnr, client)
       return result.databaseNames
     end,
 
+    is_connected_async = function()
+      local result, err = utils.lsp_request_async(client, "connection/listdatabases", { ownerUri = owner_uri })
+      return err == nil and result ~= nil and result.databaseNames ~= nil
+    end,
+
     rebuild_intellisense = function()
       client:notify("textDocument/rebuildIntelliSense", { ownerUri = owner_uri })
     end,

@@ -19,6 +19,7 @@ M.states = {
 function M.create(opts)
   local state = M.states.disconnected
   local connect_params
+  local last_connect_params
   local backend = opts.backend
   local objects = opts.objects
   local activity = {}
@@ -72,20 +73,24 @@ function M.create(opts)
     })
   end
 
-  local function finish_operation(operation_id, status, message)
+  local function finish_operation(operation_id, status, message, details)
     local operation = active_operations[operation_id]
     if not operation then
       return
     end
     active_operations[operation_id] = nil
-    emit({
+    local event = {
       kind = operation.kind,
       title = operation.title,
       message = message,
       status = status,
       operation_id = operation.id,
       duration_ms = (uv.hrtime() - operation.started_at_ns) / 1e6,
-    })
+    }
+    if details then
+      event = vim.tbl_extend("force", event, details)
+    end
+    emit(event)
   end
 
   local function set_state(next_state)
@@ -136,6 +141,7 @@ function M.create(opts)
       error("You are currently " .. state, 0)
     end
     connect_params = vim.deepcopy(params)
+    last_connect_params = vim.deepcopy(params)
     connect_params.ownerUri = backend.owner_uri
     local operation_id = begin_operation("connection", "SQL Server connection", "Connecting")
     set_state(M.states.connecting)
@@ -154,6 +160,20 @@ function M.create(opts)
     end
     set_state(M.states.connected)
     finish_operation(operation_id, "success", "Connected")
+  end
+
+  function workspace.can_reconnect()
+    return last_connect_params ~= nil
+  end
+
+  function workspace.reconnect_async()
+    if state ~= M.states.disconnected then
+      error("You are currently " .. state, 0)
+    end
+    if not last_connect_params then
+      error("No previous SQL Server connection is available", 0)
+    end
+    return workspace.connect_async(vim.deepcopy(last_connect_params))
   end
 
   function workspace.disconnect_async()
@@ -180,32 +200,48 @@ function M.create(opts)
     set_state(M.states.executing)
     local ok, result = pcall(backend.execute_async, request)
     local was_cancelled = state == M.states.cancelling
-    set_state(M.states.connected)
-    if not ok then
-      finish_operation(operation_id, "error", "Query failed")
-      error(result, 0)
-    end
     if was_cancelled then
+      set_state(M.states.connected)
       finish_operation(operation_id, "cancelled", "Query cancelled")
       return nil
     end
+    if not ok then
+      set_state(M.states.disconnected)
+      finish_operation(operation_id, "error", "Connection lost")
+      error(result, 0)
+    end
     if not (result and result.batchSummaries) then
+      set_state(M.states.connected)
       finish_operation(operation_id, "error", "Query returned no results")
       error("Could not execute query: no results returned", 0)
     end
     local summary = query_summary.create(result)
+    if summary.has_error and summary.row_count == 0 and backend.is_connected_async then
+      local probe_ok, connected = pcall(backend.is_connected_async)
+      if not probe_ok or not connected then
+        set_state(M.states.disconnected)
+        finish_operation(operation_id, "error", "Connection lost", {
+          server_duration_ms = summary.server_duration_ms,
+        })
+        return result
+      end
+    end
+    set_state(M.states.connected)
     if summary.has_error then
       if summary.row_count > 0 then
         finish_operation(
           operation_id,
           "warning",
-          string.format("Query completed with errors (%d rows)", summary.row_count)
+          string.format("Query completed with errors (%d rows)", summary.row_count),
+          { server_duration_ms = summary.server_duration_ms }
         )
       else
-        finish_operation(operation_id, "error", "Query failed")
+        finish_operation(operation_id, "error", "Query failed", { server_duration_ms = summary.server_duration_ms })
       end
     else
-      finish_operation(operation_id, "success", string.format("Query completed (%d rows)", summary.row_count))
+      finish_operation(operation_id, "success", string.format("Query completed (%d rows)", summary.row_count), {
+        server_duration_ms = summary.server_duration_ms,
+      })
     end
     return result
   end
