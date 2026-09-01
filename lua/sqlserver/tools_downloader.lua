@@ -112,8 +112,7 @@ M.download_tools_async = function(url, data_folder)
 
 		on_exit = function(_, code)
 			if code ~= 0 then
-				local message = #stderr > 0 and table.concat(stderr, "\n")
-					or ("Process exited with code " .. code)
+				local message = #stderr > 0 and table.concat(stderr, "\n") or ("Process exited with code " .. code)
 
 				utils.log_error("Sql tools download error: " .. message)
 				coroutine.resume(co, false, message)
