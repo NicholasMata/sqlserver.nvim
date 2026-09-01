@@ -9,7 +9,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+
+      - name: Install StyLua
+        run: cargo install stylua --version 2.5.2 --locked
+
+      - name: Check Lua formatting
+        run: make format-check
 
       - name: Install Neovim
         run: |
@@ -37,7 +43,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Install sql server
         uses: potatoqualitee/mssqlsuite@v1.8

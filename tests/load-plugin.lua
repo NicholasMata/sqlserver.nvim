@@ -1,13 +1,13 @@
 local get_plugin_root = function()
-	local current_file = debug.getinfo(1, "S").source:sub(2)
-	local abs_path = vim.fn.fnamemodify(current_file, ":p")
-	local current_dir = vim.fs.dirname(abs_path)
+  local current_file = debug.getinfo(1, "S").source:sub(2)
+  local abs_path = vim.fn.fnamemodify(current_file, ":p")
+  local current_dir = vim.fs.dirname(abs_path)
 
-	return vim.fs.find("sqlserver.nvim", {
-		upward = true,
-		path = current_dir,
-		type = "directory",
-	})[1]
+  return vim.fs.find("sqlserver.nvim", {
+    upward = true,
+    path = current_dir,
+    type = "directory",
+  })[1]
 end
 
 -- Prepend plugin root to runtimepath

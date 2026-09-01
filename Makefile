@@ -1,4 +1,6 @@
 NVIM ?= nvim
+STYLUA ?= stylua
+LUA_SOURCES := lua ftplugin tests runtests.lua
 COMPOSE := docker compose -f tests/integration/compose.yaml
 TEST_ROOT := $(CURDIR)/.tests
 TEST_ENV := XDG_CONFIG_HOME=$(TEST_ROOT)/config \
@@ -14,10 +16,19 @@ export SQLSERVER_PORT ?= 1433
 
 .NOTPARALLEL: test-all test-integration-local
 
+.PHONY: format format-check lint
 .PHONY: test test-unit test-integration test-integration-local test-all
 .PHONY: test-env-up test-env-seed test-env-reset test-env-down
 
 test: test-unit
+
+format:
+	$(STYLUA) $(LUA_SOURCES)
+
+format-check:
+	$(STYLUA) --check $(LUA_SOURCES)
+
+lint: format-check
 
 test-unit:
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=unit \
