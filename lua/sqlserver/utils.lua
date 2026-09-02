@@ -237,6 +237,17 @@ return {
     end)
     return coroutine.yield()
   end,
+  ui_input_async = function(opts)
+    -- Schedule this as it gives other UI like which-key a chance to close.
+    wait_for_schedule_async()
+    local this = coroutine.running()
+    vim.ui.input(opts, function(input)
+      vim.schedule(function()
+        try_resume(this, input)
+      end)
+    end)
+    return coroutine.yield()
+  end,
   log_info = function(msg)
     log(msg, vim.log.levels.INFO)
   end,

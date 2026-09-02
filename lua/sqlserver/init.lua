@@ -657,16 +657,22 @@ local function save_query_results_async(result_info)
   utils.wait_for_schedule_async()
   local subset_params = result_info.subset_params
 
-  local file = vim.fn.input("Save query results (.csv/.json/.xls/.xlsx/.xml)", "", "file")
-  if not file or file == "" then
-    utils.log_error("No file path given")
+  local file = utils.ui_input_async({
+    prompt = "Export filename: ",
+    completion = "file",
+  })
+  if file == nil then
+    return
+  end
+  if file == "" then
+    utils.log_error("Enter a filename to export the query results")
     return
   end
 
   local extension = file:match("%.([^.]+)$")
   extension = extension and extension:lower() or nil
   if not vim.tbl_contains({ "csv", "json", "xml", "xls", "xlsx" }, extension) then
-    utils.log_error("File extension not recognised. Enter a file with extension .csv/.json/.xls/.xlsx/.xml")
+    utils.log_error("Filename must end with .csv, .json, .xml, .xls, or .xlsx")
     return
   end
   local openAfterSave = extension ~= "xls" and extension ~= "xlsx"
@@ -675,10 +681,10 @@ local function save_query_results_async(result_info)
     public_api.export_results({ result_set = { locator = subset_params }, path = file }, callback)
   end)
 
-  utils.log_info("File saved")
+  utils.log_info("Exported query results to " .. file)
 
   if openAfterSave then
-    vim.cmd("edit " .. file)
+    vim.cmd("edit " .. vim.fn.fnameescape(file))
   end
 end
 

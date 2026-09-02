@@ -11,6 +11,7 @@ return {
     "tests.public_api_spec",
     "tests.activity_ui_spec",
     "tests.query_result_renderer_spec",
+    "tests.result_filetype_spec",
     "tests.query_selection_spec",
     "tests.query_backend_spec",
     "tests.query_summary_spec",

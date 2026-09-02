@@ -6,10 +6,17 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Added a buffer-local `<keymap_prefix>s` mapping to export the current
+  `sqlserver-result` buffer when default mappings are enabled.
+
 ### Changed
 
 - Centralized the `mssql_ls` Neovim LSP client identifier so adapter startup,
   client lookup, and integration tests use the same value.
+- Limited the result-buffer which-key group to result actions and clarified the
+  export filename prompt and validation messages.
 
 ## [1.0.0-rc.1] - 2026-09-01
 

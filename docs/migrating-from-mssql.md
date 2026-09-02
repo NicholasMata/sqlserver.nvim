@@ -120,7 +120,8 @@ When a query returns multiple result sets:
 - the first result is displayed initially;
 - `]r`, `[r`, `:SQLServer NextResult`, and `:SQLServer PreviousResult` navigate
   between them;
-- each result set can be saved independently.
+- each result set can be saved independently with the buffer-local
+  `<keymap_prefix>s` mapping or `:SQLServer SaveQueryResults`.
 
 Cell-width truncation affects only the displayed table. Row-limit truncation is
 reported in the result buffer. The underlying result model remains independent

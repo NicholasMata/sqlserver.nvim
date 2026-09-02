@@ -3,10 +3,37 @@ local utils = require("sqlserver.utils")
 local workspace_module = require("sqlserver.core.workspace")
 local workspace_registry = require("sqlserver.core.workspace_registry")
 
+local function set_result_keymap(prefix, handlers, bufnr)
+  local previous_prefix = vim.b[bufnr].sqlserver_result_keymap_prefix
+  if previous_prefix and previous_prefix ~= prefix then
+    pcall(vim.keymap.del, "n", previous_prefix .. "s", { buffer = bufnr })
+  end
+
+  vim.keymap.set("n", prefix .. "s", handlers.save_query_results, {
+    buffer = bufnr,
+    desc = "Save SQL result",
+  })
+  vim.b[bufnr].sqlserver_result_keymap_prefix = prefix
+end
+
 return {
   set_keymaps = function(prefix, M)
     if not prefix then
       return
+    end
+
+    local result_keymaps = vim.api.nvim_create_augroup("sqlserver-result-keymaps", { clear = true })
+    vim.api.nvim_create_autocmd("FileType", {
+      group = result_keymaps,
+      pattern = "sqlserver-result",
+      callback = function(args)
+        set_result_keymap(prefix, M, args.buf)
+      end,
+    })
+    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+      if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].filetype == "sqlserver-result" then
+        set_result_keymap(prefix, M, bufnr)
+      end
     end
 
     local keymaps = {
@@ -153,7 +180,7 @@ return {
             icon = { icon = "", color = "green" },
           }
 
-          return { save_result, keymaps.new_query, keymaps.new_default_query, keymaps.edit_connections }
+          return { save_result }
         else
           return { keymaps.new_query, keymaps.new_default_query, keymaps.edit_connections }
         end
@@ -187,12 +214,8 @@ return {
         vim.keymap.set(m.mode or "n", prefix .. m[1], m[2], { desc = m.desc })
       end
       vim.keymap.set("n", prefix .. "s", function()
-        if vim.b.query_result_info then
-          M.save_query_results()
-        else
-          M.switch_database()
-        end
-      end)
+        M.switch_database()
+      end, { desc = "Switch Database" })
     end
   end,
 

@@ -28,7 +28,9 @@ Service.
 Queries with multiple result sets create one `sqlserver-result` buffer per
 result set in a shared results window. Use `]r`, `[r`,
 `:SQLServer NextResult`, or `:SQLServer PreviousResult` to navigate them. Each
-result can be saved independently.
+result can be saved independently with the buffer-local `<keymap_prefix>s`
+mapping or `:SQLServer SaveQueryResults`. No export mapping is created when
+`keymap_prefix` is disabled.
 
 When the configured row limit is reached, the buffer reports how many rows are
 shown. Cell-width truncation affects only the rendered table. Database `NULL`
