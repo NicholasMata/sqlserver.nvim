@@ -675,6 +675,21 @@ local function save_query_results_async(result_info)
     utils.log_error("Filename must end with .csv, .json, .xml, .xls, or .xlsx")
     return
   end
+
+  local existing = vim.uv.fs_stat(file)
+  if existing and existing.type ~= "file" then
+    utils.log_error("Export path exists and is not a file: " .. file)
+    return
+  end
+  if existing then
+    local choice = utils.ui_select_async({ "Overwrite", "Cancel" }, {
+      prompt = "Export file already exists. Replace it?",
+    })
+    if choice ~= "Overwrite" then
+      return
+    end
+  end
+
   local openAfterSave = extension ~= "xls" and extension ~= "xlsx"
 
   await_public(function(callback)

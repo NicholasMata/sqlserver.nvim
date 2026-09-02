@@ -17,6 +17,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   client lookup, and integration tests use the same value.
 - Limited the result-buffer which-key group to result actions and clarified the
   export filename prompt and validation messages.
+- Added overwrite confirmation to interactive result exports while preserving
+  explicit overwrite behavior in the public Lua API.
 
 ## [1.0.0-rc.1] - 2026-09-01
 
