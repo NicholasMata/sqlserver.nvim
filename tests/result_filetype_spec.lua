@@ -1,6 +1,14 @@
 return {
   test_name = "Result filetype should install buffer-local mappings",
   run_test_async = function()
+    local opened = false
+    local shown = require("sqlserver.ui.results.view").show({}, {
+      open_results_in = function()
+        opened = true
+      end,
+    })
+    assert(not shown and not opened, "Empty result collections should not invoke the result opener")
+
     local result_buffer = vim.api.nvim_create_buf(false, true)
     vim.api.nvim_set_current_buf(result_buffer)
     vim.api.nvim_set_option_value("filetype", "sqlserver-result", { buf = result_buffer })

@@ -54,6 +54,9 @@ end
 ---@param opts table
 function M.show(result_sets, opts)
   M.clear()
+  if not result_sets or #result_sets == 0 then
+    return false
+  end
   define_highlights()
   local buffers = {}
 
@@ -84,6 +87,7 @@ function M.show(result_sets, opts)
   end
   result_buffers = buffers
   opts.open_results_in(buffers[1])
+  return true
 end
 
 return M

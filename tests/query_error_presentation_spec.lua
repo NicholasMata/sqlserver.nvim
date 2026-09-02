@@ -69,9 +69,15 @@ THROW 50000, 'Second expected error', 1;
       "The second SQL error did not produce a notification"
     )
 
+    vim.api.nvim_win_set_buf(0, query_buffer)
+    if #vim.api.nvim_list_wins() > 1 then
+      vim.cmd("only")
+    end
+    local window_count = #vim.api.nvim_list_wins()
     execute_buffer_async(query_buffer, "THROW 50000, 'Only expected error', 1;")
     vim.notify = original_notify
     assert(#result_buffers() == 0, "An error-only execution left stale result buffers")
+    assert(#vim.api.nvim_list_wins() == window_count, "An error-only execution opened a result split")
     local activity = workspace_registry.get(query_buffer).get_activity()
     local execution = activity[#activity]
     assert(execution.status == "error" and execution.message == "Query failed")

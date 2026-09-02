@@ -20,6 +20,10 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Added overwrite confirmation to interactive result exports while preserving
   explicit overwrite behavior in the public Lua API.
 
+### Fixed
+
+- Prevented error-only query executions from opening an empty result split.
+
 ## [1.0.0-rc.1] - 2026-09-01
 
 ### Added
