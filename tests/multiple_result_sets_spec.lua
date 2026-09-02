@@ -26,7 +26,7 @@ SELECT * FROM TestDbA.dbo.Person WHERE ID = 2;
     utils.wait_for_schedule_async()
     sqlserver.execute_buffer()
     local query_buffer = vim.api.nvim_get_current_buf()
-    local client = vim.lsp.get_clients({ name = "mssql_ls", bufnr = query_buffer })[1]
+    local client = test_utils.get_sql_client(query_buffer)
 
     local _, err = utils.wait_for_notification_async(query_buffer, client, "query/complete", 30000)
     if err then

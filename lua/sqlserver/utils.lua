@@ -1,3 +1,5 @@
+local sql_tools_service_constants = require("sqlserver.adapters.sql_tools_service.constants")
+
 -- as far as I can tell, only one handler can exist for an Lsp
 -- method. This lets you register/unregister multiple handlers
 local register_lsp_handler = function(lsp_client, method, handler)
@@ -120,7 +122,7 @@ local get_lsp_client = function(owner_uri)
   end
 
   return safe_assert(
-    vim.lsp.get_clients({ name = "mssql_ls", bufnr = bufnr })[1],
+    vim.lsp.get_clients({ name = sql_tools_service_constants.client_name, bufnr = bufnr })[1],
     "No SQLServer lsp client attached. Create a new sql query or open an existing sql file"
   )
 end

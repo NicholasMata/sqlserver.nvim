@@ -22,7 +22,7 @@ local function execute_buffer_async(query_buffer, query)
   vim.api.nvim_buf_set_lines(query_buffer, 0, -1, false, vim.split(query, "\n"))
   utils.wait_for_schedule_async()
   sqlserver.execute_buffer()
-  local client = vim.lsp.get_clients({ name = "mssql_ls", bufnr = query_buffer })[1]
+  local client = test_utils.get_sql_client(query_buffer)
   local completed, err = utils.wait_for_notification_async(query_buffer, client, "query/complete", 30000)
   assert(not err, err and err.message or "Query completion timed out")
   test_utils.defer_async(2000)

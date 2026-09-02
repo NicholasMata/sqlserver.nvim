@@ -68,7 +68,8 @@ state.
 
 SQL Tools Service attaches through Neovim's standard LSP client, so existing
 completion, diagnostics, hover, signature-help, definition, and formatting
-integrations continue to work. For example:
+integrations continue to work. Neovim identifies the client as `mssql_ls` in
+LSP status and health output. For example:
 
 ```lua
 vim.keymap.set("n", "K", vim.lsp.buf.hover)

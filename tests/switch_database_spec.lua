@@ -25,7 +25,7 @@ end
 local result, err
 
 local wait_for_intellisenseReady = function()
-  local client = vim.lsp.get_clients({ name = "mssql_ls", bufnr = 0 })[1]
+  local client = test_utils.get_sql_client(0)
   local buf = vim.api.nvim_get_current_buf()
 
   -- The connect event is sent, then the intelliSenseReady event.

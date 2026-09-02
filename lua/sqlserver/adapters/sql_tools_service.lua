@@ -1,8 +1,9 @@
 local utils = require("sqlserver.utils")
+local constants = require("sqlserver.adapters.sql_tools_service.constants")
 
 local M = {}
 
-M.client_name = "mssql_ls"
+M.client_name = constants.client_name
 
 local attach_waiters = {}
 

@@ -1,8 +1,12 @@
 local adapter = require("sqlserver.adapters.sql_tools_service")
+local constants = require("sqlserver.adapters.sql_tools_service.constants")
 
 return {
   test_name = "SQL Tools Service adapter should isolate LSP callbacks",
   run_test_async = function()
+    assert(constants.client_name == "mssql_ls", "The public Neovim LSP client name should remain stable")
+    assert(adapter.client_name == constants.client_name)
+
     local original_enable = vim.lsp.enable
     local enabled_name
     vim.lsp.enable = function(name)
@@ -29,7 +33,7 @@ return {
     })
     vim.lsp.enable = original_enable
 
-    assert(enabled_name == adapter.client_name)
+    assert(enabled_name == constants.client_name)
     local config = vim.lsp.config[adapter.client_name]
     assert(config)
 

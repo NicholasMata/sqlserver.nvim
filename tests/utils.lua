@@ -1,7 +1,11 @@
 local utils = require("sqlserver.utils")
+local sql_tools_service_constants = require("sqlserver.adapters.sql_tools_service.constants")
 
 return {
   defer_async = utils.defer_async,
+  get_sql_client = function(bufnr)
+    return vim.lsp.get_clients({ name = sql_tools_service_constants.client_name, bufnr = bufnr })[1]
+  end,
   get_completion_items = function()
     local client = utils.get_lsp_client()
     local cursor = vim.api.nvim_win_get_cursor(0)

@@ -34,7 +34,7 @@ return {
     vim.api.nvim_buf_set_lines(0, 0, -1, false, { "SELECT 7 AS AfterCancellation" })
     sqlserver.execute_query()
     local query_buffer = vim.api.nvim_get_current_buf()
-    local client = vim.lsp.get_clients({ name = "mssql_ls", bufnr = query_buffer })[1]
+    local client = test_utils.get_sql_client(query_buffer)
     local _, err = utils.wait_for_notification_async(query_buffer, client, "query/complete", 30000)
     assert(not err, err and err.message or "Query after cancellation timed out")
     test_utils.defer_async(2000)

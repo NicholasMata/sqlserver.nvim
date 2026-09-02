@@ -6,6 +6,11 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+
+- Centralized the `mssql_ls` Neovim LSP client identifier so adapter startup,
+  client lookup, and integration tests use the same value.
+
 ## [1.0.0-rc.1] - 2026-09-01
 
 ### Added

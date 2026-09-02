@@ -8,7 +8,7 @@ return {
     vim.cmd("edit tests/filename\\ with\\ spaces.sql")
     test_utils.defer_async(1000)
 
-    local client = vim.lsp.get_clients({ name = "mssql_ls", bufnr = 0 })[1]
+    local client = test_utils.get_sql_client(0)
     local buf = vim.api.nvim_get_current_buf()
 
     test_utils.ui_select_fake("master")
