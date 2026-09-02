@@ -1,0 +1,5 @@
+# Keep repository text stable across Windows, macOS, and Linux checkouts.
+* text=auto eol=lf
+
+# Media must never be normalized as text.
+*.mov binary
