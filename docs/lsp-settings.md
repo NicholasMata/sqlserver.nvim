@@ -1,4 +1,4 @@
-# LSP Settings
+# SQL Tools Service settings
 
 These are the default settings used by the LSP, taken from the language server
 [source code](https://github.com/microsoft/sqltoolsservice/blob/v3.0.0-release.254/src/Microsoft.SqlTools.ServiceLayer/SqlContext/SqlToolsSettingsValues.cs).

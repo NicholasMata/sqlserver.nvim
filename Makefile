@@ -16,7 +16,7 @@ export SQLSERVER_PORT ?= 1433
 
 .NOTPARALLEL: test-all test-integration-local
 
-.PHONY: format format-check lint
+.PHONY: format format-check lint lint-doc-filenames
 .PHONY: test test-unit test-integration test-integration-local test-all assert-no-process-leaks
 .PHONY: test-env-up test-env-seed test-env-reset test-env-down
 
@@ -28,7 +28,11 @@ format:
 format-check:
 	$(STYLUA) --check $(LUA_SOURCES)
 
-lint: format-check
+lint: format-check lint-doc-filenames
+
+lint-doc-filenames:
+	@invalid=$$(find docs -type f | awk -F/ '$$NF !~ /^[a-z0-9]+(-[a-z0-9]+)*\.[a-z0-9]+$$/'); \
+		test -z "$$invalid" || { printf 'Documentation filenames must use lowercase kebab-case:\n%s\n' "$$invalid" >&2; exit 1; }
 
 test-unit:
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=unit \

@@ -81,6 +81,9 @@ issue SQL Tools Service requests directly. Add focused unit tests for new
 boundaries and integration tests for behavior that depends on SQL Tools
 Service or SQL Server.
 
+Documentation filenames under `docs/` use lowercase kebab-case, such as
+`public-api.md`. Keep media in `docs/assets/` and follow the same convention.
+
 ## Commit messages
 
 Follow [Tim Pope's commit message guidance](https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html):

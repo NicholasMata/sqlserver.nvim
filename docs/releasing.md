@@ -7,8 +7,8 @@ until every required item is complete.
 
 - [ ] Move the `CHANGELOG.md` Unreleased entries into a `1.0.0` section dated
   on release day.
-- [ ] Confirm `README.md`, configuration, public API, migration, and roadmap
-  documentation match the release.
+- [ ] Confirm `README.md`, configuration, usage, public API, migration, and
+  roadmap documentation match the release.
 - [ ] Create an annotated `v1.0.0` tag from a clean `main` branch only after CI
   and the manual acceptance pass.
 

@@ -43,7 +43,7 @@ jobs:
           echo "$RUNNER_TEMP/neovim/bin" >> "$GITHUB_PATH"
 
       - name: Check formatting
-        run: make format-check
+        run: make lint
 
       - name: Run unit tests
         run: make test-unit
@@ -73,6 +73,15 @@ jobs:
 
       - name: Check formatting
         run: stylua --check lua ftplugin tests runtests.lua
+
+      - name: Check documentation filenames
+        shell: pwsh
+        run: |
+          $invalid = Get-ChildItem docs -Recurse -File | Where-Object { $_.Name -cnotmatch '^[a-z0-9]+(-[a-z0-9]+)*\.[a-z0-9]+$' }
+          if ($invalid) {
+            $invalid.FullName
+            throw "Documentation filenames must use lowercase kebab-case"
+          }
 
       - name: Run unit tests
         shell: pwsh

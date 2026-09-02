@@ -51,7 +51,7 @@ return {
   -- When choosing a table/view in the finder, immediately execute the generated SELECT statement
   execute_generated_select_statements = true,
 
-  -- Settings passed to the SQL Server language server. See docs/Lsp-Settings.md
+  -- Settings passed to the SQL Server language server. See docs/lsp-settings.md
   lsp_settings = {
     format = {
       placeSelectStatementReferencesOnNewLine = true,
@@ -69,7 +69,7 @@ return {
     softtabstop = 4,
   },
 
-  -- Path to a json connections file (see docs/Connections-Json.md)
+  -- Path to a json connections file (see docs/connections-json.md)
   -- If nil, it's stored in the data_dir
   connections_file = nil,
 

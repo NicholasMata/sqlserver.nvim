@@ -50,7 +50,7 @@ Create or edit connection profiles with:
 :SQLServer EditConnections
 ```
 
-See [Connections JSON](docs/Connections-Json.md) for the supported connection
+See [Connections JSON](docs/connections-json.md) for the supported connection
 properties and `${ENVIRONMENT_VARIABLE}` credential references.
 
 ## Configuration
@@ -89,8 +89,8 @@ With the prefix above, use `<leader>sx` for the statement under the cursor or a
 visual selection, and `<leader>sX` for the complete buffer. Commands are also
 available through `:SQLServer`.
 
-See [Configuration](docs/configuration.md) for all options, commands, keymaps,
-result navigation, statusline usage, and custom activity presenters. See the
+See [Configuration](docs/configuration.md) for setup options and UI
+customization, [Usage](docs/usage.md) for commands and daily workflows, and the
 [Public Lua API](docs/public-api.md) for UI-independent connection, execution,
 object, cancellation, and export operations.
 
