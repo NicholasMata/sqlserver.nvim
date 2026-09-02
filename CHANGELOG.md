@@ -6,6 +6,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.0-rc.1] - 2026-09-01
+
 ### Added
 
 - A SQL Server-native public Lua API for connections, queries, cancellation,
@@ -34,4 +36,5 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Inherited public API and configuration compatibility that conflicted with the
   `sqlserver.nvim` architecture.
 
-[Unreleased]: https://github.com/NicholasMata/sqlserver.nvim/commits/main
+[Unreleased]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.1...HEAD
+[1.0.0-rc.1]: https://github.com/NicholasMata/sqlserver.nvim/releases/tag/v1.0.0-rc.1

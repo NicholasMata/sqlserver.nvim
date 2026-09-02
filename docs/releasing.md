@@ -3,10 +3,15 @@
 This checklist defines the acceptance bar for `1.0.0`. Do not create the tag
 until every required item is complete.
 
+A release candidate may be published after the automated acceptance checks
+pass. Use the candidate period to complete and record the manual core-loop pass
+and to fix release-blocking defects. Promote the latest candidate to `1.0.0`
+only when the complete checklist passes.
+
 ## Repository
 
-- [ ] Move the `CHANGELOG.md` Unreleased entries into a `1.0.0` section dated
-  on release day.
+- [ ] Promote the release-candidate entries in `CHANGELOG.md` to a `1.0.0`
+  section dated on release day.
 - [ ] Confirm `README.md`, configuration, usage, public API, migration, and
   roadmap documentation match the release.
 - [ ] Create an annotated `v1.0.0` tag from a clean `main` branch only after CI
