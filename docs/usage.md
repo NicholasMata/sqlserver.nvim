@@ -35,6 +35,10 @@ between result sets from one execution. From a result buffer, use
 `<keymap_prefix>n`, `<keymap_prefix>p`, `:SQLServer NextExecution`, or
 `:SQLServer PreviousExecution` to move between retained executions. Executing
 again selects the new execution without deleting the older result buffers.
+Use `<keymap_prefix>d` or `:SQLServer RemoveResult` to remove the current result
+set after confirmation. The nearest result set replaces it. Removing the final
+result set also removes its empty execution and selects the nearest retained
+execution; removing the final result closes the results view.
 `results.history_limit` controls how many executions are retained per source
 buffer; deleting the source buffer discards its complete result history.
 The result winbar identifies the source buffer and shows both positions, such
@@ -146,6 +150,7 @@ scope.
 | `PreviousResult` | Display the previous result set |
 | `NextExecution` | Display the next retained execution |
 | `PreviousExecution` | Display the previous retained execution |
+| `RemoveResult` | Remove the current result set and any execution it leaves empty |
 | `BackupDatabase` | Insert a database backup command |
 | `RestoreDatabase` | Insert a database restore command |
 

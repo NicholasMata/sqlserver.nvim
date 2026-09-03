@@ -1023,6 +1023,21 @@ local command_handlers = {
     end
   end,
 
+  remove_result = function()
+    local result_buffer = vim.api.nvim_get_current_buf()
+    if not query_results.can_remove_result(result_buffer) then
+      utils.log_error("Go to a query result buffer to remove a result")
+      return
+    end
+    vim.ui.select({ "Remove", "Cancel" }, {
+      prompt = "Remove this result?",
+    }, function(choice)
+      if choice == "Remove" and not query_results.remove_result(result_buffer) then
+        utils.log_error("The query result is no longer available")
+      end
+    end)
+  end,
+
   show_results = function()
     local workspace = workspace_registry.get()
     local bufnr = workspace and workspace.bufnr or nil

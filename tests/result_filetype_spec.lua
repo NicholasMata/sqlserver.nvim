@@ -36,5 +36,6 @@ return {
     assert(prefixed_mappings["Save SQL result"], "The configured prefix should add a result-local save mapping")
     assert(prefixed_mappings["Next SQL execution"])
     assert(prefixed_mappings["Previous SQL execution"])
+    assert(prefixed_mappings["Remove SQL result"])
   end,
 }

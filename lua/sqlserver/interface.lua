@@ -10,6 +10,7 @@ local function set_result_keymap(prefix, handlers, bufnr)
     pcall(vim.keymap.del, "n", previous_prefix .. "s", { buffer = bufnr })
     pcall(vim.keymap.del, "n", previous_prefix .. "n", { buffer = bufnr })
     pcall(vim.keymap.del, "n", previous_prefix .. "p", { buffer = bufnr })
+    pcall(vim.keymap.del, "n", previous_prefix .. "d", { buffer = bufnr })
   end
 
   vim.keymap.set("n", prefix .. "s", handlers.save_query_results, {
@@ -23,6 +24,10 @@ local function set_result_keymap(prefix, handlers, bufnr)
   vim.keymap.set("n", prefix .. "p", handlers.previous_execution, {
     buffer = bufnr,
     desc = "Previous SQL execution",
+  })
+  vim.keymap.set("n", prefix .. "d", handlers.remove_result, {
+    buffer = bufnr,
+    desc = "Remove SQL result",
   })
   vim.b[bufnr].sqlserver_result_keymap_prefix = prefix
 end
@@ -206,6 +211,7 @@ return {
             },
             { "n", M.next_execution, desc = "Next Execution" },
             { "p", M.previous_execution, desc = "Previous Execution" },
+            { "d", M.remove_result, desc = "Remove Result", icon = { icon = "󰆴", color = "red" } },
           }
         else
           local items = { keymaps.new_query, keymaps.new_default_query, keymaps.edit_connections }
@@ -270,6 +276,7 @@ return {
       PreviousResult = M.previous_result,
       NextExecution = M.next_execution,
       PreviousExecution = M.previous_execution,
+      RemoveResult = M.remove_result,
       Find = M.find_object,
       ObjectDefinition = M.show_object_definition,
       CancelQuery = M.cancel_query,
@@ -287,6 +294,7 @@ return {
           "PreviousResult",
           "NextExecution",
           "PreviousExecution",
+          "RemoveResult",
         }
       elseif not workspace then
         local items = {

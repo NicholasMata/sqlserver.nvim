@@ -287,6 +287,70 @@ function M.previous_execution(open_results_in)
   return select_execution(-1, open_results_in)
 end
 
+function M.can_remove_result(bufnr)
+  return result_sessions[bufnr or vim.api.nvim_get_current_buf()] ~= nil
+end
+
+local function leave_empty_result_window(winid, source_bufnr)
+  if not vim.api.nvim_win_is_valid(winid) then
+    return
+  end
+  local tabpage = vim.api.nvim_win_get_tabpage(winid)
+  if #vim.api.nvim_tabpage_list_wins(tabpage) > 1 then
+    vim.api.nvim_win_close(winid, true)
+  elseif vim.api.nvim_buf_is_valid(source_bufnr) then
+    vim.api.nvim_win_set_buf(winid, source_bufnr)
+  end
+end
+
+function M.remove_result(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local session = result_sessions[bufnr]
+  local source = session and sources[session.source_bufnr] or nil
+  if not source then
+    return false
+  end
+  local execution = session.execution
+  local execution_position = execution_index(source, execution)
+  if not execution_position then
+    return false
+  end
+
+  local windows = vim.fn.win_findbuf(bufnr)
+  table.remove(execution.buffers, session.result_index)
+  result_sessions[bufnr] = nil
+  for index, result_buffer in ipairs(execution.buffers) do
+    result_sessions[result_buffer].result_index = index
+  end
+
+  local replacement_buffer
+  if #execution.buffers > 0 then
+    execution.active_result = math.min(session.result_index, #execution.buffers)
+    source.active_execution = execution_position
+    replacement_buffer = valid_buffer(execution)
+  else
+    table.remove(source.executions, execution_position)
+    source.active_execution = math.min(execution_position, #source.executions)
+    local replacement_execution = source.executions[source.active_execution]
+    replacement_buffer = replacement_execution and valid_buffer(replacement_execution) or nil
+  end
+
+  for _, winid in ipairs(windows) do
+    if replacement_buffer and vim.api.nvim_win_is_valid(winid) then
+      vim.api.nvim_win_set_buf(winid, replacement_buffer)
+    else
+      leave_empty_result_window(winid, source.bufnr)
+    end
+  end
+  if vim.api.nvim_buf_is_valid(bufnr) then
+    vim.api.nvim_buf_delete(bufnr, { force = true })
+  end
+  if #source.executions == 0 and last_source_buffer == source.bufnr then
+    last_source_buffer = nil
+  end
+  return true
+end
+
 local function ensure_source(source_bufnr)
   local source = sources[source_bufnr]
   if source then
