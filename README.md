@@ -23,7 +23,7 @@ execution while keeping protocol, workspace, result, and UI concerns separate.
 - Revisit recent executions and navigate their result sets in dedicated
   `sqlserver-result` buffers.
 - Save individual results as CSV, JSON, Excel, or XML.
-- Display server, database, and execution state in a configurable winbar.
+- Display workspace state and result-history position in a configurable winbar.
 
 Switching from `mssql.nvim` requires configuration and workflow changes. See
 [Migrating from mssql.nvim](docs/migrating-from-mssql.md) for a compatibility

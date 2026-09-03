@@ -18,18 +18,28 @@ local connection_profiles = require("sqlserver.core.connection_profiles")
 local public_api = require("sqlserver.api")
 
 local joinpath = vim.fs.joinpath
-local winbar_expression = "%{%v:lua.require'sqlserver.ui.status'.winbar()%}"
+local workspace_winbar_expression = "%{%v:lua.require'sqlserver.ui.status'.winbar()%}"
+local result_winbar_expression = "%{%v:lua.require'sqlserver.ui.results.view'.winbar()%}"
 local custom_presenter_unsubscribe
 
-local function apply_workspace_winbar(bufnr, opts)
+local function apply_winbar(bufnr, opts)
   for _, winid in ipairs(vim.fn.win_findbuf(bufnr)) do
     local current = vim.api.nvim_get_option_value("winbar", { win = winid })
-    if opts.ui.presenter == "default" and opts.ui.winbar.enabled and workspace_registry.get(bufnr) then
-      if current ~= winbar_expression then
+    local desired
+    if opts.ui.presenter == "default" and opts.ui.winbar.enabled then
+      if workspace_registry.get(bufnr) then
+        desired = workspace_winbar_expression
+      elseif query_results.is_result_buffer(bufnr) then
+        desired = result_winbar_expression
+      end
+    end
+    local current_is_sqlserver = current == workspace_winbar_expression or current == result_winbar_expression
+    if desired then
+      if not current_is_sqlserver then
         vim.w[winid].sqlserver_previous_winbar = current
       end
-      vim.api.nvim_set_option_value("winbar", winbar_expression, { win = winid })
-    elseif current == winbar_expression then
+      vim.api.nvim_set_option_value("winbar", desired, { win = winid })
+    elseif current_is_sqlserver then
       local previous = vim.w[winid].sqlserver_previous_winbar or ""
       vim.api.nvim_set_option_value("winbar", previous, { win = winid })
       vim.w[winid].sqlserver_previous_winbar = nil
@@ -115,7 +125,7 @@ local function enable_lsp(opts)
           activity_stream = activity_stream,
         })
         workspace_registry.attach(bufnr, workspace)
-        apply_workspace_winbar(bufnr, opts)
+        apply_winbar(bufnr, opts)
       end
     end,
     on_exit = function(code, signal)
@@ -174,7 +184,7 @@ local function set_auto_commands(opts)
   vim.api.nvim_create_autocmd("BufWinEnter", {
     group = "AutoNameSQL",
     callback = function(args)
-      apply_workspace_winbar(args.buf, opts)
+      apply_winbar(args.buf, opts)
     end,
   })
 end
@@ -320,6 +330,7 @@ local function setup_async(opts)
   activity_ui.setup(opts.ui)
   if opts.ui.presenter == "default" then
     status_ui.setup(opts.ui.winbar)
+    query_results.setup()
     activity_ui.setup(opts.ui, activity_stream)
   elseif type(opts.ui.presenter) == "function" then
     custom_presenter_unsubscribe = activity_stream.subscribe(opts.ui.presenter)
@@ -362,7 +373,7 @@ local function setup_async(opts)
   enable_lsp(opts)
   set_auto_commands(opts)
   for bufnr in workspace_registry.iter() do
-    apply_workspace_winbar(bufnr, opts)
+    apply_winbar(bufnr, opts)
   end
 
   plugin_opts = opts

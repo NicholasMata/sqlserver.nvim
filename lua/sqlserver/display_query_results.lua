@@ -6,6 +6,8 @@ local result_sets = require("sqlserver.core.result_sets")
 local M = {}
 local generations = {}
 
+M.setup = result_view.setup
+
 function M.display(opts, result, source_bufnr)
   source_bufnr = source_bufnr or vim.api.nvim_get_current_buf()
   generations[source_bufnr] = (generations[source_bufnr] or 0) + 1
@@ -44,5 +46,6 @@ M.next_execution = result_view.next_execution
 M.previous_execution = result_view.previous_execution
 M.has_results = result_view.has_results
 M.show_results = result_view.show_results
+M.is_result_buffer = result_view.is_result_buffer
 
 return M

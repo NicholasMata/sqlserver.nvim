@@ -12,12 +12,19 @@ local highlight_links = {
   SqlServerResultBorder = "NonText",
   SqlServerResultNull = "Comment",
   SqlServerResultTruncated = "DiagnosticWarn",
+  SqlServerResultPosition = "Comment",
 }
 
 local function define_highlights()
   for group, link in pairs(highlight_links) do
     vim.api.nvim_set_hl(0, group, { default = true, link = link })
   end
+end
+
+function M.setup()
+  define_highlights()
+  local group = vim.api.nvim_create_augroup("SqlServerResultHighlights", { clear = true })
+  vim.api.nvim_create_autocmd("ColorScheme", { group = group, callback = define_highlights })
 end
 
 local function delete_execution(execution)
@@ -106,6 +113,59 @@ local function active_execution(source)
       return execution
     end
   end
+end
+
+local function execution_index(source, target)
+  for index, execution in ipairs(source.executions) do
+    if execution == target then
+      return index
+    end
+  end
+end
+
+local function result_position(execution, target_index)
+  local position
+  local count = 0
+  for index, bufnr in ipairs(execution.buffers) do
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      count = count + 1
+      if index == target_index then
+        position = count
+      end
+    end
+  end
+  return position, count
+end
+
+function M.is_result_buffer(bufnr)
+  return result_sessions[bufnr or vim.api.nvim_get_current_buf()] ~= nil
+end
+
+function M.render_winbar(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local session = result_sessions[bufnr]
+  if not session then
+    return ""
+  end
+  local source = sources[session.source_bufnr]
+  if not source then
+    return ""
+  end
+  prune_source(source)
+  local run = execution_index(source, session.execution)
+  local result, result_count = result_position(session.execution, session.result_index)
+  if not (run and result) then
+    return ""
+  end
+  local source_name = vim.api.nvim_buf_get_name(session.source_bufnr)
+  source_name = source_name ~= "" and vim.fn.fnamemodify(source_name, ":t") or "[No Name]"
+  source_name = source_name:gsub("%%", "%%%%")
+  local position = ("Run %d/%d  Result %d/%d"):format(run, #source.executions, result, result_count)
+  return ("%s%%=%%#SqlServerResultPosition#%s%%* "):format(source_name, position)
+end
+
+function M.winbar()
+  return M.render_winbar()
 end
 
 function M.has_results(bufnr)
@@ -294,6 +354,20 @@ function M.show(result_sets, opts, source_bufnr)
     vim.api.nvim_set_option_value("readonly", true, { buf = bufnr })
     vim.api.nvim_set_option_value("modifiable", false, { buf = bufnr })
     result_sessions[bufnr] = { source_bufnr = source_bufnr, execution = execution, result_index = index }
+    vim.api.nvim_create_autocmd("BufEnter", {
+      buffer = bufnr,
+      callback = function()
+        local current_source = sources[source_bufnr]
+        local current_session = result_sessions[bufnr]
+        if not (current_source and current_session) then
+          return
+        end
+        current_source.active_execution = execution_index(current_source, current_session.execution)
+          or current_source.active_execution
+        current_session.execution.active_result = current_session.result_index
+        last_source_buffer = source_bufnr
+      end,
+    })
     table.insert(execution.buffers, bufnr)
   end
 

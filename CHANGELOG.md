@@ -8,6 +8,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added a result-specific winbar showing the source buffer, retained execution,
+  and result-set position.
 - Added per-source result history with configurable retention and navigation
   between successful executions.
 - Added a buffer-local `<keymap_prefix>s` mapping to export the current

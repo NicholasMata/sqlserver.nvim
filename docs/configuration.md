@@ -101,7 +101,9 @@ environment-variable references are documented in
 ## Presentation
 
 `ui.winbar = true` uses the split layout, with server and database on the left
-and status on the right. The object form provides layout control:
+and status on the right. Result buffers use the same native winbar area to show
+their source buffer, execution position, and result-set position. The object
+form provides workspace layout control:
 
 ```lua
 ui = {

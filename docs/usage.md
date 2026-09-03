@@ -37,6 +37,8 @@ between result sets from one execution. From a result buffer, use
 again selects the new execution without deleting the older result buffers.
 `results.history_limit` controls how many executions are retained per source
 buffer; deleting the source buffer discards its complete result history.
+The result winbar identifies the source buffer and shows both positions, such
+as `Run 2/4  Result 1/2`.
 
 Each result can be saved independently with the buffer-local
 `<keymap_prefix>s` mapping or `:SQLServer SaveQueryResults`. No result-buffer
