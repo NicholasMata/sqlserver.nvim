@@ -6,6 +6,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.0-rc.2] - 2026-09-02
+
 ### Added
 
 - Added a result-specific winbar showing the source buffer, retained execution,
@@ -62,5 +64,6 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Inherited public API and configuration compatibility that conflicted with the
   `sqlserver.nvim` architecture.
 
-[Unreleased]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.1...HEAD
+[Unreleased]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.2...HEAD
+[1.0.0-rc.2]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.1...v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/NicholasMata/sqlserver.nvim/releases/tag/v1.0.0-rc.1
