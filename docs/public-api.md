@@ -83,7 +83,9 @@ sqlserver.script_object({
 ```
 
 Only `query` and `definition` are supported intents. `ALTER`, `DROP`, and
-individual tree-node refresh are deliberately outside the 1.0 contract.
+individual tree-node refresh are deliberately outside the 1.0 contract. The
+returned script includes the resolved public object descriptor alongside its
+SQL text and execution metadata.
 
 ## Result Export
 

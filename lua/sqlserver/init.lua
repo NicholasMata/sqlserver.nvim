@@ -467,17 +467,86 @@ local connect_async = function(opts, workspace)
   end
 end
 
-local function new_query_async()
+local function new_query_async(name)
   -- The langauge server requires all files to have a file name.
   -- Vscode names new files "untitled-1" etc so we'll do the same
   vim.cmd("enew")
   local buf = vim.api.nvim_get_current_buf()
-  vim.cmd("file untitled-" .. buf .. ".sql")
+  if name then
+    vim.api.nvim_buf_set_name(buf, vim.fs.abspath(name))
+  else
+    vim.cmd("file untitled-" .. buf .. ".sql")
+  end
   vim.cmd("setfiletype sql")
   vim.b[buf].is_temp_name = true
 
   local client = sql_tools_service.wait_for_attach_async(buf, plugin_opts.timeouts.lsp_attach)
   return buf, client
+end
+
+local function sanitized_definition_name(object)
+  local qualified_name = object.schema and object.schema ~= "" and (object.schema .. "." .. object.name) or object.name
+  return (qualified_name:gsub('[<>:"/\\|?*%c]', "_")) .. ".sql"
+end
+
+local function buffer_named(name)
+  return vim.iter(vim.api.nvim_list_bufs()):find(function(bufnr)
+    return vim.api.nvim_buf_is_valid(bufnr) and vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t") == name
+  end)
+end
+
+local function focus_buffer(bufnr)
+  local windows = vim.fn.win_findbuf(bufnr)
+  if #windows > 0 then
+    vim.api.nvim_set_current_win(windows[1])
+  else
+    vim.api.nvim_set_current_buf(bufnr)
+  end
+end
+
+local function unique_definition_name(name)
+  if not buffer_named(name) then
+    return name
+  end
+  local stem = name:gsub("%.sql$", "")
+  local index = 2
+  while buffer_named(string.format("%s (%d).sql", stem, index)) do
+    index = index + 1
+  end
+  return string.format("%s (%d).sql", stem, index)
+end
+
+local function open_object_definition_async(source_workspace, item)
+  local name = sanitized_definition_name(item.object)
+  local existing = buffer_named(name)
+  if existing then
+    local choice = utils.ui_select_async({ "Focus open buffer", "Open another buffer" }, {
+      prompt = name .. " is already open",
+    })
+    if choice == "Focus open buffer" then
+      focus_buffer(existing)
+      return existing
+    elseif choice ~= "Open another buffer" then
+      return nil
+    end
+    name = unique_definition_name(name)
+  end
+
+  local connect_params = source_workspace.get_connect_params()
+  local connection = connect_params and connect_params.connection and connect_params.connection.options or {}
+  local bufnr = new_query_async(name)
+  local definition_workspace = workspace_registry.get(bufnr)
+  definition_workspace.connect_async(connect_params)
+  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(item.script, "\n"))
+  vim.b[bufnr].sqlserver_object = {
+    server = connection.server,
+    database = connection.database,
+    id = item.object.id,
+    schema = item.object.schema,
+    name = item.object.name,
+    type = item.object.type,
+  }
+  return bufnr
 end
 
 local function new_default_query_async(opts)
@@ -981,7 +1050,10 @@ local command_handlers = {
       if not item then
         return
       end
-      insert_query_into_buffer(item.script)
+      local definition_buffer = open_object_definition_async(workspace, item)
+      if not definition_buffer then
+        return
+      end
       if callback then
         callback()
       end

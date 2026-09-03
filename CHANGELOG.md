@@ -10,6 +10,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Added a buffer-local `<keymap_prefix>s` mapping to export the current
   `sqlserver-result` buffer when default mappings are enabled.
+- Added schema-qualified object-definition buffer names, secret-free object
+  metadata, and focus-or-duplicate handling for name collisions.
 
 ### Changed
 

@@ -99,9 +99,11 @@ scalar functions, and table-valued functions in the connected database.
 
 Generated table and view queries execute immediately by default. Procedure
 calls are inserted but never executed automatically because they may have side
-effects. Definitions use `CREATE` scripting and are always opened as editable
-SQL. Individual-node refresh and generic `ALTER`/`DROP` actions are outside the
-1.0 scope.
+effects. Definitions use `CREATE` scripting and open in dedicated editable SQL
+buffers named `<schema>.<object>.sql`. If that name is already open, choose to
+focus it or create a numbered buffer such as `dbo.Person (2).sql`.
+Individual-node refresh and generic `ALTER`/`DROP` actions are outside the 1.0
+scope.
 
 ## Command reference
 

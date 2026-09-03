@@ -1,9 +1,13 @@
 local sqlserver = require("sqlserver")
 local test_utils = require("tests.utils")
 
-local function select_object(object_type, name)
+local function select_object(object_type, name, collision_choice)
   test_utils.ui_select_fake(function(item)
-    return item.objectType == object_type and item.metadata and item.metadata.name == name
+    local matches = item.objectType == object_type and item.metadata and item.metadata.name == name
+    if matches and collision_choice then
+      test_utils.ui_select_fake(collision_choice)
+    end
+    return matches
   end)
 end
 
@@ -61,7 +65,23 @@ return {
       local definition, definition_bufnr = run_action_async(sqlserver.show_object_definition)
       assert(definition:find(expected.name, 1, true))
       assert(definition:upper():find(expected.keyword, 1, true))
+      assert(vim.fn.fnamemodify(vim.api.nvim_buf_get_name(definition_bufnr), ":t") == "dbo." .. expected.name .. ".sql")
+      assert(vim.b[definition_bufnr].sqlserver_object.name == expected.name)
+      assert(vim.b[definition_bufnr].sqlserver_object.schema == "dbo")
       vim.api.nvim_buf_delete(definition_bufnr, { force = true })
     end
+
+    select_object("View", "CarView")
+    local _, original_definition = run_action_async(sqlserver.show_object_definition)
+    select_object("View", "CarView", "Focus open buffer")
+    local _, focused_definition = run_action_async(sqlserver.show_object_definition)
+    assert(focused_definition == original_definition)
+
+    select_object("View", "CarView", "Open another buffer")
+    local _, duplicate_definition = run_action_async(sqlserver.show_object_definition)
+    assert(duplicate_definition ~= original_definition)
+    assert(vim.fn.fnamemodify(vim.api.nvim_buf_get_name(duplicate_definition), ":t") == "dbo.CarView (2).sql")
+    vim.api.nvim_buf_delete(original_definition, { force = true })
+    vim.api.nvim_buf_delete(duplicate_definition, { force = true })
   end,
 }

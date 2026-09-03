@@ -240,6 +240,17 @@ local get_object_cache_async = function(lsp_client, connection_options, cancella
   return result
 end
 
+local function public_object(item)
+  local metadata = item.metadata or {}
+  return {
+    id = item.nodePath or item.text,
+    name = metadata.name or item.label,
+    schema = metadata.schema,
+    type = item.objectType or item.nodeType,
+    path = item.picker_path,
+  }
+end
+
 local generate_script_async = function(item, client, owner_uri, intent)
   local spec = object_script.for_intent(item.objectType, intent)
   local scripting_params = {
@@ -272,6 +283,7 @@ local generate_script_async = function(item, client, owner_uri, intent)
     -- strip carriage returns
     script = res.script:gsub("\r", ""),
     execute_immediately = spec.execute_immediately == true,
+    object = public_object(item),
   }
 end
 
@@ -420,17 +432,6 @@ end
 local function has_cache(connection_options)
   local entry = global_cache[connection_key(connection_options)]
   return entry ~= nil and entry.cache ~= nil
-end
-
-local function public_object(item)
-  local metadata = item.metadata or {}
-  return {
-    id = item.nodePath or item.text,
-    name = metadata.name or item.label,
-    schema = metadata.schema,
-    type = item.objectType or item.nodeType,
-    path = item.picker_path,
-  }
 end
 
 local function list_objects(connection_options, filters)

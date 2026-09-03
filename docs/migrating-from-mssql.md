@@ -127,6 +127,10 @@ Cell-width truncation affects only the displayed table. Row-limit truncation is
 reported in the result buffer. The underlying result model remains independent
 of its rendered text.
 
+Object definitions open in dedicated schema-qualified buffers such as
+`dbo.Person.sql`. A name collision prompts you to focus the open definition or
+create a numbered buffer.
+
 ## Status and activity changes
 
 The `require("mssql").lualine_component` table has been removed. The built-in
