@@ -34,6 +34,8 @@ return {
 
   -- Result retrieval and rendering limits.
   results = {
+    -- Keep the table header visible while scrolling through result rows.
+    sticky_header = true,
     -- Number of successful executions retained for each SQL source buffer.
     history_limit = 10,
     -- Limit fetched rows so large result sets do not overwhelm Neovim.

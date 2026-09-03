@@ -40,6 +40,11 @@ buffer; deleting the source buffer discards its complete result history.
 The result winbar identifies the source buffer and shows both positions, such
 as `Run 2/4  Result 1/2`.
 
+When the real column-header row scrolls out of view, a non-focusable sticky copy
+is displayed over the first content row. Normal- and visual-mode commands still
+operate on the original result buffer; return to the first row to interact with
+the real header. Set `results.sticky_header = false` to disable the overlay.
+
 Each result can be saved independently with the buffer-local
 `<keymap_prefix>s` mapping or `:SQLServer SaveQueryResults`. No result-buffer
 mappings using `keymap_prefix` are created when that option is disabled.

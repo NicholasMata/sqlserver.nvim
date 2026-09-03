@@ -310,6 +310,9 @@ end
 local function setup_async(opts)
   opts = opts or {}
   opts = vim.tbl_deep_extend("keep", opts or {}, default_opts)
+  if type(opts.results.sticky_header) ~= "boolean" then
+    error("results.sticky_header must be true or false", 0)
+  end
   if
     type(opts.results.history_limit) ~= "number"
     or opts.results.history_limit < 1
@@ -319,6 +322,7 @@ local function setup_async(opts)
   end
   opts.timeouts = timeout_options.normalize(opts.timeouts)
   finder.setup(opts.timeouts)
+  query_results.setup(opts.results)
   opts.ui.winbar = ui_options.normalize_winbar(opts.ui.winbar)
   opts.connections_file = opts.connections_file or joinpath(opts.data_dir, "connections.json")
   set_show_results_option(opts)
@@ -330,7 +334,6 @@ local function setup_async(opts)
   activity_ui.setup(opts.ui)
   if opts.ui.presenter == "default" then
     status_ui.setup(opts.ui.winbar)
-    query_results.setup()
     activity_ui.setup(opts.ui, activity_stream)
   elseif type(opts.ui.presenter) == "function" then
     custom_presenter_unsubscribe = activity_stream.subscribe(opts.ui.presenter)

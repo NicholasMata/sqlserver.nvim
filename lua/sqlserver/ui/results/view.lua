@@ -1,4 +1,5 @@
 local renderer = require("sqlserver.ui.results.renderer")
+local sticky_header = require("sqlserver.ui.results.sticky_header")
 
 local M = {}
 local namespace = vim.api.nvim_create_namespace("sqlserver-results")
@@ -21,8 +22,9 @@ local function define_highlights()
   end
 end
 
-function M.setup()
+function M.setup(opts)
   define_highlights()
+  sticky_header.setup({ enabled = opts == nil or opts.sticky_header ~= false })
   local group = vim.api.nvim_create_augroup("SqlServerResultHighlights", { clear = true })
   vim.api.nvim_create_autocmd("ColorScheme", { group = group, callback = define_highlights })
 end
@@ -344,6 +346,13 @@ function M.show(result_sets, opts, source_bufnr)
         or { end_col = decoration.end_col, hl_group = decoration.highlight }
       vim.api.nvim_buf_set_extmark(bufnr, namespace, decoration.line, decoration.start_col, extmark)
     end
+    sticky_header.attach(
+      bufnr,
+      rendered.lines[1] or "",
+      vim.tbl_filter(function(decoration)
+        return decoration.line == 0
+      end, rendered.decorations)
+    )
     vim.b[bufnr].query_result_info = {
       subset_params = result_set.locator,
       source_bufnr = source_bufnr,

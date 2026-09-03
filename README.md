@@ -65,6 +65,7 @@ require("sqlserver").setup({
   open_results_in = "split",
   view_messages_in = "activity",
   results = {
+    sticky_header = true,
     history_limit = 10,
     max_rows = 100,
     max_cell_width = 100,

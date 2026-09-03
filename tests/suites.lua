@@ -13,6 +13,7 @@ return {
     "tests.query_result_renderer_spec",
     "tests.result_filetype_spec",
     "tests.result_session_spec",
+    "tests.result_sticky_header_spec",
     "tests.query_selection_spec",
     "tests.query_backend_spec",
     "tests.query_summary_spec",

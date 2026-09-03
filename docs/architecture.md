@@ -106,6 +106,11 @@ results window can display any retained execution without owning or destroying
 the underlying result buffers. Source-buffer cleanup and the configured
 per-source history limit bound the lifetime of those buffers.
 
+The sticky result header is a view-only copy of the renderer-owned column
+header. It uses a non-focusable window so it cannot replace the real buffer row
+or intercept normal- and visual-mode commands, and it is disposed with its
+parent result window.
+
 The SQL Tools Service adapter translates protocol cells into plugin-owned result
 cells. Models preserve display values, invariant-culture values, and database
 null identity so renderers do not infer SQL semantics from formatted text.

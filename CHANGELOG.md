@@ -6,6 +6,11 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- Added an optional sticky column header for result windows while preserving
+  normal- and visual-mode access to the real header row.
+
 ## [1.0.0-rc.2] - 2026-09-02
 
 ### Added
