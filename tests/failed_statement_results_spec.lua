@@ -2,15 +2,6 @@ local sqlserver = require("sqlserver")
 local test_utils = require("tests.utils")
 local utils = require("sqlserver.utils")
 
-local function result_buffers()
-  return vim
-    .iter(vim.api.nvim_list_bufs())
-    :filter(function(bufnr)
-      return vim.api.nvim_buf_is_valid(bufnr) and vim.api.nvim_buf_get_name(bufnr):match("/results.*%.sqlresult$")
-    end)
-    :totable()
-end
-
 return {
   test_name = "Failed statements should not create empty result buffers",
   run_test_async = function()
@@ -51,7 +42,7 @@ WHERE Person.ID = 2;
     local timeout = vim.uv.hrtime() + 10 * 1e9
     repeat
       test_utils.defer_async(100)
-      buffers = result_buffers()
+      buffers = test_utils.result_buffers(query_buffer)
     until #buffers == 1 or vim.uv.hrtime() >= timeout
 
     assert(#buffers == 1, "Expected exactly one successful result buffer")

@@ -2,14 +2,6 @@ local sqlserver = require("sqlserver")
 local test_utils = require("tests.utils")
 local utils = require("sqlserver.utils")
 
-local function find_result_buffer()
-  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_valid(bufnr) and vim.api.nvim_buf_get_name(bufnr):match("/results%.sqlresult$") then
-      return bufnr
-    end
-  end
-end
-
 return {
   test_name = "Query results should preserve SQL value semantics",
   run_test_async = function()
@@ -32,7 +24,7 @@ SELECT
     assert(not err, err and err.message or "Query completion timed out")
     test_utils.defer_async(2000)
 
-    local result_buffer = find_result_buffer()
+    local result_buffer = test_utils.result_buffers(query_buffer)[1]
     assert(result_buffer, "The typed query result was not displayed")
     local rendered = table.concat(vim.api.nvim_buf_get_lines(result_buffer, 0, -1, false), "\n")
     for _, expected in ipairs({ "ActualNull", "LiteralNull", "Grüße 😀", "12345.6789", "2026-09-01", "0x00FF" }) do

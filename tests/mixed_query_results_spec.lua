@@ -3,14 +3,6 @@ local test_utils = require("tests.utils")
 local utils = require("sqlserver.utils")
 local workspace_registry = require("sqlserver.core.workspace_registry")
 
-local function find_result_buffer()
-  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_valid(bufnr) and vim.api.nvim_buf_get_name(bufnr):match("/results%.sqlresult$") then
-      return bufnr
-    end
-  end
-end
-
 return {
   test_name = "Query errors should preserve preceding results",
   run_test_async = function()
@@ -36,7 +28,7 @@ THROW 50000, 'Expected integration error', 1;
     local timeout = vim.uv.hrtime() + 10 * 1e9
     while not result_buffer and vim.uv.hrtime() < timeout do
       test_utils.defer_async(100)
-      result_buffer = find_result_buffer()
+      result_buffer = test_utils.result_buffers(query_buffer)[1]
     end
     assert(result_buffer, "The result returned before the error was not displayed")
     local rendered = table.concat(vim.api.nvim_buf_get_lines(result_buffer, 0, -1, false), "\n")

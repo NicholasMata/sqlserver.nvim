@@ -300,6 +300,13 @@ end
 local function setup_async(opts)
   opts = opts or {}
   opts = vim.tbl_deep_extend("keep", opts or {}, default_opts)
+  if
+    type(opts.results.history_limit) ~= "number"
+    or opts.results.history_limit < 1
+    or opts.results.history_limit % 1 ~= 0
+  then
+    error("results.history_limit must be a positive integer", 0)
+  end
   opts.timeouts = timeout_options.normalize(opts.timeouts)
   finder.setup(opts.timeouts)
   opts.ui.winbar = ui_options.normalize_winbar(opts.ui.winbar)
@@ -886,13 +893,12 @@ local command_handlers = {
       if workspace.get_state() == workspace_module.states.disconnected then
         connect_to_default(workspace, plugin_opts)
       end
-      query_results.clear()
       clear_message_buffer()
       local execution = await_public(function(callback)
         public_api.execute({ bufnr = workspace.bufnr, request = request }, callback)
       end)
       if not execution.cancelled then
-        query_results.show(plugin_opts, execution.result_sets)
+        query_results.show(plugin_opts, execution.result_sets, workspace.bufnr)
       end
     end))
   end,
@@ -908,13 +914,12 @@ local command_handlers = {
       if workspace.get_state() == workspace_module.states.disconnected then
         connect_to_default(workspace, plugin_opts)
       end
-      query_results.clear()
       clear_message_buffer()
       local execution = await_public(function(callback)
         public_api.execute({ bufnr = workspace.bufnr, request = request }, callback)
       end)
       if not execution.cancelled then
-        query_results.show(plugin_opts, execution.result_sets)
+        query_results.show(plugin_opts, execution.result_sets, workspace.bufnr)
       end
     end))
   end,
@@ -992,6 +997,26 @@ local command_handlers = {
     end
   end,
 
+  next_execution = function()
+    if not query_results.next_execution(plugin_opts.open_results_in) then
+      utils.log_error("No other query execution is available")
+    end
+  end,
+
+  previous_execution = function()
+    if not query_results.previous_execution(plugin_opts.open_results_in) then
+      utils.log_error("No other query execution is available")
+    end
+  end,
+
+  show_results = function()
+    local workspace = workspace_registry.get()
+    local bufnr = workspace and workspace.bufnr or nil
+    if not query_results.show_results(plugin_opts.open_results_in, bufnr) then
+      utils.log_info("No query results are available")
+    end
+  end,
+
   find_object = function(callback)
     local workspace = workspace_registry.get()
     if not workspace then
@@ -1016,12 +1041,11 @@ local command_handlers = {
       local buf = insert_query_into_buffer(item.script)
       workspace = workspace_registry.get(buf)
       if plugin_opts.execute_generated_select_statements and item.execute_immediately then
-        query_results.clear()
         clear_message_buffer()
         local execution = await_public(function(api_callback)
           public_api.execute({ bufnr = workspace.bufnr, text = item.script, scope = "buffer" }, api_callback)
         end)
-        query_results.show(plugin_opts, execution.result_sets)
+        query_results.show(plugin_opts, execution.result_sets, workspace.bufnr)
       end
       if callback then
         callback()

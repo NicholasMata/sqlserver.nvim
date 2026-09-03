@@ -6,6 +6,29 @@ return {
   get_sql_client = function(bufnr)
     return vim.lsp.get_clients({ name = sql_tools_service_constants.client_name, bufnr = bufnr })[1]
   end,
+  result_buffers = function(source_bufnr, execution_id)
+    local candidates = vim
+      .iter(vim.api.nvim_list_bufs())
+      :filter(function(bufnr)
+        if not vim.api.nvim_buf_is_valid(bufnr) then
+          return false
+        end
+        local info = vim.b[bufnr].query_result_info
+        return info and info.source_bufnr == source_bufnr
+      end)
+      :totable()
+    if not execution_id then
+      for _, bufnr in ipairs(candidates) do
+        execution_id = math.max(execution_id or 0, vim.b[bufnr].query_result_info.execution_id)
+      end
+    end
+    return vim
+      .iter(candidates)
+      :filter(function(bufnr)
+        return vim.b[bufnr].query_result_info.execution_id == execution_id
+      end)
+      :totable()
+  end,
   get_completion_items = function()
     local client = utils.get_lsp_client()
     local cursor = vim.api.nvim_win_get_cursor(0)

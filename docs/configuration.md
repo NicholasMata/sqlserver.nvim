@@ -23,6 +23,7 @@ require("sqlserver").setup({
   },
 
   results = {
+    history_limit = 10,
     max_rows = 100,
     max_cell_width = 100,
   },
@@ -77,6 +78,7 @@ indefinitely.
 | `ui.winbar.alignment` | `"right"` | With the compact layout, aligns content `"left"`, `"center"`, or `"right"`. |
 | `ui.native_progress` | `true` | Publishes active and completed operations through Neovim's built-in progress messages. |
 | `ui.height` | `12` | Height of the built-in activity split. |
+| `results.history_limit` | `10` | Successful executions retained in memory for each SQL source buffer. |
 | `results.max_rows` | `100` | Maximum rows fetched for each result set. |
 | `results.max_cell_width` | `100` | Maximum displayed cell width. The underlying value remains unchanged. |
 | `timeouts.lsp_attach` | `10000` | Maximum wait for SQL Tools Service to attach to a SQL buffer. |

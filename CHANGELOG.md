@@ -8,10 +8,14 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added per-source result history with configurable retention and navigation
+  between successful executions.
 - Added a buffer-local `<keymap_prefix>s` mapping to export the current
   `sqlserver-result` buffer when default mappings are enabled.
 - Added schema-qualified object-definition buffer names, secret-free object
   metadata, and focus-or-duplicate handling for name collisions.
+- Added `<keymap_prefix>v` and `:SQLServer ShowResults` to focus or reopen the
+  latest result session at its last viewed result set.
 
 ### Changed
 

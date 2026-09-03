@@ -25,12 +25,22 @@ Service.
 
 ## Query results and errors
 
-Queries with multiple result sets create one `sqlserver-result` buffer per
-result set in a shared results window. Use `]r`, `[r`,
-`:SQLServer NextResult`, or `:SQLServer PreviousResult` to navigate them. Each
-result can be saved independently with the buffer-local `<keymap_prefix>s`
-mapping or `:SQLServer SaveQueryResults`. No export mapping is created when
-`keymap_prefix` is disabled.
+Every SQL source buffer retains its own recent successful executions in memory.
+Each execution can contain one or more `sqlserver-result` buffers, displayed in
+a reusable results window. `:SQLServer ShowResults` or `<keymap_prefix>v`
+restores the active execution belonging to the current SQL buffer.
+
+Use `]r`, `[r`, `:SQLServer NextResult`, or `:SQLServer PreviousResult` to move
+between result sets from one execution. From a result buffer, use
+`<keymap_prefix>n`, `<keymap_prefix>p`, `:SQLServer NextExecution`, or
+`:SQLServer PreviousExecution` to move between retained executions. Executing
+again selects the new execution without deleting the older result buffers.
+`results.history_limit` controls how many executions are retained per source
+buffer; deleting the source buffer discards its complete result history.
+
+Each result can be saved independently with the buffer-local
+`<keymap_prefix>s` mapping or `:SQLServer SaveQueryResults`. No result-buffer
+mappings using `keymap_prefix` are created when that option is disabled.
 
 When the configured row limit is reached, the buffer reports how many rows are
 shown. Cell-width truncation affects only the rendered table. Database `NULL`
@@ -124,8 +134,11 @@ scope.
 | `RefreshCache` | Refresh metadata and IntelliSense caches |
 | `EditConnections` | Edit connection profiles |
 | `SaveQueryResults` | Export the current result set |
+| `ShowResults` | Focus or reopen the current SQL buffer's active execution |
 | `NextResult` | Display the next result set |
 | `PreviousResult` | Display the previous result set |
+| `NextExecution` | Display the next retained execution |
+| `PreviousExecution` | Display the previous retained execution |
 | `BackupDatabase` | Insert a database backup command |
 | `RestoreDatabase` | Insert a database restore command |
 

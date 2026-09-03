@@ -98,6 +98,14 @@ semantic decorations, and the `sqlserver-result` view owns Neovim buffers,
 windows, and result-set navigation. Renderers must not fetch protocol data, and
 models must not depend on a particular table format or Neovim window layout.
 
+The result view groups result buffers into executions and keys execution
+history by the originating SQL buffer. This ownership is explicit rather than
+inferred from the current window, which may change before asynchronous result
+collection completes. Windows remain replaceable presentation state: one
+results window can display any retained execution without owning or destroying
+the underlying result buffers. Source-buffer cleanup and the configured
+per-source history limit bound the lifetime of those buffers.
+
 The SQL Tools Service adapter translates protocol cells into plugin-owned result
 cells. Models preserve display values, invariant-culture values, and database
 null identity so renderers do not infer SQL semantics from formatted text.

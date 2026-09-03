@@ -29,13 +29,12 @@ return {
     })
     require("sqlserver.interface").set_keymaps("<leader>d", handlers)
 
-    local has_save_mapping = false
+    local prefixed_mappings = {}
     for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(result_buffer, "n")) do
-      if mapping.desc == "Save SQL result" then
-        has_save_mapping = true
-        break
-      end
+      prefixed_mappings[mapping.desc] = true
     end
-    assert(has_save_mapping, "The configured prefix should add a result-local save mapping")
+    assert(prefixed_mappings["Save SQL result"], "The configured prefix should add a result-local save mapping")
+    assert(prefixed_mappings["Next SQL execution"])
+    assert(prefixed_mappings["Previous SQL execution"])
   end,
 }

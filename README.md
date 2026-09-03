@@ -20,7 +20,8 @@ execution while keeping protocol, workspace, result, and UI concerns separate.
 - Execute the statement under the cursor, a visual selection, or the complete
   buffer.
 - Cancel active queries and inspect persistent workspace activity.
-- Navigate multiple result sets in dedicated `sqlserver-result` buffers.
+- Revisit recent executions and navigate their result sets in dedicated
+  `sqlserver-result` buffers.
 - Save individual results as CSV, JSON, Excel, or XML.
 - Display server, database, and execution state in a configurable winbar.
 
@@ -64,6 +65,7 @@ require("sqlserver").setup({
   open_results_in = "split",
   view_messages_in = "activity",
   results = {
+    history_limit = 10,
     max_rows = 100,
     max_cell_width = 100,
   },

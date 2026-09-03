@@ -3,15 +3,6 @@ local test_utils = require("tests.utils")
 local utils = require("sqlserver.utils")
 local workspace_registry = require("sqlserver.core.workspace_registry")
 
-local function result_buffers()
-  return vim
-    .iter(vim.api.nvim_list_bufs())
-    :filter(function(bufnr)
-      return vim.api.nvim_buf_is_valid(bufnr) and vim.api.nvim_buf_get_name(bufnr):match("/results.*%.sqlresult$")
-    end)
-    :totable()
-end
-
 local function execute_buffer_async(query_buffer, query)
   local query_window = vim.fn.win_findbuf(query_buffer)[1]
   if query_window then
@@ -55,7 +46,8 @@ THROW 50000, 'Second expected error', 1;
 ]]
     )
     assert(#completed.batchSummaries == 4, "Expected four independently executed batches")
-    assert(#result_buffers() == 2, "Successful batches did not create two result buffers")
+    local successful_buffers = test_utils.result_buffers(query_buffer)
+    assert(#successful_buffers == 2, "Successful batches did not create two result buffers")
     assert(
       vim.iter(errors):any(function(message)
         return message:find("First expected error", 1, true)
@@ -76,7 +68,10 @@ THROW 50000, 'Second expected error', 1;
     local window_count = #vim.api.nvim_list_wins()
     execute_buffer_async(query_buffer, "THROW 50000, 'Only expected error', 1;")
     vim.notify = original_notify
-    assert(#result_buffers() == 0, "An error-only execution left stale result buffers")
+    assert(
+      vim.deep_equal(test_utils.result_buffers(query_buffer), successful_buffers),
+      "An error-only execution created or discarded result buffers"
+    )
     assert(#vim.api.nvim_list_wins() == window_count, "An error-only execution opened a result split")
     local activity = workspace_registry.get(query_buffer).get_activity()
     local execution = activity[#activity]

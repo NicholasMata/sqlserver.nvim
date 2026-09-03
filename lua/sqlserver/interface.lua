@@ -2,16 +2,27 @@
 local utils = require("sqlserver.utils")
 local workspace_module = require("sqlserver.core.workspace")
 local workspace_registry = require("sqlserver.core.workspace_registry")
+local query_results = require("sqlserver.display_query_results")
 
 local function set_result_keymap(prefix, handlers, bufnr)
   local previous_prefix = vim.b[bufnr].sqlserver_result_keymap_prefix
   if previous_prefix and previous_prefix ~= prefix then
     pcall(vim.keymap.del, "n", previous_prefix .. "s", { buffer = bufnr })
+    pcall(vim.keymap.del, "n", previous_prefix .. "n", { buffer = bufnr })
+    pcall(vim.keymap.del, "n", previous_prefix .. "p", { buffer = bufnr })
   end
 
   vim.keymap.set("n", prefix .. "s", handlers.save_query_results, {
     buffer = bufnr,
     desc = "Save SQL result",
+  })
+  vim.keymap.set("n", prefix .. "n", handlers.next_execution, {
+    buffer = bufnr,
+    desc = "Next SQL execution",
+  })
+  vim.keymap.set("n", prefix .. "p", handlers.previous_execution, {
+    buffer = bufnr,
+    desc = "Previous SQL execution",
   })
   vim.b[bufnr].sqlserver_result_keymap_prefix = prefix
 end
@@ -86,6 +97,12 @@ return {
         desc = "Object Definition",
         icon = { icon = "󰈙", color = "blue" },
       },
+      show_results = {
+        "v",
+        M.show_results,
+        desc = "Show Results",
+        icon = { icon = "󰦨", color = "blue" },
+      },
     }
 
     local success, wk = pcall(require, "which-key")
@@ -121,7 +138,7 @@ return {
               keymaps.cancel_query,
             })
           elseif state == states.connected then
-            return with_activity({
+            local items = {
               keymaps.new_query,
               keymaps.new_default_query,
               keymaps.edit_connections,
@@ -137,7 +154,11 @@ return {
               },
               keymaps.find_object,
               keymaps.object_definition,
-            })
+            }
+            if query_results.has_results(workspace.bufnr) then
+              table.insert(items, keymaps.show_results)
+            end
+            return with_activity(items)
           elseif state == states.disconnected then
             local items = {
               keymaps.new_query,
@@ -161,6 +182,9 @@ return {
             if workspace.can_reconnect() then
               table.insert(items, keymaps.reconnect)
             end
+            if query_results.has_results(workspace.bufnr) then
+              table.insert(items, keymaps.show_results)
+            end
             return with_activity(items)
           elseif state == states.cancelling then
             return with_activity({
@@ -173,16 +197,22 @@ return {
             return {}
           end
         elseif vim.b.query_result_info then
-          local save_result = {
-            "s",
-            M.save_query_results,
-            desc = "Save Query Results",
-            icon = { icon = "", color = "green" },
+          return {
+            {
+              "s",
+              M.save_query_results,
+              desc = "Save Query Results",
+              icon = { icon = "", color = "green" },
+            },
+            { "n", M.next_execution, desc = "Next Execution" },
+            { "p", M.previous_execution, desc = "Previous Execution" },
           }
-
-          return { save_result }
         else
-          return { keymaps.new_query, keymaps.new_default_query, keymaps.edit_connections }
+          local items = { keymaps.new_query, keymaps.new_default_query, keymaps.edit_connections }
+          if query_results.has_results() then
+            table.insert(items, keymaps.show_results)
+          end
+          return items
         end
       end
 
@@ -235,8 +265,11 @@ return {
       NewQuery = M.new_query,
       NewDefaultQuery = M.new_default_query,
       SaveQueryResults = M.save_query_results,
+      ShowResults = M.show_results,
       NextResult = M.next_result,
       PreviousResult = M.previous_result,
+      NextExecution = M.next_execution,
+      PreviousExecution = M.previous_execution,
       Find = M.find_object,
       ObjectDefinition = M.show_object_definition,
       CancelQuery = M.cancel_query,
@@ -252,13 +285,19 @@ return {
           "SaveQueryResults",
           "NextResult",
           "PreviousResult",
+          "NextExecution",
+          "PreviousExecution",
         }
       elseif not workspace then
-        return {
+        local items = {
           "NewQuery",
           "NewDefaultQuery",
           "EditConnections",
         }
+        if query_results.has_results() then
+          table.insert(items, "ShowResults")
+        end
+        return items
       end
 
       local state = workspace.get_state()
@@ -281,7 +320,7 @@ return {
           "CancelQuery",
         })
       elseif state == states.connected then
-        return with_activity({
+        local items = {
           "NewQuery",
           "NewDefaultQuery",
           "EditConnections",
@@ -294,7 +333,11 @@ return {
           "RestoreDatabase",
           "Find",
           "ObjectDefinition",
-        })
+        }
+        if query_results.has_results(workspace.bufnr) then
+          table.insert(items, "ShowResults")
+        end
+        return with_activity(items)
       elseif state == states.disconnected then
         local items = {
           "NewQuery",
@@ -304,6 +347,9 @@ return {
         }
         if workspace.can_reconnect() then
           table.insert(items, "Reconnect")
+        end
+        if query_results.has_results(workspace.bufnr) then
+          table.insert(items, "ShowResults")
         end
         return with_activity(items)
       elseif state == states.cancelling then

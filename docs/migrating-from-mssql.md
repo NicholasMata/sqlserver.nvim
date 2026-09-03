@@ -121,7 +121,14 @@ When a query returns multiple result sets:
 - `]r`, `[r`, `:SQLServer NextResult`, and `:SQLServer PreviousResult` navigate
   between them;
 - each result set can be saved independently with the buffer-local
-  `<keymap_prefix>s` mapping or `:SQLServer SaveQueryResults`.
+  `<keymap_prefix>s` mapping or `:SQLServer SaveQueryResults`;
+- `<keymap_prefix>v` or `:SQLServer ShowResults` reopens the last viewed result
+  after its window is closed.
+
+Successful executions are retained per SQL source buffer. Use the result-local
+`<keymap_prefix>n` and `<keymap_prefix>p` mappings, or `NextExecution` and
+`PreviousExecution`, to revisit them. The oldest execution is discarded when
+the per-source `results.history_limit` is reached.
 
 Cell-width truncation affects only the displayed table. Row-limit truncation is
 reported in the result buffer. The underlying result model remains independent
@@ -178,6 +185,8 @@ implementation adds:
 | `o` | `ObjectDefinition` | Script a database object's definition |
 | none | `NextResult` | Display the next result set |
 | none | `PreviousResult` | Display the previous result set |
+| result `n` | `NextExecution` | Display the next retained execution |
+| result `p` | `PreviousExecution` | Display the previous retained execution |
 
 Result buffers also provide the buffer-local `]r` and `[r` mappings.
 

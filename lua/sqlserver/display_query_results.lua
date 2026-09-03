@@ -4,11 +4,12 @@ local query_backend = require("sqlserver.adapters.sql_tools_service.query_backen
 local result_sets = require("sqlserver.core.result_sets")
 
 local M = {}
-local generation = 0
+local generations = {}
 
-function M.display(opts, result)
-  generation = generation + 1
-  local requested_generation = generation
+function M.display(opts, result, source_bufnr)
+  source_bufnr = source_bufnr or vim.api.nvim_get_current_buf()
+  generations[source_bufnr] = (generations[source_bufnr] or 0) + 1
+  local requested_generation = generations[source_bufnr]
   local descriptors = result_sets.describe(result, opts.results.max_rows)
   if #descriptors == 0 then
     return
@@ -17,23 +18,31 @@ function M.display(opts, result)
   vim.schedule(function()
     utils.try_resume(coroutine.create(function()
       local collected = result_sets.collect_async(result, opts.results.max_rows, query_backend.get_result_rows_async)
-      if requested_generation == generation then
-        result_view.show(collected, opts)
+      if requested_generation == generations[source_bufnr] then
+        result_view.show(collected, opts, source_bufnr)
       end
     end))
   end)
 end
 
-function M.clear()
-  generation = generation + 1
-  result_view.clear()
+function M.clear(source_bufnr)
+  if source_bufnr then
+    generations[source_bufnr] = (generations[source_bufnr] or 0) + 1
+  else
+    generations = {}
+  end
+  result_view.clear(source_bufnr)
 end
 
-function M.show(opts, collected)
-  result_view.show(collected, opts)
+function M.show(opts, collected, source_bufnr)
+  result_view.show(collected, opts, source_bufnr)
 end
 
 M.next_result = result_view.next_result
 M.previous_result = result_view.previous_result
+M.next_execution = result_view.next_execution
+M.previous_execution = result_view.previous_execution
+M.has_results = result_view.has_results
+M.show_results = result_view.show_results
 
 return M
