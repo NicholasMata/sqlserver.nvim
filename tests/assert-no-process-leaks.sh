@@ -11,7 +11,7 @@ find_leaks() {
   }
   printf '%s\n' "$processes" | awk -v project_dir="$project_dir" '
     index($0, "MicrosoftSqlToolsServiceLayer") && index($0, project_dir) { print; next }
-    /nvim.*runtests[.]lua/ { print }
+    /nvim.*tests.*minimal-init[.]lua/ { print }
   '
 }
 

@@ -27,9 +27,17 @@ make test
 ```
 
 `make format` rewrites all Lua sources. `make lint` verifies formatting without
-changing files. Unit tests do not download SQL Tools Service or require a
-database. Test configuration, data, state, and cache files are isolated under
-`.tests/`.
+changing files. Tests use `mini.test`, pinned to an exact `mini.nvim` commit and
+downloaded into `.tests/deps/` by the Makefile. Unit tests do not download SQL
+Tools Service or require a database. Test configuration, data, state, cache,
+and dependencies are isolated under `.tests/`.
+
+Run a focused case by matching any part of its `mini.test` description:
+
+```sh
+SQLSERVER_TEST_FILTER=query_selection make test-unit
+SQLSERVER_TEST_FILTER=cancel_query make test-integration-local
+```
 
 ## Integration tests
 
@@ -53,6 +61,11 @@ make test-env-down
 The integration target waits briefly for shutdown and fails if its headless
 Neovim or SQL Tools Service process remains. Run the assertion independently
 with `make assert-no-process-leaks`.
+
+Connected integration cases receive a fresh SQL buffer and SQL Login
+connection from shared fixtures. Each case explicitly disconnects and removes
+its buffers afterward. Tests that require a particular database must select it
+themselves and must not depend on execution order.
 
 Microsoft supports its SQL Server Linux container images only on x86-64 Linux
 hosts. The Compose configuration requests `linux/amd64`, but emulation on ARM

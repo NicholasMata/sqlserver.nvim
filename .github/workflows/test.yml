@@ -72,7 +72,7 @@ jobs:
           "$env:RUNNER_TEMP\neovim\nvim-win64\bin" | Out-File -Append -FilePath $env:GITHUB_PATH
 
       - name: Check formatting
-        run: stylua --check lua ftplugin tests runtests.lua
+        run: stylua --check lua ftplugin tests scripts
 
       - name: Check documentation filenames
         shell: pwsh
@@ -87,12 +87,16 @@ jobs:
         shell: pwsh
         run: |
           $root = "$env:GITHUB_WORKSPACE\.tests"
+          $mini = "$root\deps\mini.nvim"
+          New-Item -ItemType Directory -Force "$root\deps" | Out-Null
+          git clone --filter=blob:none https://github.com/nvim-mini/mini.nvim.git $mini
+          git -C $mini checkout 1345d191bb3da9c7b0e977f4387c5761f9bff68d
           $env:XDG_CONFIG_HOME = "$root\config"
           $env:XDG_DATA_HOME = "$root\data"
           $env:XDG_STATE_HOME = "$root\state"
           $env:XDG_CACHE_HOME = "$root\cache"
           $env:SQLSERVER_TEST_SUITE = "unit"
-          nvim --headless --clean -u runtests.lua
+          nvim --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
 
       - name: Assert clean repository
         shell: pwsh
