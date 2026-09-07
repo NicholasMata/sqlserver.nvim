@@ -88,13 +88,13 @@ end
 
 local function enable_lsp(opts)
   sql_tools_service.enable(opts, {
-    on_query_message = function(message, is_error, owner_uri)
+    on_query_message = function(message, is_error, owner_uri, error_selection)
       local workspace = workspace_registry.find_by_owner_uri(owner_uri)
       local is_cancellation_message = is_error
         and workspace
         and workspace.get_state() == workspace_module.states.cancelling
       if workspace then
-        workspace.record_message(message, is_error and not is_cancellation_message)
+        workspace.record_message(message, is_error and not is_cancellation_message, error_selection)
       end
       if is_cancellation_message then
         return
@@ -102,7 +102,7 @@ local function enable_lsp(opts)
       if is_error then
         utils.log_error(message)
       end
-      opts.view_messages_in(message, is_error)
+      opts.view_messages_in(message, is_error, error_selection)
     end,
     on_connection_changed = function(result)
       local workspace = workspace_registry.find_by_owner_uri(result.ownerUri)

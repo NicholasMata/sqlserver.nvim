@@ -56,7 +56,7 @@ require("sqlserver").setup({
 
   connections_file = nil,
   tools_file = nil,
-  tools_version = "5.0.20250530.2",
+  tools_version = "6.0.20260902.1",
   data_dir = vim.fs.joinpath(vim.fn.stdpath("data"), "sqlserver.nvim"),
 }, function()
   -- sqlserver.nvim is ready.
@@ -72,7 +72,7 @@ indefinitely.
 | --- | --- | --- |
 | `keymap_prefix` | `nil` | Prefix for the default mappings. `nil` creates no mappings. |
 | `open_results_in` | `"split"` | Opens results in `"split"`, `"vsplit"`, `"current_window"`, or with `function(bufnr)`. |
-| `view_messages_in` | `"activity"` | Sends SQL messages to `"activity"`, `"notification"`, `"buffer"`, or `function(message, is_error)`. |
+| `view_messages_in` | `"activity"` | Sends SQL messages to `"activity"`, `"notification"`, `"buffer"`, or `function(message, is_error, error_selection)`. The optional selection uses zero-based document positions. |
 | `ui.presenter` | `"default"` | Uses the built-in presenter, `false` for none, or `function(workspace, event)` for a custom primary subscriber. |
 | `ui.winbar` | `true` | Enables the default winbar. Use `false` or a table with `layout` and `alignment` to customize it. |
 | `ui.winbar.layout` | `"split"` | With the object form, uses `"split"` or `"compact"` content. |
@@ -92,7 +92,7 @@ indefinitely.
 | `sql_buffer_options` | See defaults above | Neovim buffer options applied to SQL buffers. |
 | `connections_file` | `nil` | Connection-profile JSON path. `nil` uses `data_dir/connections.json`. |
 | `tools_file` | `nil` | Existing SQL Tools Service executable. `nil` uses the managed installation. |
-| `tools_version` | `"5.0.20250530.2"` | Pinned managed SQL Tools Service release. Changing it triggers a staged reinstall. |
+| `tools_version` | `"6.0.20260902.1"` | Pinned managed SQL Tools Service release. Changing it triggers a staged reinstall. |
 | `data_dir` | `stdpath("data") .. "/sqlserver.nvim"` | Stores the managed service, connection profiles, logs, and internal state. |
 
 When another distribution overwrites mappings after setup, install them later

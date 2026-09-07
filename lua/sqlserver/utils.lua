@@ -131,13 +131,14 @@ end
 ---@param client vim.lsp.Client
 ---@param method string
 ---@param params any
+---@param bufnr? integer
 ---@return any
 ---@return lsp.ResponseError?
-local lsp_request_async = function(client, method, params)
+local lsp_request_async = function(client, method, params, bufnr)
   local this = coroutine.running()
   client:request(method, params, function(err, result, _, _)
     try_resume(this, result, err)
-  end)
+  end, bufnr)
   return coroutine.yield()
 end
 

@@ -87,7 +87,7 @@ end
 ---@class SqlServerSqlToolsCallbacks
 ---@field on_attach? fun(client: vim.lsp.Client, bufnr: integer)
 ---@field on_connection_changed? fun(result: table)
----@field on_query_message? fun(message: string, is_error: boolean, owner_uri: string)
+---@field on_query_message? fun(message: string, is_error: boolean, owner_uri: string, error_selection?: table)
 ---@field on_exit? fun(code: integer, signal: integer, client_id: integer)
 
 ---@param opts table
@@ -125,7 +125,11 @@ function M.enable(opts, callbacks)
       ["query/message"] = function(_, result)
         local message = result and result.message
         if message and message.message and callbacks.on_query_message then
-          callbacks.on_query_message(message.message, message.isError, result.ownerUri)
+          local error_selection = message.errorSelection
+          if error_selection == vim.NIL then
+            error_selection = nil
+          end
+          callbacks.on_query_message(message.message, message.isError, result.ownerUri, error_selection)
         end
       end,
       ["connection/connectionchanged"] = function(_, result)

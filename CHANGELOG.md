@@ -13,6 +13,15 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Added an optional sticky column header for result windows while preserving
   normal- and visual-mode access to the real header row.
 
+### Changed
+
+- Pin SQL Tools Service 6.0.20260902.1 and install its .NET 10 artifacts.
+- Preserve SQL Tools Service error text and expose its structured, absolute
+  `errorSelection` to activity events and custom message viewers.
+- Execute visual selections and complete SQL buffers as synchronized document
+  ranges so SQL Tools Service retains their source context. Arbitrary SQL text
+  supplied through the public API continues to use string execution.
+
 ## [1.0.0-rc.2] - 2026-09-02
 
 ### Added

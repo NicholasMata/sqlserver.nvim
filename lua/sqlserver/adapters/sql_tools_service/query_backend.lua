@@ -103,7 +103,6 @@ end
 function M.create(bufnr, client, timeouts)
   local owner_uri = utils.lsp_file_uri(bufnr)
   timeouts = timeouts or { connection = 10000, query = false }
-
   return {
     owner_uri = owner_uri,
 
@@ -144,6 +143,9 @@ function M.create(bufnr, client, timeouts)
         method = "query/executedocumentstatement"
         params.line = request.position.line
         params.column = request.position.column
+      elseif (request.kind == "selection" or request.kind == "buffer") and request.range then
+        method = "query/executeDocumentSelection"
+        params.querySelection = request.range
       elseif request.kind == "selection" or request.kind == "buffer" then
         method = "query/executeString"
         params.query = request.text
@@ -151,7 +153,9 @@ function M.create(bufnr, client, timeouts)
         error("Unknown query execution kind: " .. vim.inspect(request.kind), 0)
       end
 
-      local result, request_error = utils.lsp_request_async(client, method, params)
+      -- Passing the owning buffer makes Neovim flush its pending didChange for
+      -- this document before SQL Tools Service selects from it.
+      local result, request_error = utils.lsp_request_async(client, method, params, bufnr)
       if request_error then
         error("Error executing query: " .. request_error.message, 0)
       end

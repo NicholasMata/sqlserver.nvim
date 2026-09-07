@@ -121,11 +121,12 @@ function M.create(opts)
     return vim.deepcopy(activity)
   end
 
-  function workspace.record_message(message, is_error)
+  function workspace.record_message(message, is_error, error_selection)
     emit({
       kind = "message",
       message = message,
       status = is_error and "error" or "info",
+      error_selection = error_selection and vim.deepcopy(error_selection) or nil,
     })
   end
 

@@ -24,8 +24,13 @@ return {
       on_connection_changed = function(result)
         connection_change = result
       end,
-      on_query_message = function(message, is_error, owner_uri)
-        query_message = { message = message, is_error = is_error, owner_uri = owner_uri }
+      on_query_message = function(message, is_error, owner_uri, error_selection)
+        query_message = {
+          message = message,
+          is_error = is_error,
+          owner_uri = owner_uri,
+          error_selection = error_selection,
+        }
       end,
       on_exit = function(code, signal, client_id)
         service_exit = { code = code, signal = signal, client_id = client_id }
@@ -56,11 +61,17 @@ return {
 
     config.handlers["query/message"](nil, {
       ownerUri = "file:///query.sql",
-      message = { message = "Done", isError = false },
+      message = {
+        message = "Done",
+        isError = true,
+        errorSelection = { startLine = 4, startColumn = 2, endLine = 4, endColumn = 8 },
+      },
     })
     assert(query_message.message == "Done")
-    assert(query_message.is_error == false)
+    assert(query_message.is_error == true)
     assert(query_message.owner_uri == "file:///query.sql")
+    assert(query_message.error_selection.startLine == 4)
+    assert(query_message.error_selection.endColumn == 8)
 
     config.on_exit(1, 9, 123)
     assert(service_exit.code == 1)

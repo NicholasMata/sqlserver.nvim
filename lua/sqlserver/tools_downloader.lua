@@ -2,12 +2,12 @@ local utils = require("sqlserver.utils")
 
 local M = {}
 
-M.default_version = "5.0.20250530.2"
+M.default_version = "6.0.20260902.1"
 
 local platforms = {
-  Windows = { arm64 = "win-arm64-net8.0.zip", x64 = "win-x64-net8.0.zip", x86 = "win-x86-net8.0.zip" },
-  Linux = { arm64 = "linux-arm64-net8.0.tar.gz", x64 = "linux-x64-net8.0.tar.gz" },
-  OSX = { arm64 = "osx-arm64-net8.0.tar.gz", x64 = "osx-x64-net8.0.tar.gz" },
+  Windows = { arm64 = "win-arm64-net10.0.zip", x64 = "win-x64-net10.0.zip", x86 = "win-x86-net10.0.zip" },
+  Linux = { arm64 = "linux-arm64-net10.0.tar.gz", x64 = "linux-x64-net10.0.tar.gz" },
+  OSX = { arm64 = "osx-arm64-net10.0.tar.gz", x64 = "osx-x64-net10.0.tar.gz" },
 }
 
 function M.get_release(version, os, arch)
@@ -64,12 +64,13 @@ function M.download_tools_async(release, data_folder)
   if type(release) == "string" then
     release = { url = release, filename = release:match("[^/]+$") }
   end
+  release.filename = release.filename or release.url:match("[^/]+$")
 
   local suffix = string.format("%d-%d", vim.fn.getpid(), vim.uv.hrtime())
   local target = vim.fs.joinpath(data_folder, "sqltools")
   local staging = vim.fs.joinpath(data_folder, "sqltools.installing-" .. suffix)
   local backup = vim.fs.joinpath(data_folder, "sqltools.previous-" .. suffix)
-  local archive = vim.fs.joinpath(data_folder, "sqltools.download-" .. suffix)
+  local archive = vim.fs.joinpath(data_folder, "sqltools.download-" .. suffix .. "-" .. release.filename)
   local executable = vim.fs.joinpath(
     staging,
     jit.os == "Windows" and "MicrosoftSqlToolsServiceLayer.exe" or "MicrosoftSqlToolsServiceLayer"

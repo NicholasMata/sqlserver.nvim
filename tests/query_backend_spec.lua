@@ -39,8 +39,17 @@ return {
 
     local backend = query_backend.create(0, {})
     backend.execute_async({ kind = "statement", position = { line = 3, column = 7 } })
-    backend.execute_async({ kind = "selection", text = "SELECT 1" })
-    backend.execute_async({ kind = "buffer", text = "SELECT 2" })
+    backend.execute_async({
+      kind = "selection",
+      text = "SELECT 1",
+      range = { startLine = 1, startColumn = 2, endLine = 1, endColumn = 10 },
+    })
+    backend.execute_async({
+      kind = "buffer",
+      text = "SELECT 2",
+      range = { startLine = 0, startColumn = 0, endLine = 0, endColumn = 8 },
+    })
+    backend.execute_async({ kind = "selection", text = "SELECT 3" })
     local rows = query_backend.get_result_rows_async({ ownerUri = "file:///query.sql", rowsCount = 1 })
     assert(backend.is_connected_async())
 
@@ -76,10 +85,14 @@ return {
 
     assert(requests[1].method == "query/executedocumentstatement")
     assert(requests[1].params.line == 3 and requests[1].params.column == 7)
-    assert(requests[2].method == "query/executeString" and requests[2].params.query == "SELECT 1")
-    assert(requests[3].method == "query/executeString" and requests[3].params.query == "SELECT 2")
-    assert(requests[4].method == "query/subset")
-    assert(requests[5].method == "connection/listdatabases")
+    assert(requests[2].method == "query/executeDocumentSelection")
+    assert(requests[2].params.querySelection.startLine == 1)
+    assert(requests[2].params.query == nil)
+    assert(requests[3].method == "query/executeDocumentSelection")
+    assert(requests[3].params.querySelection.endColumn == 8)
+    assert(requests[4].method == "query/executeString" and requests[4].params.query == "SELECT 3")
+    assert(requests[5].method == "query/subset")
+    assert(requests[6].method == "connection/listdatabases")
     assert(rows[1][1].display_value == "NULL" and rows[1][1].is_null)
     assert(rows[1][1].invariant_value == nil)
   end,

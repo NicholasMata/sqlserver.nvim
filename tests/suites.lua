@@ -27,6 +27,8 @@ return {
     "tests.connect_spec",
     "tests.dbo_completion_spec",
     "tests.public_api_integration_spec",
+    "tests.execution_scope_integration_spec",
+    "tests.error_line_numbers_integration_spec",
     "tests.execute_query_spec",
     "tests.multiple_result_sets_spec",
     "tests.result_history_integration_spec",

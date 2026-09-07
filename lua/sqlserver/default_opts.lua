@@ -19,8 +19,9 @@ return {
   "activity"                            - Store messages in the SQL Server activity panel
   "notification"                        - View as a vim notification
   "buffer"                              - View in a messages buffer
-  function(message, is_error) ...       - Function which takes the message string and is_error boolean
-                                          (called for each message). Use this to view messages in a custom way
+  function(message, is_error, error_selection) ...
+                                        - Function called for each message. SQL Tools Service 6 errors may
+                                          include an absolute, zero-based source selection as the third argument
   --]]
   view_messages_in = "activity",
 
