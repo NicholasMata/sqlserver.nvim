@@ -52,6 +52,7 @@ the real header. Set `results.sticky_header = false` to disable the overlay.
 Each result can be saved independently with the buffer-local
 `<keymap_prefix>s` mapping or `:SQLServer SaveQueryResults`. No result-buffer
 mappings using `keymap_prefix` are created when that option is disabled.
+Exports support CSV, JSON, XML, and Excel `.xlsx`.
 
 When the configured row limit is reached, the buffer reports how many rows are
 shown. Cell-width truncation affects only the rendered table. Database `NULL`

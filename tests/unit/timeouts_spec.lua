@@ -6,6 +6,7 @@ T["Operational timeouts should normalize public configuration"] = require("tests
   local defaults = timeouts.normalize()
   assert(defaults.lsp_attach == 10000)
   assert(defaults.connection == 10000)
+  assert(defaults.export == 10000)
   assert(defaults.object_explorer == 10000)
   assert(defaults.query == false)
 

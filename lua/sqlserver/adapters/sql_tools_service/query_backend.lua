@@ -71,29 +71,74 @@ local export_methods = {
   csv = "query/saveCsv",
   json = "query/saveJson",
   xml = "query/saveXml",
-  xls = "query/saveExcel",
   xlsx = "query/saveExcel",
 }
+
+local function read_file_tail(path, size)
+  local stat = vim.uv.fs_stat(path)
+  if not stat or stat.size == 0 then
+    return stat, ""
+  end
+  local fd = vim.uv.fs_open(path, "r", 438)
+  if not fd then
+    return stat, ""
+  end
+  local length = math.min(size, stat.size)
+  local contents = vim.uv.fs_read(fd, length, stat.size - length) or ""
+  vim.uv.fs_close(fd)
+  return stat, contents
+end
+
+local function export_is_complete(locator, path, format)
+  local stat, tail = read_file_tail(path, 65557)
+  if not stat then
+    return false
+  end
+  if stat.size == 0 then
+    return false
+  end
+  if format == "xlsx" then
+    return tail:find("PK\005\006", 1, true) ~= nil
+  end
+  if format == "json" then
+    return tail:match("%]%s*$") ~= nil
+  end
+  return true
+end
 
 ---@param locator table
 ---@param path string
 ---@param format string
-function M.export_result_async(locator, path, format)
+---@param opts? { timeout?: integer|false }
+function M.export_result_async(locator, path, format, opts)
+  opts = opts or {}
   local method = export_methods[format]
   if not method then
     error("Unsupported result export format: " .. tostring(format), 0)
   end
   local client = utils.get_lsp_client(locator.ownerUri)
-  local _, err = utils.lsp_request_async(client, method, {
+  local params = {
     FilePath = path,
     BatchIndex = locator.batchIndex,
     ResultSetIndex = locator.resultSetIndex,
     OwnerUri = locator.ownerUri,
     IncludeHeaders = true,
     Formatted = true,
-  })
+  }
+  local _, err = utils.lsp_request_async(client, method, params)
   if err then
     error("Could not export query result: " .. err.message, 0)
+  end
+  -- SQL Tools Service sends the response from inside the writer's scope. Some
+  -- formats are not complete until that writer is disposed after the response.
+  if locator.rowsCount ~= nil then
+    local started_at = vim.uv.hrtime()
+    while not export_is_complete(locator, path, format) do
+      if opts.timeout and (vim.uv.hrtime() - started_at) / 1e6 >= opts.timeout then
+        error("SQL Tools Service did not finish writing the export within the configured timeout", 0)
+      end
+      utils.defer_async(10)
+    end
   end
 end
 
@@ -214,6 +259,13 @@ function M.create(bufnr, client, timeouts)
     end,
 
     dispose_query_async = dispose_query_async,
+
+    export_result_async = function(locator, path, format, opts)
+      if not active_query_id or locator._sqlserver_query_id ~= active_query_id then
+        error("These query results are no longer available for export; execute the query again", 0)
+      end
+      return M.export_result_async(locator, path, format, opts)
+    end,
 
     list_databases_async = function()
       local result, err = utils.lsp_request_async(client, "connection/listdatabases", { ownerUri = owner_uri })

@@ -761,8 +761,8 @@ local function save_query_results_async(result_info)
 
   local extension = file:match("%.([^.]+)$")
   extension = extension and extension:lower() or nil
-  if not vim.tbl_contains({ "csv", "json", "xml", "xls", "xlsx" }, extension) then
-    utils.log_error("Filename must end with .csv, .json, .xml, .xls, or .xlsx")
+  if not vim.tbl_contains({ "csv", "json", "xml", "xlsx" }, extension) then
+    utils.log_error("Filename must end with .csv, .json, .xml, or .xlsx")
     return
   end
 
@@ -780,10 +780,13 @@ local function save_query_results_async(result_info)
     end
   end
 
-  local openAfterSave = extension ~= "xls" and extension ~= "xlsx"
+  local openAfterSave = extension ~= "xlsx"
 
   await_public(function(callback)
-    public_api.export_results({ result_set = { locator = subset_params }, path = file }, callback)
+    public_api.export_results({
+      result_set = { locator = subset_params },
+      path = file,
+    }, callback)
   end)
 
   utils.log_info("Exported query results to " .. file)

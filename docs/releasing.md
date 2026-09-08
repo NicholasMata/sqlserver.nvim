@@ -52,7 +52,8 @@ fresh Neovim data directory:
 4. Execute the current statement, a visual selection, and the complete buffer.
    Confirm multiple result sets, SQL messages, partial success, zero-row
    results, truncation indicators, and result navigation.
-5. Export a result to CSV and JSON and verify the saved values.
+5. Export a result to CSV, JSON, XML, and XLSX. Verify their saved values and
+   the XLSX archive integrity.
 6. Start and cancel a long-running query. Confirm the server operation stops
    and the workspace returns to `Ready`.
 7. Search tables, views, procedures, scalar functions, and table-valued

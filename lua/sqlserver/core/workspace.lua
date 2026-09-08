@@ -217,6 +217,10 @@ function M.create(opts)
     return coroutine.resume(co)
   end
 
+  function workspace.export_result_async(locator, path, format, export_opts)
+    return backend.export_result_async(locator, path, format, export_opts)
+  end
+
   function workspace.dispose_async()
     if disposed then
       return

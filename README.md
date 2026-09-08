@@ -22,7 +22,7 @@ execution while keeping protocol, workspace, result, and UI concerns separate.
 - Cancel active queries and inspect persistent workspace activity.
 - Revisit recent executions and navigate their result sets in dedicated
   `sqlserver-result` buffers.
-- Save individual results as CSV, JSON, Excel, or XML.
+- Save individual results as CSV, JSON, XML, or Excel `.xlsx`.
 - Display workspace state and result-history position in a configurable winbar.
 
 Switching from `mssql.nvim` requires configuration and workflow changes. See
@@ -73,6 +73,7 @@ require("sqlserver").setup({
   timeouts = {
     lsp_attach = 10000,
     connection = 10000,
+    export = 10000,
     object_explorer = 10000,
     query = false,
   },

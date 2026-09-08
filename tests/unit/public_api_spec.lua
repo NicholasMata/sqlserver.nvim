@@ -1,7 +1,6 @@
 local api = require("sqlserver.api")
 local workspace_module = require("sqlserver.core.workspace")
 local registry = require("sqlserver.core.workspace_registry")
-local query_backend = require("sqlserver.adapters.sql_tools_service.query_backend")
 
 local function completed(invoke)
   local calls = 0
@@ -19,6 +18,7 @@ end
 local T = MiniTest.new_set()
 
 T["Public API should expose UI-independent workspace operations"] = require("tests.helpers").async(function()
+  local exported
   local backend = {
     owner_uri = "file:///public-api.sql",
     client = {},
@@ -37,6 +37,9 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
     end,
     cancel_async = function() end,
     dispose_query_async = function() end,
+    export_result_async = function(locator, path, format, opts)
+      exported = { locator = locator, path = path, format = format, opts = opts }
+    end,
     rebuild_intellisense = function() end,
   }
   local refreshing = false
@@ -72,7 +75,7 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
       },
     }),
   }, connections_file)
-  api.configure({ results = { max_rows = 0 }, connections_file = connections_file })
+  api.configure({ results = { max_rows = 0 }, timeouts = { export = 10000 }, connections_file = connections_file })
 
   local connection, err = completed(function(callback)
     api.connect("development", { bufnr = 321 }, callback)
@@ -159,19 +162,15 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
   end)
   assert(scripted.script == "SELECT * FROM dbo.Person" and scripted.intent == "query")
 
-  local original_export = query_backend.export_result_async
-  local exported
-  query_backend.export_result_async = function(locator, path, format)
-    exported = { locator = locator, path = path, format = format }
-  end
   local export_result = completed(function(callback)
     api.export_results({
       result_set = { locator = { ownerUri = "file:///public-api.sql" } },
       path = "/tmp/result.csv",
     }, callback)
   end)
-  query_backend.export_result_async = original_export
   assert(export_result.format == "csv" and exported.path == "/tmp/result.csv")
+
+  assert(exported.opts.timeout == 10000)
 
   local disconnected = completed(function(callback)
     api.disconnect(321, callback)

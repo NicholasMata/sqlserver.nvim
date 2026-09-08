@@ -162,6 +162,9 @@ function M.execute(opts, callback)
       pcall(workspace.dispose_query_async, query_id)
       error(collected, 0)
     end
+    for _, result_set in ipairs(collected) do
+      result_set.locator._sqlserver_query_id = query_id
+    end
     local released = false
     local execution = {
       cancelled = false,
@@ -241,7 +244,13 @@ function M.export_results(opts, callback)
     end
     local format = opts.format or opts.path:match("%.([^.]+)$")
     format = format and format:lower() or nil
-    query_backend.export_result_async(result_set.locator, opts.path, format)
+    local workspace = workspace_registry.find_by_owner_uri(result_set.locator.ownerUri)
+    if not workspace then
+      error(api_error("result_unavailable", "The query workspace is no longer available for export"), 0)
+    end
+    workspace.export_result_async(result_set.locator, opts.path, format, {
+      timeout = require_config().timeouts.export,
+    })
     return { path = opts.path, format = format }
   end)
 end

@@ -105,9 +105,9 @@ sqlserver.export_results({
 }, callback)
 ```
 
-Supported formats are `csv`, `json`, `xml`, `xls`, and `xlsx`. The format is
-inferred from `path` unless `format` is supplied. A result-buffer number may be
-provided as `bufnr` instead of `result_set`.
+Supported formats are `csv`, `json`, `xml`, and `xlsx`. The format is inferred
+from `path` unless `format` is supplied. A result-buffer number may be provided
+as `bufnr` instead of `result_set`.
 
 ## Interactive Commands
 

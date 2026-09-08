@@ -3,6 +3,7 @@ local M = {}
 local defaults = {
   lsp_attach = 10000,
   connection = 10000,
+  export = 10000,
   object_explorer = 10000,
   query = false,
 }

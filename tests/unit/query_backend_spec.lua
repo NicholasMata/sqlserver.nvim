@@ -97,6 +97,29 @@ T["Query backend should translate execution scopes"] = require("tests.helpers").
   assert(vim.iter(requests):any(function(request)
     return request.method == "connection/listdatabases"
   end))
+  local stale_export, stale_export_error = pcall(backend.export_result_async, {
+    ownerUri = "file:///query.sql",
+    batchIndex = 0,
+    resultSetIndex = 0,
+    _sqlserver_query_id = first_execution._sqlserver_query_id,
+  }, "/tmp/stale.csv", "csv")
+  assert(not stale_export)
+  assert(stale_export_error:find("no longer available", 1, true))
+  backend.export_result_async(
+    { ownerUri = "file:///query.sql", batchIndex = 0, resultSetIndex = 0, _sqlserver_query_id = 4 },
+    "/tmp/result.xlsx",
+    "xlsx"
+  )
+  local excel_export = requests[#requests]
+  assert(excel_export.method == "query/saveExcel")
+  assert(excel_export.params.IncludeHeaders == true)
+  local legacy_excel, legacy_excel_error = pcall(
+    backend.export_result_async,
+    { ownerUri = "file:///query.sql", _sqlserver_query_id = 4 },
+    "/tmp/result.xls",
+    "xls"
+  )
+  assert(not legacy_excel and legacy_excel_error:find("Unsupported result export format", 1, true))
   assert(first_execution._sqlserver_query_id == 1)
   assert(
     not backend.dispose_query_async(first_execution._sqlserver_query_id),

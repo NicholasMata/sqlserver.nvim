@@ -32,6 +32,7 @@ require("sqlserver").setup({
   timeouts = {
     lsp_attach = 10000,
     connection = 10000,
+    export = 10000,
     object_explorer = 10000,
     query = false,
   },
@@ -85,6 +86,7 @@ indefinitely.
 | `results.max_cell_width` | `100` | Maximum displayed cell width. The underlying value remains unchanged. |
 | `timeouts.lsp_attach` | `10000` | Maximum wait for SQL Tools Service to attach to a SQL buffer. |
 | `timeouts.connection` | `10000` | Maximum wait for a connection or disconnection operation. |
+| `timeouts.export` | `10000` | Maximum wait for SQL Tools Service to finish writing an exported result. |
 | `timeouts.object_explorer` | `10000` | Maximum wait for an object metadata refresh or scripting request. |
 | `timeouts.query` | `false` | Maximum query duration before server-side cancellation is requested. |
 | `execute_generated_select_statements` | `true` | Immediately executes generated table and view queries. Procedures are never executed automatically. |

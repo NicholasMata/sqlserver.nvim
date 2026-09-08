@@ -18,6 +18,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Limit Excel export to `.xlsx` because SQL Tools Service produces OOXML rather
+  than the legacy `.xls` binary format.
 - Replace the custom Lua test harness with pinned `mini.test` runners, focused
   case filtering, and isolated SQL integration fixtures.
 - Pin SQL Tools Service 6.0.20260902.1 and install its .NET 10 artifacts.
