@@ -103,6 +103,26 @@ end
 function M.create(bufnr, client, timeouts)
   local owner_uri = utils.lsp_file_uri(bufnr)
   timeouts = timeouts or { connection = 10000, query = false }
+  local next_query_id = 0
+  local active_query_id
+
+  local function dispose_query_async(query_id)
+    if not active_query_id or (query_id and query_id ~= active_query_id) then
+      return false
+    end
+
+    local disposing_query_id = active_query_id
+    active_query_id = nil
+    local _, err = utils.lsp_request_async(client, "query/dispose", { ownerUri = owner_uri })
+    if err then
+      if active_query_id == nil then
+        active_query_id = disposing_query_id
+      end
+      error("Could not dispose query results: " .. err.message, 0)
+    end
+    return true
+  end
+
   return {
     owner_uri = owner_uri,
 
@@ -130,6 +150,7 @@ function M.create(bufnr, client, timeouts)
     end,
 
     disconnect_async = function()
+      pcall(dispose_query_async)
       local _, err = utils.lsp_request_async(client, "connection/disconnect", { ownerUri = owner_uri })
       if err then
         error("Could not disconnect: " .. err.message, 0)
@@ -137,6 +158,12 @@ function M.create(bufnr, client, timeouts)
     end,
 
     execute_async = function(request)
+      -- SQL Tools Service stores one query per owner URI. Dispose the previous
+      -- query explicitly before replacing it so its result storage is released.
+      pcall(dispose_query_async)
+      next_query_id = next_query_id + 1
+      local query_id = next_query_id
+
       local method
       local params = { ownerUri = owner_uri }
       if request.kind == "statement" then
@@ -162,16 +189,20 @@ function M.create(bufnr, client, timeouts)
       if not result then
         error("Could not execute query", 0)
       end
+      active_query_id = query_id
 
       local completed, notification_error =
         utils.wait_for_notification_async(bufnr, client, "query/complete", timeouts.query)
       if notification_error then
         if timeouts.query then
           local _, cancellation_error = utils.lsp_request_async(client, "query/cancel", { ownerUri = owner_uri })
+          pcall(dispose_query_async, query_id)
           error(query_timeout_error(timeouts.query, cancellation_error), 0)
         end
+        pcall(dispose_query_async, query_id)
         error("Could not execute query: " .. vim.inspect(notification_error), 0)
       end
+      completed._sqlserver_query_id = query_id
       return completed
     end,
 
@@ -181,6 +212,8 @@ function M.create(bufnr, client, timeouts)
         error("Could not cancel query: " .. err.message, 0)
       end
     end,
+
+    dispose_query_async = dispose_query_async,
 
     list_databases_async = function()
       local result, err = utils.lsp_request_async(client, "connection/listdatabases", { ownerUri = owner_uri })

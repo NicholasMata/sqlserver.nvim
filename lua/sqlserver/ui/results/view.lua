@@ -30,6 +30,10 @@ function M.setup(opts)
 end
 
 local function delete_execution(execution)
+  if execution.dispose then
+    execution.dispose()
+    execution.dispose = nil
+  end
   for _, bufnr in ipairs(execution.buffers) do
     result_sessions[bufnr] = nil
     if vim.api.nvim_buf_is_valid(bufnr) then
@@ -90,7 +94,7 @@ local function prune_source(source)
   local active = source.executions[source.active_execution]
   for index = #source.executions, 1, -1 do
     if not valid_buffer(source.executions[index]) then
-      table.remove(source.executions, index)
+      delete_execution(table.remove(source.executions, index))
     end
   end
   source.active_execution = #source.executions
@@ -368,6 +372,10 @@ function M.remove_result(bufnr)
     source.active_execution = execution_position
     replacement_buffer = valid_buffer(execution)
   else
+    if execution.dispose then
+      execution.dispose()
+      execution.dispose = nil
+    end
     table.remove(source.executions, execution_position)
     source.active_execution = math.min(execution_position, #source.executions)
     local replacement_execution = source.executions[source.active_execution]
@@ -415,7 +423,8 @@ end
 ---@param result_sets SqlServerResultSet[]
 ---@param opts table
 ---@param source_bufnr? integer
-function M.show(result_sets, opts, source_bufnr)
+---@param dispose? fun(): boolean
+function M.show(result_sets, opts, source_bufnr, dispose)
   if not result_sets or #result_sets == 0 then
     return false
   end
@@ -429,6 +438,7 @@ function M.show(result_sets, opts, source_bufnr)
     source_bufnr = source_bufnr,
     buffers = {},
     active_result = 1,
+    dispose = dispose,
   }
   next_execution_id = next_execution_id + 1
 
@@ -483,6 +493,19 @@ function M.show(result_sets, opts, source_bufnr)
           or current_source.active_execution
         current_session.execution.active_result = current_session.result_index
         last_source_buffer = source_bufnr
+      end,
+    })
+    vim.api.nvim_create_autocmd("BufWipeout", {
+      buffer = bufnr,
+      once = true,
+      callback = function()
+        result_sessions[bufnr] = nil
+        vim.schedule(function()
+          local current_source = sources[source_bufnr]
+          if current_source then
+            prune_source(current_source)
+          end
+        end)
       end,
     })
     table.insert(execution.buffers, bufnr)

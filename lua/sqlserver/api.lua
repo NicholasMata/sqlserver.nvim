@@ -155,11 +155,31 @@ function M.execute(opts, callback)
       return { cancelled = true, result_sets = {} }
     end
     local configured = require_config()
-    return {
+    local query_id = raw._sqlserver_query_id
+    local collected_ok, collected =
+      pcall(result_sets.collect_async, raw, configured.results.max_rows, query_backend.get_result_rows_async)
+    if not collected_ok then
+      pcall(workspace.dispose_query_async, query_id)
+      error(collected, 0)
+    end
+    local released = false
+    local execution = {
       cancelled = false,
       summary = query_summary.create(raw),
-      result_sets = result_sets.collect_async(raw, configured.results.max_rows, query_backend.get_result_rows_async),
+      result_sets = collected,
+      dispose = function()
+        if released then
+          return false
+        end
+        released = true
+        return workspace.release_query(query_id)
+      end,
     }
+    if #collected == 0 then
+      released = true
+      pcall(workspace.dispose_query_async, query_id)
+    end
+    return execution
   end)
 end
 

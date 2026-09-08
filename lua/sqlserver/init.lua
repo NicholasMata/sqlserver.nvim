@@ -912,7 +912,7 @@ local command_handlers = {
         public_api.execute({ bufnr = workspace.bufnr, request = request }, callback)
       end)
       if not execution.cancelled then
-        query_results.show(plugin_opts, execution.result_sets, workspace.bufnr)
+        query_results.show(plugin_opts, execution.result_sets, workspace.bufnr, execution.dispose)
       end
     end))
   end,
@@ -933,7 +933,7 @@ local command_handlers = {
         public_api.execute({ bufnr = workspace.bufnr, request = request }, callback)
       end)
       if not execution.cancelled then
-        query_results.show(plugin_opts, execution.result_sets, workspace.bufnr)
+        query_results.show(plugin_opts, execution.result_sets, workspace.bufnr, execution.dispose)
       end
     end))
   end,
@@ -1074,7 +1074,7 @@ local command_handlers = {
         local execution = await_public(function(api_callback)
           public_api.execute({ bufnr = workspace.bufnr, text = item.script, scope = "buffer" }, api_callback)
         end)
-        query_results.show(plugin_opts, execution.result_sets, workspace.bufnr)
+        query_results.show(plugin_opts, execution.result_sets, workspace.bufnr, execution.dispose)
       end
       if callback then
         callback()

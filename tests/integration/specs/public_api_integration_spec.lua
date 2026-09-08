@@ -1,4 +1,5 @@
 local sqlserver = require("sqlserver")
+local integration = require("tests.helpers.integration")
 
 local function await(invoke)
   local co = coroutine.running()
@@ -40,6 +41,15 @@ T["Public API should execute and inspect live SQL Server state"] = require("test
   end)
   assert(not export_error, export_error and export_error.message)
   assert(exported.path == export_path and vim.fn.filereadable(export_path) == 1)
+  vim.fn.delete(export_path)
+
+  assert(execution.dispose())
+  assert(not execution.dispose(), "A public execution should only be disposed once")
+  integration.defer_async(100)
+  local _, disposed_export_error = await(function(callback)
+    sqlserver.export_results({ result_set = execution.result_sets[1], path = export_path }, callback)
+  end)
+  assert(disposed_export_error, "Disposed SQL Tools Service results should no longer be exportable")
   vim.fn.delete(export_path)
 
   local objects, object_error = await(function(callback)

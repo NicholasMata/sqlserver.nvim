@@ -100,4 +100,40 @@ T["Result sessions should retain execution history per source buffer"] = require
   view.clear()
 end)
 
+T["Result sessions should dispose released query storage"] = require("tests.helpers").async(function()
+  view.clear()
+  local source = vim.api.nvim_create_buf(false, true)
+  local opened = {}
+  local disposed = {}
+  local function disposal(name)
+    return function()
+      disposed[name] = (disposed[name] or 0) + 1
+      return true
+    end
+  end
+
+  assert(view.show({ result("first", 1) }, options(1, opened), source, disposal("first")))
+  local first_buffer = opened.bufnr
+  assert(view.show({ result("second", 1) }, options(1, opened), source, disposal("second")))
+  assert(disposed.first == 1, "History eviction should dispose its query")
+  assert(not vim.api.nvim_buf_is_valid(first_buffer))
+
+  assert(view.remove_result(opened.bufnr))
+  assert(disposed.second == 1, "Removing the final result should dispose its query")
+  view.clear(source)
+  assert(disposed.second == 1, "Clearing an empty source should not dispose twice")
+
+  assert(view.show({ result("deleted", 1) }, options(1, opened), source, disposal("deleted")))
+  vim.api.nvim_buf_delete(opened.bufnr, { force = true })
+  vim.wait(100, function()
+    return disposed.deleted == 1
+  end)
+  assert(disposed.deleted == 1, "Deleting a result buffer should dispose its empty run")
+
+  assert(view.show({ result("source", 1) }, options(1, opened), source, disposal("source")))
+  vim.api.nvim_buf_delete(source, { force = true })
+  assert(disposed.source == 1, "Deleting the source should dispose its query")
+  view.clear()
+end)
+
 return T

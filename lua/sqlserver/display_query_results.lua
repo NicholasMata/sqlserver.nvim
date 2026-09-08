@@ -36,8 +36,8 @@ function M.clear(source_bufnr)
   result_view.clear(source_bufnr)
 end
 
-function M.show(opts, collected, source_bufnr)
-  result_view.show(collected, opts, source_bufnr)
+function M.show(opts, collected, source_bufnr, dispose)
+  result_view.show(collected, opts, source_bufnr, dispose)
 end
 
 M.next_result = result_view.next_result

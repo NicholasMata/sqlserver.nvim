@@ -28,6 +28,7 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
     disconnect_async = function() end,
     execute_async = function()
       return {
+        _sqlserver_query_id = 1,
         ownerUri = "file:///public-api.sql",
         batchSummaries = {
           { hasError = false, resultSetSummaries = { { rowCount = 0, columnInfo = {} } } },
@@ -35,6 +36,7 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
       }
     end,
     cancel_async = function() end,
+    dispose_query_async = function() end,
     rebuild_intellisense = function() end,
   }
   local refreshing = false
@@ -107,6 +109,7 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
 
   backend.execute_async = function()
     return {
+      _sqlserver_query_id = 2,
       ownerUri = "file:///public-api.sql",
       batchSummaries = {
         { hasError = false, resultSetSummaries = { { rowCount = 0, columnInfo = {} } } },
@@ -117,6 +120,27 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
     api.execute({ bufnr = 321, text = "SELECT 1" }, callback)
   end)
   assert(execution.summary.row_count == 0 and #execution.result_sets == 1)
+  local disposed_queries = 0
+  local disposed_query_id
+  backend.dispose_query_async = function(query_id)
+    disposed_query_id = query_id
+    disposed_queries = disposed_queries + 1
+  end
+  assert(execution.dispose())
+  assert(not execution.dispose())
+  assert(disposed_queries == 1, "Public query results should only be released once")
+  assert(disposed_query_id == 2)
+
+  backend.execute_async = function()
+    return { _sqlserver_query_id = 3, ownerUri = "file:///public-api.sql", batchSummaries = {} }
+  end
+  local empty_execution = completed(function(callback)
+    api.execute({ bufnr = 321, text = "PRINT 'done'" }, callback)
+  end)
+  assert(#empty_execution.result_sets == 0)
+  assert(not empty_execution.dispose(), "Executions without results should be disposed automatically")
+  assert(disposed_queries == 2, "Result-free executions should release SQL Tools Service storage")
+  assert(disposed_query_id == 3)
 
   local listed = completed(function(callback)
     api.list_objects({ bufnr = 321, name = "Person" }, callback)

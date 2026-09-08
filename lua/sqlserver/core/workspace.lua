@@ -200,6 +200,23 @@ function M.create(opts)
     finish_operation(operation_id, "success", "Disconnected")
   end
 
+  function workspace.dispose_query_async(query_id)
+    if not (query_id and backend.dispose_query_async) then
+      return false
+    end
+    return backend.dispose_query_async(query_id)
+  end
+
+  function workspace.release_query(query_id)
+    if not (query_id and backend.dispose_query_async) then
+      return false
+    end
+    local co = coroutine.create(function()
+      pcall(workspace.dispose_query_async, query_id)
+    end)
+    return coroutine.resume(co)
+  end
+
   function workspace.dispose_async()
     if disposed then
       return
@@ -208,6 +225,9 @@ function M.create(opts)
 
     if state == M.states.executing then
       pcall(backend.cancel_async)
+    end
+    if backend.dispose_query_async then
+      pcall(backend.dispose_query_async)
     end
     if state ~= M.states.disconnected then
       pcall(backend.disconnect_async)
@@ -228,6 +248,9 @@ function M.create(opts)
     local ok, result = pcall(backend.execute_async, request)
     local was_cancelled = state == M.states.cancelling
     if was_cancelled then
+      if backend.dispose_query_async and result and result._sqlserver_query_id then
+        pcall(backend.dispose_query_async, result._sqlserver_query_id)
+      end
       set_state(M.states.connected)
       finish_operation(operation_id, "cancelled", "Query cancelled")
       return nil

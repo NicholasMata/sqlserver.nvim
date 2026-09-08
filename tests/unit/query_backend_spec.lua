@@ -38,7 +38,7 @@ T["Query backend should translate execution scopes"] = require("tests.helpers").
   end
 
   local backend = query_backend.create(0, {})
-  backend.execute_async({ kind = "statement", position = { line = 3, column = 7 } })
+  local first_execution = backend.execute_async({ kind = "statement", position = { line = 3, column = 7 } })
   backend.execute_async({
     kind = "selection",
     text = "SELECT 1",
@@ -65,7 +65,8 @@ T["Query backend should translate execution scopes"] = require("tests.helpers").
   local executed, query_error = pcall(timed_backend.execute_async, { kind = "buffer", text = "WAITFOR" })
   assert(not executed and query_error.message == "SQL Server query timed out")
   assert(query_error.diagnostic:find("cancellation was requested", 1, true))
-  assert(requests[#requests].method == "query/cancel")
+  assert(requests[#requests - 1].method == "query/cancel")
+  assert(requests[#requests].method == "query/dispose")
 
   utils.wait_for_notification_async = function()
     return { errorMessage = "Login failed using Secret123" }
@@ -79,20 +80,36 @@ T["Query backend should translate execution scopes"] = require("tests.helpers").
   assert(secret_error.diagnostic:find("[REDACTED]", 1, true))
   assert(not secret_error.diagnostic:find("Secret123", 1, true))
 
+  local execution_requests = vim.tbl_filter(function(request)
+    return request.method:find("query/execute", 1, true) == 1
+  end, requests)
+  assert(execution_requests[1].method == "query/executedocumentstatement")
+  assert(execution_requests[1].params.line == 3 and execution_requests[1].params.column == 7)
+  assert(execution_requests[2].method == "query/executeDocumentSelection")
+  assert(execution_requests[2].params.querySelection.startLine == 1)
+  assert(execution_requests[2].params.query == nil)
+  assert(execution_requests[3].method == "query/executeDocumentSelection")
+  assert(execution_requests[3].params.querySelection.endColumn == 8)
+  assert(execution_requests[4].method == "query/executeString" and execution_requests[4].params.query == "SELECT 3")
+  assert(vim.iter(requests):any(function(request)
+    return request.method == "query/subset"
+  end))
+  assert(vim.iter(requests):any(function(request)
+    return request.method == "connection/listdatabases"
+  end))
+  assert(first_execution._sqlserver_query_id == 1)
+  assert(
+    not backend.dispose_query_async(first_execution._sqlserver_query_id),
+    "An old query must not dispose the current query"
+  )
+  assert(backend.dispose_query_async(), "The current query should be disposed")
+  assert(not backend.dispose_query_async(), "A query should only be disposed once")
+  assert(requests[#requests].method == "query/dispose")
+
   utils.lsp_request_async = original_request
   utils.wait_for_notification_async = original_wait
   utils.get_lsp_client = original_get_client
 
-  assert(requests[1].method == "query/executedocumentstatement")
-  assert(requests[1].params.line == 3 and requests[1].params.column == 7)
-  assert(requests[2].method == "query/executeDocumentSelection")
-  assert(requests[2].params.querySelection.startLine == 1)
-  assert(requests[2].params.query == nil)
-  assert(requests[3].method == "query/executeDocumentSelection")
-  assert(requests[3].params.querySelection.endColumn == 8)
-  assert(requests[4].method == "query/executeString" and requests[4].params.query == "SELECT 3")
-  assert(requests[5].method == "query/subset")
-  assert(requests[6].method == "connection/listdatabases")
   assert(rows[1][1].display_value == "NULL" and rows[1][1].is_null)
   assert(rows[1][1].invariant_value == nil)
 end)
