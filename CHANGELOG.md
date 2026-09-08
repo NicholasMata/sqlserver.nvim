@@ -8,6 +8,7 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- Added `[c` and `]c` navigation between rendered result columns.
 - Added a confirmed result-local action that removes the current result set and
   automatically removes its execution when no result sets remain.
 - Added an optional sticky column header for result windows while preserving

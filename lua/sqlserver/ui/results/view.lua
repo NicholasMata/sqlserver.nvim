@@ -252,6 +252,45 @@ function M.previous_result()
   return select_result(-1)
 end
 
+local function current_column(ranges, cursor_col)
+  local column = 1
+  for index, range in ipairs(ranges) do
+    if cursor_col < range.start_col then
+      break
+    end
+    column = index
+  end
+  return column
+end
+
+local function move_column(offset)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local session = result_sessions[bufnr]
+  if not session then
+    return false
+  end
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local ranges = session.cell_ranges and session.cell_ranges[cursor[1]]
+  if not ranges or #ranges == 0 then
+    return false
+  end
+  if #ranges < 2 then
+    return false
+  end
+  local column = current_column(ranges, cursor[2])
+  local target = ((column - 1 + offset) % #ranges) + 1
+  vim.api.nvim_win_set_cursor(0, { cursor[1], ranges[target].start_col })
+  return true
+end
+
+function M.next_column()
+  return move_column(1)
+end
+
+function M.previous_column()
+  return move_column(-1)
+end
+
 local function select_execution(offset, open_results_in)
   local current_buffer = vim.api.nvim_get_current_buf()
   local source_bufnr = source_for_buffer(current_buffer, true)
@@ -426,7 +465,12 @@ function M.show(result_sets, opts, source_bufnr)
     vim.api.nvim_set_option_value("filetype", "sqlserver-result", { buf = bufnr })
     vim.api.nvim_set_option_value("readonly", true, { buf = bufnr })
     vim.api.nvim_set_option_value("modifiable", false, { buf = bufnr })
-    result_sessions[bufnr] = { source_bufnr = source_bufnr, execution = execution, result_index = index }
+    result_sessions[bufnr] = {
+      source_bufnr = source_bufnr,
+      execution = execution,
+      result_index = index,
+      cell_ranges = rendered.cell_ranges,
+    }
     vim.api.nvim_create_autocmd("BufEnter", {
       buffer = bufnr,
       callback = function()

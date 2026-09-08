@@ -25,8 +25,18 @@ vim.keymap.set("n", "[r", function()
   require("sqlserver.ui.results.view").previous_result()
 end, { buffer = true, desc = "Previous SQL result" })
 
+vim.keymap.set("n", "]c", function()
+  require("sqlserver.ui.results.view").next_column()
+end, { buffer = true, desc = "Next SQL result column" })
+
+vim.keymap.set("n", "[c", function()
+  require("sqlserver.ui.results.view").previous_column()
+end, { buffer = true, desc = "Previous SQL result column" })
+
 vim.b.undo_ftplugin = table.concat({
   "setlocal wrap< cursorline< number< relativenumber< signcolumn<",
   "silent! nunmap <buffer> ]r",
   "silent! nunmap <buffer> [r",
+  "silent! nunmap <buffer> ]c",
+  "silent! nunmap <buffer> [c",
 }, " | ")

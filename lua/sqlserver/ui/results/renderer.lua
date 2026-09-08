@@ -43,52 +43,65 @@ function M.render(result_set, opts)
     end
   end
 
-  local function render_row(values)
-    local cells = {}
+  local function render_row(values, separator)
+    separator = separator or " │ "
+    local parts = {}
+    local ranges = {}
+    local byte_col = 0
     for index, width in ipairs(widths) do
-      table.insert(cells, pad(values[index] or "", width))
+      local cell = pad(values[index] or "", width)
+      ranges[index] = { start_col = byte_col, end_col = byte_col + #cell }
+      table.insert(parts, cell)
+      byte_col = byte_col + #cell
+      if index < #widths then
+        table.insert(parts, separator)
+        byte_col = byte_col + #separator
+      end
     end
-    return table.concat(cells, " │ ")
+    return table.concat(parts), ranges
   end
 
   local headers = {}
   for index, column in ipairs(result_set.columns) do
     headers[index] = truncate(column, opts.max_cell_width)
   end
-  local divider = vim
+  local divider_cells = vim
     .iter(widths)
     :map(function(width)
       return string.rep("─", width)
     end)
-    :join("───")
-  local lines = { render_row(headers), divider }
+    :totable()
+  local header, header_ranges = render_row(headers)
+  local divider, divider_ranges = render_row(divider_cells, "───")
+  local lines = { header, divider }
+  local cell_ranges = { header_ranges, divider_ranges }
   local decorations = {
     { line = 0, start_col = 0, end_col = -1, highlight = "SqlServerResultHeader" },
     { line = 1, start_col = 0, end_col = -1, highlight = "SqlServerResultBorder" },
   }
 
   for row_index, row in ipairs(rows) do
-    local line = render_row(row)
+    local line, ranges = render_row(row)
     table.insert(lines, line)
-    local byte_col = 0
+    cell_ranges[row_index + 2] = ranges
     for column_index, value in ipairs(row) do
-      local end_col = byte_col + #value
+      local start_col = ranges[column_index].start_col
+      local end_col = start_col + #value
       if truncated[row_index][column_index] then
         table.insert(decorations, {
           line = row_index + 1,
-          start_col = byte_col,
+          start_col = start_col,
           end_col = end_col,
           highlight = "SqlServerResultTruncated",
         })
       elseif result_set.rows[row_index][column_index].is_null then
         table.insert(decorations, {
           line = row_index + 1,
-          start_col = byte_col,
+          start_col = start_col,
           end_col = end_col,
           highlight = "SqlServerResultNull",
         })
       end
-      byte_col = byte_col + #pad(value, widths[column_index]) + 3
     end
   end
 
@@ -103,7 +116,7 @@ function M.render(result_set, opts)
     })
   end
 
-  return { lines = lines, decorations = decorations }
+  return { lines = lines, decorations = decorations, cell_ranges = cell_ranges }
 end
 
 return M

@@ -30,6 +30,9 @@ T["Result renderer preserves models and describes truncation"] = require("tests.
   assert(text:find("a lon…", 1, true), "Expected a visibly truncated cell")
   assert(text:find("Showing 3 of 5 rows", 1, true))
   assert(#rendered.decorations >= 4, "Expected semantic result highlights")
+  assert(rendered.cell_ranges[1][1].start_col == 0)
+  assert(rendered.cell_ranges[1][2].start_col == 7)
+  assert(rendered.cell_ranges[3][2].start_col == 7)
 
   local null_highlights = vim
     .iter(rendered.decorations)
