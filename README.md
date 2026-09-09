@@ -1,5 +1,12 @@
 # sqlserver.nvim
 
+[![Neovim](https://img.shields.io/badge/Neovim-0.11.7%2B-57A143?style=flat-square&logo=neovim&logoColor=white)](https://neovim.io)
+[![Platforms](https://img.shields.io/badge/Platforms-Linux_%7C_macOS_%7C_Windows-blue?style=flat-square)](#installation)
+[![Release](https://img.shields.io/github/v/release/NicholasMata/sqlserver.nvim?include_prereleases&style=flat-square&label=release)](https://github.com/NicholasMata/sqlserver.nvim/releases)
+[![Tests](https://github.com/NicholasMata/sqlserver.nvim/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/NicholasMata/sqlserver.nvim/actions/workflows/test.yml)
+[![Documentation](https://img.shields.io/badge/Documentation-guides-blue?style=flat-square)](#documentation)
+[![License](https://img.shields.io/github/license/NicholasMata/sqlserver.nvim?style=flat-square)](LICENSE)
+
 https://github.com/user-attachments/assets/d7838d49-58e5-44c0-8a71-c649a2b2df34
 
 Stay in Neovim for the daily SQL Server workflow—from connecting and exploring
