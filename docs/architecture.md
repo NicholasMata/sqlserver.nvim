@@ -54,11 +54,10 @@ result, object, connection, or workspace model.
 
 ### Public API
 
-The module returned by `require("sqlserver")` will become the supported entry
-point for user configuration and automation. Until the public API milestone,
-its shape may change as the architecture is established. Keep it small and
-delegate work to services. Public functions must not expose SQL Tools Service
-request or response shapes.
+The module returned by `require("sqlserver")` is the supported entry point for
+user configuration and automation. Keep it small and delegate work to services.
+Public functions expose plugin-owned models and structured errors rather than
+SQL Tools Service request or response shapes.
 
 ### Neovim interface
 
@@ -77,7 +76,7 @@ The main service boundaries are:
 - connection manager
 - query executor
 - metadata and object explorer
-- result model and exporters
+- result model, serializers, and views
 
 Object scripting uses an explicit plugin-owned intent. Query intent produces
 runnable SQL for the selected object, while definition intent produces its
@@ -137,6 +136,15 @@ header. It uses a non-focusable window so it cannot replace the real buffer row
 or intercept normal- and visual-mode commands, and it is disposed with its
 parent result window.
 
+Text file exports remain SQL Tools Service serializations. The interactive UI
+loads CSV, JSON, and XML through temporary files into ordinary modified Neovim
+buffers, while the public API and XLSX workflow write explicit paths. Temporary
+files are an adapter constraint and do not become user-facing result state.
+
+Rich clipboard export is a presentation concern rather than a SQL Tools Service
+file export. The result layer creates semantic HTML from the complete normalized
+cell model, and a platform adapter publishes the native HTML clipboard format.
+
 The SQL Tools Service adapter translates protocol cells into plugin-owned result
 cells. Models preserve display values, invariant-culture values, and database
 null identity so renderers do not infer SQL semantics from formatted text.
@@ -146,18 +154,15 @@ from how activity or result buffers present them.
 Exact SQL remains the reviewable artifact. Generated or destructive SQL should
 be visible to the user, and destructive execution must be explicit.
 
-## Migration Strategy
+## Maintenance Rules
 
-The inherited implementation works and should be replaced incrementally:
-
-1. Extract backend protocol and Neovim UI responsibilities from `init.lua`.
-2. Put connection and query-buffer state behind a connection manager.
-3. Normalize query responses into a result model before rendering them.
-4. Move object discovery and scripting behind a metadata service.
-5. Reduce `init.lua` to setup and public API composition.
-
-Each step should preserve intentional capabilities and retain necessary
-protocol workarounds, but it does not need to preserve `mssql.nvim` APIs,
-commands, configuration shapes, module names, or internal state. Prefer direct
-replacement over compatibility shims. Add focused tests around every boundary
-being introduced.
+- Normalize backend payloads before they enter public models or views.
+- Keep protocol requests inside backend adapters.
+- Keep buffer, window, keymap, and clipboard behavior inside presentation
+  modules.
+- Give every retained buffer, query, connection, process, and temporary file an
+  explicit cleanup path.
+- Add focused unit tests at module boundaries and Docker integration tests for
+  behavior that depends on SQL Tools Service or SQL Server.
+- Prefer coherent `sqlserver.nvim` behavior over compatibility shims for the
+  inherited `mssql.nvim` implementation.

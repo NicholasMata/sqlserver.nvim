@@ -11,6 +11,13 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Added deterministic disposal of SQL Tools Service query storage when result
   runs are released.
 - Added `[c` and `]c` navigation between rendered result columns.
+- Added `K` inspection of SQL column types, nullability, precision, scale, and
+  available source-object metadata from result buffers.
+- Added `:SQLServer CopyResultCell` for copying complete, untruncated cell
+  values, including multiline content.
+- Added visual result-range export with selected rows, columns, and headings.
+- Added visual `<keymap_prefix>y` copying of selected result ranges as rich HTML
+  tables for supported system clipboards.
 - Added a confirmed result-local action that removes the current result set and
   automatically removes its execution when no result sets remain.
 - Added an optional sticky column header for result windows while preserving
@@ -28,6 +35,20 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Execute visual selections and complete SQL buffers as synchronized document
   ranges so SQL Tools Service retains their source context. Arbitrary SQL text
   supplied through the public API continues to use string execution.
+- Reorganized connection, query, result, object, workspace, configuration, and
+  SQL Tools Service modules by product capability, with normalized metadata at
+  the adapter boundary.
+- Open SQL Tools Service CSV, JSON, and XML exports in editable, unsaved Neovim
+  buffers; keep binary XLSX as a direct file export.
+- Rename the interactive `SaveQueryResults` command to `ExportQueryResults`.
+- Require and test against Neovim 0.11.7 to include later 0.11 crash fixes.
+
+### Fixed
+
+- Include the final selected character when executing visual selections and
+  complete buffers through SQL Tools Service document ranges.
+- Reject exports from stale or disposed result locators instead of allowing a
+  historical result to address newer SQL Tools Service query storage.
 
 ## [1.0.0-rc.2] - 2026-09-02
 

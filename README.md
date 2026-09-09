@@ -97,7 +97,8 @@ available through `:SQLServer`.
 See [Configuration](docs/configuration.md) for setup options and UI
 customization, [Usage](docs/usage.md) for commands and daily workflows, and the
 [Public Lua API](docs/public-api.md) for UI-independent connection, execution,
-object, cancellation, and export operations.
+object, cancellation, and export operations. The
+[documentation index](docs/index.md) links every guide by task.
 
 Release changes are tracked in the [changelog](CHANGELOG.md).
 
