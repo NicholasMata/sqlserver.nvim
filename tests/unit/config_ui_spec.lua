@@ -1,4 +1,4 @@
-local ui_options = require("sqlserver.ui.options")
+local ui_options = require("sqlserver.config.ui")
 
 local T = MiniTest.new_set()
 

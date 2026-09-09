@@ -1,6 +1,6 @@
 local utils = require("sqlserver.utils")
 local sql_tools_service_constants = require("sqlserver.adapters.sql_tools_service.constants")
-local workspace_registry = require("sqlserver.core.workspace_registry")
+local workspace_registry = require("sqlserver.workspace.registry")
 
 local M = {}
 

@@ -10,7 +10,7 @@ local T = MiniTest.new_set({
       integration.setup()
     end),
     post_once = function()
-      require("sqlserver.adapters.sql_tools_service").stop()
+      require("sqlserver.adapters.sql_tools_service.client").stop()
     end,
   },
 })

@@ -1,41 +1,9 @@
 -- Handles how the user user interfaces with this plugin, i.e. keymaps and user commands
 local utils = require("sqlserver.utils")
-local workspace_module = require("sqlserver.core.workspace")
-local workspace_registry = require("sqlserver.core.workspace_registry")
-local query_results = require("sqlserver.display_query_results")
-
-local function set_result_keymap(prefix, handlers, bufnr)
-  local previous_prefix = vim.b[bufnr].sqlserver_result_keymap_prefix
-  if previous_prefix and previous_prefix ~= prefix then
-    pcall(vim.keymap.del, "n", previous_prefix .. "s", { buffer = bufnr })
-    pcall(vim.keymap.del, "n", previous_prefix .. "n", { buffer = bufnr })
-    pcall(vim.keymap.del, "n", previous_prefix .. "p", { buffer = bufnr })
-    pcall(vim.keymap.del, "n", previous_prefix .. "d", { buffer = bufnr })
-    pcall(vim.keymap.del, "n", previous_prefix .. "y", { buffer = bufnr })
-  end
-
-  vim.keymap.set("n", prefix .. "s", handlers.save_query_results, {
-    buffer = bufnr,
-    desc = "Save SQL result",
-  })
-  vim.keymap.set("n", prefix .. "n", handlers.next_execution, {
-    buffer = bufnr,
-    desc = "Next SQL execution",
-  })
-  vim.keymap.set("n", prefix .. "p", handlers.previous_execution, {
-    buffer = bufnr,
-    desc = "Previous SQL execution",
-  })
-  vim.keymap.set("n", prefix .. "d", handlers.remove_result, {
-    buffer = bufnr,
-    desc = "Remove SQL result",
-  })
-  vim.keymap.set("n", prefix .. "y", handlers.copy_result_cell, {
-    buffer = bufnr,
-    desc = "Copy raw SQL result cell",
-  })
-  vim.b[bufnr].sqlserver_result_keymap_prefix = prefix
-end
+local workspace_module = require("sqlserver.workspace")
+local workspace_registry = require("sqlserver.workspace.registry")
+local query_results = require("sqlserver.results.ui.view")
+local result_keymaps = require("sqlserver.results.ui.keymaps")
 
 return {
   set_keymaps = function(prefix, M)
@@ -43,19 +11,7 @@ return {
       return
     end
 
-    local result_keymaps = vim.api.nvim_create_augroup("sqlserver-result-keymaps", { clear = true })
-    vim.api.nvim_create_autocmd("FileType", {
-      group = result_keymaps,
-      pattern = "sqlserver-result",
-      callback = function(args)
-        set_result_keymap(prefix, M, args.buf)
-      end,
-    })
-    for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-      if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].filetype == "sqlserver-result" then
-        set_result_keymap(prefix, M, bufnr)
-      end
-    end
+    result_keymaps.setup(prefix, M)
 
     local keymaps = {
       activity = { "a", M.toggle_activity, desc = "Activity", icon = { icon = "󰋼", color = "blue" } },
@@ -207,18 +163,7 @@ return {
             return {}
           end
         elseif vim.b.query_result_info then
-          return {
-            {
-              "s",
-              M.save_query_results,
-              desc = "Save Query Results",
-              icon = { icon = "", color = "green" },
-            },
-            { "n", M.next_execution, desc = "Next Execution" },
-            { "p", M.previous_execution, desc = "Previous Execution" },
-            { "d", M.remove_result, desc = "Remove Result", icon = { icon = "󰆴", color = "red" } },
-            { "y", M.copy_result_cell, desc = "Copy Raw Cell" },
-          }
+          return result_keymaps.which_key_items(M)
         else
           local items = { keymaps.new_query, keymaps.new_default_query, keymaps.edit_connections }
           if query_results.has_results() then
@@ -259,133 +204,5 @@ return {
         M.switch_database()
       end, { desc = "Switch Database" })
     end
-  end,
-
-  set_user_commands = function(M)
-    local commands = {
-      Activity = M.toggle_activity,
-      Connect = M.connect,
-      Reconnect = M.reconnect,
-      Disconnect = M.disconnect,
-      BackupDatabase = M.backup_database,
-      RestoreDatabase = M.restore_database,
-      ExecuteQuery = M.execute_query,
-      ExecuteBuffer = M.execute_buffer,
-      RefreshCache = M.refresh_cache,
-      EditConnections = M.edit_connections,
-      SwitchDatabase = M.switch_database,
-      NewQuery = M.new_query,
-      NewDefaultQuery = M.new_default_query,
-      SaveQueryResults = M.save_query_results,
-      ShowResults = M.show_results,
-      NextResult = M.next_result,
-      PreviousResult = M.previous_result,
-      NextExecution = M.next_execution,
-      PreviousExecution = M.previous_execution,
-      RemoveResult = M.remove_result,
-      CopyResultCell = M.copy_result_cell,
-      Find = M.find_object,
-      ObjectDefinition = M.show_object_definition,
-      CancelQuery = M.cancel_query,
-    }
-
-    local complete = function(_, _, _)
-      local workspace = workspace_registry.get()
-      if vim.b.query_result_info then
-        return {
-          "NewQuery",
-          "NewDefaultQuery",
-          "EditConnections",
-          "SaveQueryResults",
-          "NextResult",
-          "PreviousResult",
-          "NextExecution",
-          "PreviousExecution",
-          "RemoveResult",
-          "CopyResultCell",
-        }
-      elseif not workspace then
-        local items = {
-          "NewQuery",
-          "NewDefaultQuery",
-          "EditConnections",
-        }
-        if query_results.has_results() then
-          table.insert(items, "ShowResults")
-        end
-        return items
-      end
-
-      local state = workspace.get_state()
-      local states = workspace_module.states
-      local function with_activity(items)
-        table.insert(items, 1, "Activity")
-        return items
-      end
-      if state == states.connecting then
-        return with_activity({
-          "NewQuery",
-          "NewDefaultQuery",
-          "EditConnections",
-        })
-      elseif state == states.executing then
-        return with_activity({
-          "NewQuery",
-          "NewDefaultQuery",
-          "EditConnections",
-          "CancelQuery",
-        })
-      elseif state == states.connected then
-        local items = {
-          "NewQuery",
-          "NewDefaultQuery",
-          "EditConnections",
-          "RefreshCache",
-          "ExecuteQuery",
-          "ExecuteBuffer",
-          "Disconnect",
-          "SwitchDatabase",
-          "BackupDatabase",
-          "RestoreDatabase",
-          "Find",
-          "ObjectDefinition",
-        }
-        if query_results.has_results(workspace.bufnr) then
-          table.insert(items, "ShowResults")
-        end
-        return with_activity(items)
-      elseif state == states.disconnected then
-        local items = {
-          "NewQuery",
-          "NewDefaultQuery",
-          "EditConnections",
-          "Connect",
-        }
-        if workspace.can_reconnect() then
-          table.insert(items, "Reconnect")
-        end
-        if query_results.has_results(workspace.bufnr) then
-          table.insert(items, "ShowResults")
-        end
-        return with_activity(items)
-      elseif state == states.cancelling then
-        return with_activity({
-          "NewQuery",
-          "NewDefaultQuery",
-          "EditConnections",
-        })
-      else
-        utils.log_error("Entered unrecognised query state: " .. state)
-        return {}
-      end
-    end
-
-    vim.api.nvim_create_user_command("SQLServer", function(args)
-      local command = commands[args.args]
-      if not command then
-        error("No such command " .. args.args, 0)
-      end
-      command()
-    end, { nargs = 1, complete = complete })
   end,
 }

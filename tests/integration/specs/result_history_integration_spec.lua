@@ -36,7 +36,7 @@ T["Repeated queries should retain navigable execution results"] = require("tests
   assert(vim.api.nvim_buf_is_valid(first_result), "The second execution discarded the first result")
   local result_window = vim.fn.win_findbuf(second_result)[1]
   local winbar = vim.api.nvim_get_option_value("winbar", { win = result_window })
-  assert(winbar:find("sqlserver.ui.results.view", 1, true), "The result window did not install its winbar")
+  assert(winbar:find("sqlserver.results.ui.view", 1, true), "The result window did not install its winbar")
 
   sqlserver.previous_execution()
   assert(vim.api.nvim_get_current_buf() == first_result)

@@ -36,7 +36,7 @@ T["Setup should provision SQL Tools Service"] = require("tests.helpers").async(f
 
   download_finished = true
   assert(tools_file_exists(), "The sql server tools file does not exist among the downloads")
-  assert(installed_version() == require("sqlserver.tools_downloader").default_version)
+  assert(installed_version() == require("sqlserver.adapters.sql_tools_service.installer").default_version)
 end)
 
 return T

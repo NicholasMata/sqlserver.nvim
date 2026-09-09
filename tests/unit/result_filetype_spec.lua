@@ -2,7 +2,7 @@ local T = MiniTest.new_set()
 
 T["Result filetype should install buffer-local mappings"] = require("tests.helpers").async(function()
   local opened = false
-  local shown = require("sqlserver.ui.results.view").show({}, {
+  local shown = require("sqlserver.results.ui.view").show({}, {
     open_results_in = function()
       opened = true
     end,
@@ -30,7 +30,7 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
       return noop
     end,
   })
-  require("sqlserver.interface").set_keymaps("<leader>d", handlers)
+  require("sqlserver.ui.keymaps").set_keymaps("<leader>d", handlers)
 
   local prefixed_mappings = {}
   for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(result_buffer, "n")) do

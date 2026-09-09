@@ -1,4 +1,4 @@
-local profiles = require("sqlserver.core.connection_profiles")
+local profiles = require("sqlserver.connections.profiles")
 
 local T = MiniTest.new_set()
 

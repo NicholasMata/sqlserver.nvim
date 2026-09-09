@@ -1,4 +1,4 @@
-local activity_stream_module = require("sqlserver.core.activity_stream")
+local activity_stream_module = require("sqlserver.workspace.activity_stream")
 
 local T = MiniTest.new_set()
 
@@ -6,7 +6,7 @@ T["Activity stream should isolate replaceable subscribers"] = require("tests.hel
   local sqlserver = require("sqlserver")
   assert(type(sqlserver.subscribe_activity) == "function")
   assert(type(sqlserver.status) == "function")
-  assert(require("sqlserver.default_opts").ui.presenter == "default")
+  assert(require("sqlserver.config.defaults").ui.presenter == "default")
   local errors = {}
   local received = {}
   local stream = activity_stream_module.create({

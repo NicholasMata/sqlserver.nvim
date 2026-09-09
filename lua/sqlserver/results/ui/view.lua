@@ -1,6 +1,6 @@
-local renderer = require("sqlserver.ui.results.renderer")
-local sticky_header = require("sqlserver.ui.results.sticky_header")
-local column_info = require("sqlserver.ui.results.column_info")
+local renderer = require("sqlserver.results.ui.renderer")
+local sticky_header = require("sqlserver.results.ui.sticky_header")
+local column_info = require("sqlserver.results.ui.column_info")
 
 local M = {}
 local namespace = vim.api.nvim_create_namespace("sqlserver-results")

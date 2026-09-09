@@ -1,25 +1,26 @@
-local downloader = require("sqlserver.tools_downloader")
+local tools_installer = require("sqlserver.adapters.sql_tools_service.installer")
 local utils = require("sqlserver.utils")
-local query_results = require("sqlserver.display_query_results")
-local query_selection = require("sqlserver.core.query_selection")
-local interface = require("sqlserver.interface")
-local default_opts = require("sqlserver.default_opts")
-local finder = require("sqlserver.find_object")
-local sql_tools_service = require("sqlserver.adapters.sql_tools_service")
-local query_backend = require("sqlserver.adapters.sql_tools_service.query_backend")
-local workspace_module = require("sqlserver.core.workspace")
-local workspace_registry = require("sqlserver.core.workspace_registry")
-local activity_stream = require("sqlserver.core.activity_stream").create({ on_error = utils.log_error })
+local query_results = require("sqlserver.results.ui.view")
+local query_selection = require("sqlserver.queries.selection")
+local sql_keymaps = require("sqlserver.ui.keymaps")
+local commands = require("sqlserver.ui.commands")
+local default_opts = require("sqlserver.config.defaults")
+local finder = require("sqlserver.objects.ui.picker")
+local sql_tools_service = require("sqlserver.adapters.sql_tools_service.client")
+local query_backend = require("sqlserver.adapters.sql_tools_service.query")
+local workspace_module = require("sqlserver.workspace")
+local workspace_registry = require("sqlserver.workspace.registry")
+local activity_stream = require("sqlserver.workspace.activity_stream").create({ on_error = utils.log_error })
 local activity_ui = require("sqlserver.ui.activity")
-local ui_options = require("sqlserver.ui.options")
+local ui_options = require("sqlserver.config.ui")
 local status_ui = require("sqlserver.ui.status")
-local timeout_options = require("sqlserver.core.timeouts")
-local connection_profiles = require("sqlserver.core.connection_profiles")
+local timeout_options = require("sqlserver.config.timeouts")
+local connection_profiles = require("sqlserver.connections.profiles")
 local public_api = require("sqlserver.api")
 
 local joinpath = vim.fs.joinpath
 local workspace_winbar_expression = "%{%v:lua.require'sqlserver.ui.status'.winbar()%}"
-local result_winbar_expression = "%{%v:lua.require'sqlserver.ui.results.view'.winbar()%}"
+local result_winbar_expression = "%{%v:lua.require'sqlserver.results.ui.view'.winbar()%}"
 local custom_presenter_unsubscribe
 
 local function apply_winbar(bufnr, opts)
@@ -354,7 +355,7 @@ local function setup_async(opts)
   else
     local config_file = joinpath(opts.data_dir, "config.json")
     local config = read_json_file(config_file)
-    local release = downloader.get_release(opts.tools_version)
+    local release = tools_installer.get_release(opts.tools_version)
     local tools_file = sql_tools_service.default_executable(opts)
 
     -- download if it's a first time setup or the last downloaded is old
@@ -363,7 +364,7 @@ local function setup_async(opts)
       or vim.fn.executable(tools_file) == 0
       or config.tools_version ~= release.version
     then
-      local downloaded, err = downloader.download_tools_async(release, opts.data_dir)
+      local downloaded, err = tools_installer.download_tools_async(release, opts.data_dir)
       if not downloaded then
         error("Could not install SQL Tools Service: " .. (err or "unknown error"), 0)
       end
@@ -915,7 +916,7 @@ local command_handlers = {
         public_api.execute({ bufnr = workspace.bufnr, request = request }, callback)
       end)
       if not execution.cancelled then
-        query_results.show(plugin_opts, execution.result_sets, workspace.bufnr, execution.dispose)
+        query_results.show(execution.result_sets, plugin_opts, workspace.bufnr, execution.dispose)
       end
     end))
   end,
@@ -936,7 +937,7 @@ local command_handlers = {
         public_api.execute({ bufnr = workspace.bufnr, request = request }, callback)
       end)
       if not execution.cancelled then
-        query_results.show(plugin_opts, execution.result_sets, workspace.bufnr, execution.dispose)
+        query_results.show(execution.result_sets, plugin_opts, workspace.bufnr, execution.dispose)
       end
     end))
   end,
@@ -1083,7 +1084,7 @@ local command_handlers = {
         local execution = await_public(function(api_callback)
           public_api.execute({ bufnr = workspace.bufnr, text = item.script, scope = "buffer" }, api_callback)
         end)
-        query_results.show(plugin_opts, execution.result_sets, workspace.bufnr, execution.dispose)
+        query_results.show(execution.result_sets, plugin_opts, workspace.bufnr, execution.dispose)
       end
       if callback then
         callback()
@@ -1163,7 +1164,7 @@ M.disconnect = function(bufnr, callback)
 end
 
 M.set_keymaps = function(prefix)
-  interface.set_keymaps(prefix, command_handlers)
+  sql_keymaps.set_keymaps(prefix, command_handlers)
 end
 
 ---Subscribe to structured workspace activity events.
@@ -1176,8 +1177,8 @@ end
 M.setup = function(opts, callback)
   utils.try_resume(coroutine.create(function()
     setup_async(opts)
-    interface.set_user_commands(command_handlers)
-    interface.set_keymaps(plugin_opts.keymap_prefix, command_handlers)
+    commands.setup(command_handlers)
+    sql_keymaps.set_keymaps(plugin_opts.keymap_prefix, command_handlers)
     if callback ~= nil then
       callback()
     end

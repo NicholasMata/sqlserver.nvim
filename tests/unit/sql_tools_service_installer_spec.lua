@@ -1,4 +1,4 @@
-local downloader = require("sqlserver.tools_downloader")
+local downloader = require("sqlserver.adapters.sql_tools_service.installer")
 
 local T = MiniTest.new_set()
 

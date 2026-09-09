@@ -2,11 +2,11 @@ local T = MiniTest.new_set()
 
 local modules = {
   "lsp_nulls_spec",
-  "sql_tools_service_adapter_spec",
-  "tools_downloader_spec",
+  "sql_tools_service_client_spec",
+  "sql_tools_service_installer_spec",
   "workspace_spec",
   "activity_stream_spec",
-  "ui_options_spec",
+  "config_ui_spec",
   "timeouts_spec",
   "connection_profiles_spec",
   "public_api_spec",
@@ -17,7 +17,7 @@ local modules = {
   "result_session_spec",
   "result_sticky_header_spec",
   "query_selection_spec",
-  "query_backend_spec",
+  "sql_tools_service_query_spec",
   "query_summary_spec",
   "object_script_spec",
 }

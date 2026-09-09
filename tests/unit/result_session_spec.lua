@@ -1,6 +1,6 @@
-local query_result = require("sqlserver.core.query_result")
-local result_cell = require("sqlserver.core.result_cell")
-local view = require("sqlserver.ui.results.view")
+local query_result = require("sqlserver.results.result_set")
+local result_cell = require("sqlserver.results.cell")
+local view = require("sqlserver.results.ui.view")
 
 local function result(value, ordinal)
   return query_result.create({

@@ -1,9 +1,8 @@
-local workspace_registry = require("sqlserver.core.workspace_registry")
-local connection_profiles = require("sqlserver.core.connection_profiles")
-local query_selection = require("sqlserver.core.query_selection")
-local query_summary = require("sqlserver.core.query_summary")
-local result_sets = require("sqlserver.core.result_sets")
-local query_backend = require("sqlserver.adapters.sql_tools_service.query_backend")
+local workspace_registry = require("sqlserver.workspace.registry")
+local connection_profiles = require("sqlserver.connections.profiles")
+local query_selection = require("sqlserver.queries.selection")
+local query_summary = require("sqlserver.queries.summary")
+local result_sets = require("sqlserver.results.collection")
 
 local M = {}
 local config
@@ -157,7 +156,7 @@ function M.execute(opts, callback)
     local configured = require_config()
     local query_id = raw._sqlserver_query_id
     local collected_ok, collected =
-      pcall(result_sets.collect_async, raw, configured.results.max_rows, query_backend.get_result_rows_async)
+      pcall(result_sets.collect_async, raw, configured.results.max_rows, workspace.fetch_result_rows_async)
     if not collected_ok then
       pcall(workspace.dispose_query_async, query_id)
       error(collected, 0)

@@ -1,6 +1,6 @@
 local api = require("sqlserver.api")
-local workspace_module = require("sqlserver.core.workspace")
-local registry = require("sqlserver.core.workspace_registry")
+local workspace_module = require("sqlserver.workspace")
+local registry = require("sqlserver.workspace.registry")
 
 local function completed(invoke)
   local calls = 0
@@ -34,6 +34,9 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
           { hasError = false, resultSetSummaries = { { rowCount = 0, columnInfo = {} } } },
         },
       }
+    end,
+    fetch_result_rows_async = function()
+      return {}
     end,
     cancel_async = function() end,
     dispose_query_async = function() end,

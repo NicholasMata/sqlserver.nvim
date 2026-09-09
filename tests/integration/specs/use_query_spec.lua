@@ -1,6 +1,6 @@
 local sqlserver = require("sqlserver")
 local utils = require("sqlserver.utils")
-local workspace_registry = require("sqlserver.core.workspace_registry")
+local workspace_registry = require("sqlserver.workspace.registry")
 
 local function execute(text)
   local co = coroutine.running()

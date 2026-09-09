@@ -1,7 +1,7 @@
-local query_result = require("sqlserver.core.query_result")
-local result_cell = require("sqlserver.core.result_cell")
-local renderer = require("sqlserver.ui.results.renderer")
-local result_sets = require("sqlserver.core.result_sets")
+local query_result = require("sqlserver.results.result_set")
+local result_cell = require("sqlserver.results.cell")
+local renderer = require("sqlserver.results.ui.renderer")
+local result_sets = require("sqlserver.results.collection")
 
 local T = MiniTest.new_set()
 
@@ -21,9 +21,21 @@ T["Result descriptions retain SQL Tools Service column metadata"] = function()
   }, 100)
 
   assert(vim.deep_equal(descriptors[1].columns, { "Amount" }))
-  assert(vim.deep_equal(descriptors[1].column_metadata, { metadata }))
+  assert(vim.deep_equal(descriptors[1].column_metadata, {
+    {
+      name = "Amount",
+      type_name = "decimal",
+      precision = 12,
+      scale = 2,
+      nullable = false,
+      is_long = false,
+    },
+  }))
   metadata.dataTypeName = "changed"
-  assert(descriptors[1].column_metadata[1].dataTypeName == "decimal", "Metadata should be owned by the result")
+  assert(
+    descriptors[1].column_metadata[1].type_name == "decimal",
+    "Metadata should be normalized at the adapter boundary"
+  )
 end
 
 T["Result renderer preserves models and describes truncation"] = require("tests.helpers").async(function()

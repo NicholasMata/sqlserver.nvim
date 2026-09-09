@@ -1,4 +1,4 @@
-local query_summary = require("sqlserver.core.query_summary")
+local query_summary = require("sqlserver.queries.summary")
 
 local T = MiniTest.new_set()
 

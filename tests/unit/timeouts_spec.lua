@@ -1,4 +1,4 @@
-local timeouts = require("sqlserver.core.timeouts")
+local timeouts = require("sqlserver.config.timeouts")
 
 local T = MiniTest.new_set()
 

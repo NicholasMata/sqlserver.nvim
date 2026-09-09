@@ -17,17 +17,17 @@ local function number(value)
 end
 
 local function sized_type(type_name, metadata)
-  local size = number(metadata.columnSize)
+  local size = number(metadata.size)
   if not size or size <= 0 then
     return type_name
   end
   local ordinary_limit = type_name:sub(1, 1) == "n" and 4000 or 8000
-  local size_label = (metadata.isLong or size > ordinary_limit) and "max" or tostring(size)
+  local size_label = (metadata.is_long or size > ordinary_limit) and "max" or tostring(size)
   return ("%s(%s)"):format(type_name, size_label)
 end
 
 function M.format_type(metadata)
-  local type_name = metadata.dataTypeName or metadata.dataType
+  local type_name = metadata.type_name
   if type(type_name) ~= "string" or type_name == "" then
     return "Unknown"
   end
@@ -40,13 +40,13 @@ function M.format_type(metadata)
     return sized_type(type_name, metadata)
   end
   if precision_types[normalized] then
-    local precision = number(metadata.numericPrecision)
-    local scale = number(metadata.numericScale)
+    local precision = number(metadata.precision)
+    local scale = number(metadata.scale)
     if precision and scale then
       return ("%s(%d, %d)"):format(type_name, precision, scale)
     end
   elseif scale_types[normalized] then
-    local scale = number(metadata.numericScale)
+    local scale = number(metadata.scale)
     if scale then
       return ("%s(%d)"):format(type_name, scale)
     end
@@ -56,21 +56,21 @@ end
 
 function M.lines(metadata)
   local declaration = M.format_type(metadata)
-  if type(metadata.allowDBNull) == "boolean" then
-    declaration = declaration .. (metadata.allowDBNull and " NULL" or " NOT NULL")
+  if type(metadata.nullable) == "boolean" then
+    declaration = declaration .. (metadata.nullable and " NULL" or " NOT NULL")
   end
   local lines = { declaration }
 
-  if type(metadata.baseTableName) == "string" and metadata.baseTableName ~= "" then
+  if metadata.source and type(metadata.source.table) == "string" and metadata.source.table ~= "" then
     local source = {}
     local function append_source(value)
       if type(value) == "string" and value ~= "" then
         table.insert(source, value)
       end
     end
-    append_source(metadata.baseSchemaName)
-    append_source(metadata.baseTableName)
-    append_source(metadata.baseColumnName)
+    append_source(metadata.source.schema)
+    append_source(metadata.source.table)
+    append_source(metadata.source.column)
     table.insert(lines, "-- Source: " .. table.concat(source, "."))
   end
   return lines

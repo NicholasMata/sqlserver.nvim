@@ -1,4 +1,4 @@
-local sticky_header = require("sqlserver.ui.results.sticky_header")
+local sticky_header = require("sqlserver.results.ui.sticky_header")
 
 local T = MiniTest.new_set()
 

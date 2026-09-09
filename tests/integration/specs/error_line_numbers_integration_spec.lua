@@ -1,6 +1,6 @@
 local sqlserver = require("sqlserver")
-local query_selection = require("sqlserver.core.query_selection")
-local workspace_registry = require("sqlserver.core.workspace_registry")
+local query_selection = require("sqlserver.queries.selection")
+local workspace_registry = require("sqlserver.workspace.registry")
 local utils = require("sqlserver.utils")
 
 local function await(invoke)

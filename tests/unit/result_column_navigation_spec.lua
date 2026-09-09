@@ -1,35 +1,31 @@
-local query_result = require("sqlserver.core.query_result")
-local result_cell = require("sqlserver.core.result_cell")
-local view = require("sqlserver.ui.results.view")
-local column_info = require("sqlserver.ui.results.column_info")
+local query_result = require("sqlserver.results.result_set")
+local result_cell = require("sqlserver.results.cell")
+local view = require("sqlserver.results.ui.view")
+local column_info = require("sqlserver.results.ui.column_info")
 
 local T = MiniTest.new_set()
 
 T["Column information uses SQL type declarations"] = function()
-  assert(column_info.format_type({ dataTypeName = "int", columnSize = 4 }) == "int")
-  assert(column_info.format_type({ dataTypeName = "varchar", columnSize = 100 }) == "varchar(100)")
-  assert(column_info.format_type({ dataTypeName = "nvarchar", columnSize = 1073741823 }) == "nvarchar(max)")
-  assert(
-    column_info.format_type({ dataTypeName = "decimal", numericPrecision = 12, numericScale = 2 }) == "decimal(12, 2)"
-  )
-  assert(column_info.format_type({ dataTypeName = "datetime2", numericScale = 7 }) == "datetime2(7)")
-  assert(column_info.format_type({ dataTypeName = "varchar(max)", columnSize = 2147483647 }) == "varchar(max)")
+  assert(column_info.format_type({ type_name = "int", size = 4 }) == "int")
+  assert(column_info.format_type({ type_name = "varchar", size = 100 }) == "varchar(100)")
+  assert(column_info.format_type({ type_name = "nvarchar", size = 1073741823 }) == "nvarchar(max)")
+  assert(column_info.format_type({ type_name = "decimal", precision = 12, scale = 2 }) == "decimal(12, 2)")
+  assert(column_info.format_type({ type_name = "datetime2", scale = 7 }) == "datetime2(7)")
+  assert(column_info.format_type({ type_name = "varchar(max)", size = 2147483647 }) == "varchar(max)")
   assert(vim.deep_equal(
     column_info.lines({
-      dataTypeName = "decimal",
-      numericPrecision = 12,
-      numericScale = 2,
-      allowDBNull = false,
-      baseSchemaName = "dbo",
-      baseTableName = "Product",
-      baseColumnName = "Price",
+      type_name = "decimal",
+      precision = 12,
+      scale = 2,
+      nullable = false,
+      source = { schema = "dbo", table = "Product", column = "Price" },
     }),
     { "decimal(12, 2) NOT NULL", "-- Source: dbo.Product.Price" }
   ))
   assert(vim.deep_equal(
     column_info.lines({
-      dataTypeName = "money",
-      allowDBNull = true,
+      type_name = "money",
+      nullable = true,
       isExpression = true,
     }),
     { "money NULL" }
@@ -42,9 +38,9 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
   local model = query_result.create({
     columns = { "ID", "X", "Payload" },
     column_metadata = {
-      { columnName = "ID", dataTypeName = "int", columnSize = 4, allowDBNull = false },
-      { columnName = "X", dataTypeName = "nvarchar", columnSize = 20, allowDBNull = true },
-      { columnName = "Payload", dataTypeName = "varchar(max)", allowDBNull = true },
+      { name = "ID", type_name = "int", size = 4, nullable = false },
+      { name = "X", type_name = "nvarchar", size = 20, nullable = true },
+      { name = "Payload", type_name = "varchar(max)", nullable = true },
     },
     rows = {
       {

@@ -1,5 +1,5 @@
 local utils = require("sqlserver.utils")
-local object_script = require("sqlserver.core.object_script")
+local object_script = require("sqlserver.objects.script")
 local object_explorer_timeout = 10000
 
 ---Same as utils.wait_for_notification_async but ignores any owner uri

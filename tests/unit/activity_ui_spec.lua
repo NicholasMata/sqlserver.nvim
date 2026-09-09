@@ -1,7 +1,7 @@
 local activity_ui = require("sqlserver.ui.activity")
 local status_ui = require("sqlserver.ui.status")
-local workspace_module = require("sqlserver.core.workspace")
-local activity_stream_module = require("sqlserver.core.activity_stream")
+local workspace_module = require("sqlserver.workspace")
+local activity_stream_module = require("sqlserver.workspace.activity_stream")
 
 local T = MiniTest.new_set()
 

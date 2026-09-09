@@ -1,4 +1,4 @@
-local object_script = require("sqlserver.core.object_script")
+local object_script = require("sqlserver.objects.script")
 
 local T = MiniTest.new_set()
 

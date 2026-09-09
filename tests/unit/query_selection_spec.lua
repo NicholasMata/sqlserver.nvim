@@ -1,4 +1,4 @@
-local query_selection = require("sqlserver.core.query_selection")
+local query_selection = require("sqlserver.queries.selection")
 
 local T = MiniTest.new_set()
 

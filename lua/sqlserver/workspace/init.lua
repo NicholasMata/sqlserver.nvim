@@ -1,6 +1,6 @@
 local M = {}
 local uv = vim.uv or vim.loop
-local query_summary = require("sqlserver.core.query_summary")
+local query_summary = require("sqlserver.queries.summary")
 
 M.states = {
   disconnected = "disconnected",
@@ -317,6 +317,10 @@ function M.create(opts)
       set_state(M.states.connected)
       error(err, 0)
     end
+  end
+
+  function workspace.fetch_result_rows_async(locator)
+    return backend.fetch_result_rows_async(locator)
   end
 
   function workspace.connection_changed_async(result)

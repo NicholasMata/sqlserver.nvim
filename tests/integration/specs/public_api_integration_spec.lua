@@ -53,6 +53,8 @@ T["Public API should execute and inspect live SQL Server state"] = require("test
   assert(not execution_error, execution_error and execution_error.message)
   assert(execution.summary.row_count == 1 and #execution.result_sets == 1)
   assert(execution.result_sets[1].columns[1] == "ApiValue")
+  assert(execution.result_sets[1].column_metadata[1].name == "ApiValue")
+  assert(execution.result_sets[1].column_metadata[1].type_name == "int")
   assert(execution.result_sets[1].rows[1][1].display_value == "42")
 
   local _, csv_path, csv = export(execution, "csv")

@@ -1,4 +1,4 @@
-local query_backend = require("sqlserver.adapters.sql_tools_service.query_backend")
+local query_backend = require("sqlserver.adapters.sql_tools_service.query")
 local utils = require("sqlserver.utils")
 
 local T = MiniTest.new_set()

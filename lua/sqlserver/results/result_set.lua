@@ -2,7 +2,7 @@ local M = {}
 
 ---@class SqlServerResultSet
 ---@field columns string[]
----@field column_metadata table[]
+---@field column_metadata SqlServerResultColumn[]
 ---@field rows SqlServerResultCell[][]
 ---@field row_count integer
 ---@field displayed_row_count integer
@@ -10,7 +10,7 @@ local M = {}
 ---@field locator table
 ---@field ordinal integer
 
----@param opts { columns: string[], column_metadata?: table[], rows: SqlServerResultCell[][], row_count: integer, locator: table, ordinal?: integer }
+---@param opts { columns: string[], column_metadata?: SqlServerResultColumn[], rows: SqlServerResultCell[][], row_count: integer, locator: table, ordinal?: integer }
 ---@return SqlServerResultSet
 function M.create(opts)
   assert(type(opts.columns) == "table", "Result columns are required")

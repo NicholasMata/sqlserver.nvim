@@ -1,6 +1,6 @@
 local utils = require("sqlserver.utils")
-local result_cell = require("sqlserver.core.result_cell")
-local connection_profiles = require("sqlserver.core.connection_profiles")
+local result_cell = require("sqlserver.results.cell")
+local connection_profiles = require("sqlserver.connections.profiles")
 
 local M = {}
 
@@ -170,6 +170,7 @@ function M.create(bufnr, client, timeouts)
 
   return {
     owner_uri = owner_uri,
+    fetch_result_rows_async = M.get_result_rows_async,
 
     connect_async = function(connect_params)
       connect_params.ownerUri = owner_uri

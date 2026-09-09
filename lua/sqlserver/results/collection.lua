@@ -1,4 +1,5 @@
-local query_result = require("sqlserver.core.query_result")
+local query_result = require("sqlserver.results.result_set")
+local result_column = require("sqlserver.results.column")
 
 local M = {}
 
@@ -12,14 +13,15 @@ function M.describe(result, max_rows)
     for result_set_index, result_set in ipairs(batch.resultSetSummaries or {}) do
       ordinal = ordinal + 1
       if not (batch.hasError and result_set.rowCount == 0) then
+        local column_metadata = vim.iter(result_set.columnInfo or {}):map(result_column.from_protocol):totable()
         table.insert(descriptors, {
           columns = vim
-            .iter(result_set.columnInfo or {})
+            .iter(column_metadata)
             :map(function(column)
-              return column.columnName
+              return column.name
             end)
             :totable(),
-          column_metadata = vim.deepcopy(result_set.columnInfo or {}),
+          column_metadata = column_metadata,
           row_count = result_set.rowCount,
           ordinal = ordinal,
           locator = {

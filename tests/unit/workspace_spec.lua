@@ -1,6 +1,6 @@
-local workspace_module = require("sqlserver.core.workspace")
-local registry = require("sqlserver.core.workspace_registry")
-local activity_stream_module = require("sqlserver.core.activity_stream")
+local workspace_module = require("sqlserver.workspace")
+local registry = require("sqlserver.workspace.registry")
+local activity_stream_module = require("sqlserver.workspace.activity_stream")
 
 local function create_objects_fake()
   return {

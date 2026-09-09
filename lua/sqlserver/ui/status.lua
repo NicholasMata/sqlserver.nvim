@@ -1,5 +1,5 @@
-local registry = require("sqlserver.core.workspace_registry")
-local workspace_module = require("sqlserver.core.workspace")
+local registry = require("sqlserver.workspace.registry")
+local workspace_module = require("sqlserver.workspace")
 
 local M = {}
 local uv = vim.uv or vim.loop

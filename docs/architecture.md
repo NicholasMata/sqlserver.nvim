@@ -24,6 +24,32 @@ SQL Tools Service and Neovim APIs
 Renderers and views consume plugin-owned result and metadata models. They should
 not need to understand raw SQL Tools Service payloads.
 
+## Project Layout
+
+Modules are grouped by product capability rather than collected into a generic
+`core` directory or organized solely around Neovim filetypes:
+
+```text
+lua/sqlserver/
+├── adapters/sql_tools_service/  protocol client, query backend, and installer
+├── config/                      defaults and option normalization
+├── connections/                 profiles and credential handling
+├── objects/                     object intents and picker UI
+├── queries/                     selection and execution summaries
+├── results/                     result models, collections, sessions, and UI
+├── ui/                          commands, contextual keymaps, and presentation
+└── workspace/                   connection/query lifecycle and activity state
+```
+
+The configured plugin prefix remains contextual so connection and new-query
+actions are available outside SQL buffers. The `sqlserver-result` filetype
+belongs to this plugin; its ftplugin delegates all buffer-local behavior to
+`results/ui` rather than mixing it into the global keymap module.
+
+Feature modules can depend on their own models and on adapter interfaces. Raw
+SQL Tools Service response fields must be normalized before entering a public
+result, object, connection, or workspace model.
+
 ## Boundaries
 
 ### Public API

@@ -1,5 +1,5 @@
 local sqlserver = require("sqlserver")
-local query_selection = require("sqlserver.core.query_selection")
+local query_selection = require("sqlserver.queries.selection")
 local utils = require("sqlserver.utils")
 
 local function await(invoke)

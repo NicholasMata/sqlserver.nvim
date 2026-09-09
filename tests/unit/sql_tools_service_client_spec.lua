@@ -1,4 +1,4 @@
-local adapter = require("sqlserver.adapters.sql_tools_service")
+local adapter = require("sqlserver.adapters.sql_tools_service.client")
 local constants = require("sqlserver.adapters.sql_tools_service.constants")
 
 local T = MiniTest.new_set()
