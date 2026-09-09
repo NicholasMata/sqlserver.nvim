@@ -12,10 +12,6 @@ local function utf16_length(text)
   return vim.str_utfindex(text, "utf-16")
 end
 
-local function last_utf16_column(text)
-  return math.max(utf16_length(text) - 1, 0)
-end
-
 ---@param bufnr? integer
 ---@return SqlServerQueryRequest
 function M.statement(bufnr)
@@ -41,7 +37,7 @@ function M.buffer(bufnr)
       startLine = 0,
       startColumn = 0,
       endLine = #lines - 1,
-      endColumn = last_utf16_column(lines[#lines]),
+      endColumn = utf16_length(lines[#lines]),
     },
   }
 end
@@ -68,8 +64,7 @@ function M.visual(bufnr, visual_mode)
       startLine = start_pos[2] - 1,
       startColumn = start_column,
       endLine = end_pos[2] - 1,
-      endColumn = start_pos[2] == end_pos[2] and start_column + last_utf16_column(lines[1])
-        or last_utf16_column(lines[#lines]),
+      endColumn = start_pos[2] == end_pos[2] and start_column + utf16_length(lines[1]) or utf16_length(lines[#lines]),
     }
   end
 

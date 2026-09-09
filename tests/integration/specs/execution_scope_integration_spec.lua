@@ -82,16 +82,16 @@ CREATE TABLE #ExecutionScopeAudit (
   replace_document({
     "INSERT INTO #ExecutionScopeAudit (Label) VALUES (N'visual-before');",
     "INSERT INTO #ExecutionScopeAudit (Label)",
-    "VALUES (N'visual-target');",
+    "VALUES (N'visual-target')",
     "INSERT INTO #ExecutionScopeAudit (Label) VALUES (N'visual-after');",
   })
   vim.fn.setpos("'<", { 0, 2, 1, 0 })
-  vim.fn.setpos("'>", { 0, 3, 27, 0 })
+  vim.fn.setpos("'>", { 0, 3, 26, 0 })
   execute({ bufnr = 0, request = query_selection.visual(0, "V") })
   assert_audit({ "visual-target" })
 
   reset_audit()
-  local character_target = "INSERT INTO #ExecutionScopeAudit (Label) VALUES (N'character-target');"
+  local character_target = "INSERT INTO #ExecutionScopeAudit (Label) VALUES (N'character-target')"
   local character_document = "/* 😀 */ "
     .. character_target
     .. " INSERT INTO #ExecutionScopeAudit (Label) VALUES (N'character-after');"
@@ -106,7 +106,7 @@ CREATE TABLE #ExecutionScopeAudit (
   replace_document({
     "INSERT INTO #ExecutionScopeAudit (Label) VALUES (N'buffer-first');",
     "INSERT INTO #ExecutionScopeAudit (Label) VALUES (N'buffer-second');",
-    "INSERT INTO #ExecutionScopeAudit (Label) VALUES (N'buffer-third');",
+    "INSERT INTO #ExecutionScopeAudit (Label) VALUES (N'buffer-third')",
   })
   execute({ bufnr = 0, request = query_selection.buffer(0) })
   assert_audit({ "buffer-first", "buffer-second", "buffer-third" })
