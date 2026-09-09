@@ -40,6 +40,7 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
   assert(prefixed_mappings["Next SQL execution"])
   assert(prefixed_mappings["Previous SQL execution"])
   assert(prefixed_mappings["Remove SQL result"])
+  assert(prefixed_mappings["Copy raw SQL result cell"])
 end)
 
 return T

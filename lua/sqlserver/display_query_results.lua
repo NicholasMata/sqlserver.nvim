@@ -46,6 +46,7 @@ M.next_execution = result_view.next_execution
 M.previous_execution = result_view.previous_execution
 M.can_remove_result = result_view.can_remove_result
 M.remove_result = result_view.remove_result
+M.copy_cell = result_view.copy_cell
 M.has_results = result_view.has_results
 M.show_results = result_view.show_results
 M.is_result_buffer = result_view.is_result_buffer

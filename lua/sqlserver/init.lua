@@ -1041,6 +1041,12 @@ local command_handlers = {
     end)
   end,
 
+  copy_result_cell = function()
+    if not query_results.copy_cell() then
+      utils.log_error("Move the cursor to a query result cell")
+    end
+  end,
+
   show_results = function()
     local workspace = workspace_registry.get()
     local bufnr = workspace and workspace.bufnr or nil

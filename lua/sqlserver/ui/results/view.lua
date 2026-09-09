@@ -316,6 +316,27 @@ function M.show_column_info()
   return true
 end
 
+function M.copy_cell()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local session = result_sessions[bufnr]
+  if not session then
+    return false
+  end
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local row_index = cursor[1] - 2
+  local row = session.result_set.rows[row_index]
+  local ranges = session.cell_ranges and session.cell_ranges[cursor[1]]
+  if not row or not ranges or #ranges == 0 then
+    return false
+  end
+  local cell = row[current_column(ranges, cursor[2])]
+  if not cell then
+    return false
+  end
+  vim.fn.setreg('"', cell.display_value, "v")
+  return true
+end
+
 local function select_execution(offset, open_results_in)
   local current_buffer = vim.api.nvim_get_current_buf()
   local source_bufnr = source_for_buffer(current_buffer, true)

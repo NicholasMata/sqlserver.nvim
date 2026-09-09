@@ -50,7 +50,7 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
       {
         result_cell.create({ display_value = "1" }),
         result_cell.create({ display_value = "😀" }),
-        result_cell.create({ display_value = "long value" }),
+        result_cell.create({ display_value = "long\nvalue" }),
       },
     },
     row_count = 2,
@@ -83,6 +83,12 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
   assert(view.previous_column())
   assert(vim.api.nvim_win_get_cursor(0)[2] == 7)
 
+  vim.api.nvim_win_set_cursor(0, { 3, 16 })
+  assert(view.copy_cell())
+  assert(vim.fn.getreg('"') == "long\nvalue", "Cell copying should preserve the untruncated multiline value")
+
+  vim.api.nvim_win_set_cursor(0, { 3, 7 })
+
   local hover_lines
   local original_preview = vim.lsp.util.open_floating_preview
   vim.lsp.util.open_floating_preview = function(lines)
@@ -95,6 +101,7 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
 
   vim.api.nvim_win_set_cursor(0, { 5, 0 })
   assert(not view.next_column(), "Summary lines should not be treated as result cells")
+  assert(not view.copy_cell(), "Summary lines should not be copied as result cells")
   view.clear()
   vim.api.nvim_buf_delete(source, { force = true })
 end)

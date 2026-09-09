@@ -11,6 +11,7 @@ local function set_result_keymap(prefix, handlers, bufnr)
     pcall(vim.keymap.del, "n", previous_prefix .. "n", { buffer = bufnr })
     pcall(vim.keymap.del, "n", previous_prefix .. "p", { buffer = bufnr })
     pcall(vim.keymap.del, "n", previous_prefix .. "d", { buffer = bufnr })
+    pcall(vim.keymap.del, "n", previous_prefix .. "y", { buffer = bufnr })
   end
 
   vim.keymap.set("n", prefix .. "s", handlers.save_query_results, {
@@ -28,6 +29,10 @@ local function set_result_keymap(prefix, handlers, bufnr)
   vim.keymap.set("n", prefix .. "d", handlers.remove_result, {
     buffer = bufnr,
     desc = "Remove SQL result",
+  })
+  vim.keymap.set("n", prefix .. "y", handlers.copy_result_cell, {
+    buffer = bufnr,
+    desc = "Copy raw SQL result cell",
   })
   vim.b[bufnr].sqlserver_result_keymap_prefix = prefix
 end
@@ -212,6 +217,7 @@ return {
             { "n", M.next_execution, desc = "Next Execution" },
             { "p", M.previous_execution, desc = "Previous Execution" },
             { "d", M.remove_result, desc = "Remove Result", icon = { icon = "󰆴", color = "red" } },
+            { "y", M.copy_result_cell, desc = "Copy Raw Cell" },
           }
         else
           local items = { keymaps.new_query, keymaps.new_default_query, keymaps.edit_connections }
@@ -277,6 +283,7 @@ return {
       NextExecution = M.next_execution,
       PreviousExecution = M.previous_execution,
       RemoveResult = M.remove_result,
+      CopyResultCell = M.copy_result_cell,
       Find = M.find_object,
       ObjectDefinition = M.show_object_definition,
       CancelQuery = M.cancel_query,
@@ -295,6 +302,7 @@ return {
           "NextExecution",
           "PreviousExecution",
           "RemoveResult",
+          "CopyResultCell",
         }
       elseif not workspace then
         local items = {

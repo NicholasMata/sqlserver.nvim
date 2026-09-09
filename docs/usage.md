@@ -49,6 +49,10 @@ cell to inspect a compact SQL type such as `varchar(100) NULL` or
 `decimal(12, 2) NOT NULL`. A source object appears on a second line when SQL
 Tools Service provides reliable origin metadata.
 
+Use `<keymap_prefix>y` or `:SQLServer CopyResultCell` on a data cell to copy its
+complete underlying display value into Neovim's unnamed register. This copies
+content omitted by display-width truncation and preserves embedded newlines.
+
 When the real column-header row scrolls out of view, a non-focusable sticky copy
 is displayed over the first content row. Normal- and visual-mode commands still
 operate on the original result buffer; return to the first row to interact with
@@ -157,6 +161,7 @@ scope.
 | `NextExecution` | Display the next retained execution |
 | `PreviousExecution` | Display the previous retained execution |
 | `RemoveResult` | Remove the current result set and any execution it leaves empty |
+| `CopyResultCell` | Copy the complete value under the cursor from a result set |
 | `BackupDatabase` | Insert a database backup command |
 | `RestoreDatabase` | Insert a database restore command |
 
