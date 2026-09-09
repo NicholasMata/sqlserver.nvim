@@ -33,10 +33,15 @@ vim.keymap.set("n", "[c", function()
   require("sqlserver.ui.results.view").previous_column()
 end, { buffer = true, desc = "Previous SQL result column" })
 
+vim.keymap.set("n", "K", function()
+  require("sqlserver.ui.results.view").show_column_info()
+end, { buffer = true, desc = "Show SQL result column type" })
+
 vim.b.undo_ftplugin = table.concat({
   "setlocal wrap< cursorline< number< relativenumber< signcolumn<",
   "silent! nunmap <buffer> ]r",
   "silent! nunmap <buffer> [r",
   "silent! nunmap <buffer> ]c",
   "silent! nunmap <buffer> [c",
+  "silent! nunmap <buffer> K",
 }, " | ")

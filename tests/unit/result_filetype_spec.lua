@@ -22,6 +22,7 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
   assert(mappings["[r"] == "Previous SQL result")
   assert(mappings["]c"] == "Next SQL result column")
   assert(mappings["[c"] == "Previous SQL result column")
+  assert(mappings["K"] == "Show SQL result column type")
 
   local noop = function() end
   local handlers = setmetatable({ save_query_results = noop }, {

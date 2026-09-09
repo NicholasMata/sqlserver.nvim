@@ -19,6 +19,7 @@ function M.describe(result, max_rows)
               return column.columnName
             end)
             :totable(),
+          column_metadata = vim.deepcopy(result_set.columnInfo or {}),
           row_count = result_set.rowCount,
           ordinal = ordinal,
           locator = {
@@ -45,6 +46,7 @@ function M.collect_async(result, max_rows, fetch_rows)
     :map(function(descriptor)
       return query_result.create({
         columns = descriptor.columns,
+        column_metadata = descriptor.column_metadata,
         rows = fetch_rows(descriptor.locator),
         row_count = descriptor.row_count,
         locator = descriptor.locator,

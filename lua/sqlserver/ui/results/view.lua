@@ -1,5 +1,6 @@
 local renderer = require("sqlserver.ui.results.renderer")
 local sticky_header = require("sqlserver.ui.results.sticky_header")
+local column_info = require("sqlserver.ui.results.column_info")
 
 local M = {}
 local namespace = vim.api.nvim_create_namespace("sqlserver-results")
@@ -295,6 +296,26 @@ function M.previous_column()
   return move_column(-1)
 end
 
+function M.show_column_info()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local session = result_sessions[bufnr]
+  if not session then
+    return false
+  end
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local ranges = session.cell_ranges and session.cell_ranges[cursor[1]]
+  if not ranges or #ranges == 0 then
+    return false
+  end
+  local index = current_column(ranges, cursor[2])
+  local metadata = (session.result_set.column_metadata or {})[index] or {}
+  vim.lsp.util.open_floating_preview(column_info.lines(metadata), "sql", {
+    border = "rounded",
+    focus_id = "sqlserver-result-column-info",
+  })
+  return true
+end
+
 local function select_execution(offset, open_results_in)
   local current_buffer = vim.api.nvim_get_current_buf()
   local source_bufnr = source_for_buffer(current_buffer, true)
@@ -480,6 +501,7 @@ function M.show(result_sets, opts, source_bufnr, dispose)
       execution = execution,
       result_index = index,
       cell_ranges = rendered.cell_ranges,
+      result_set = result_set,
     }
     vim.api.nvim_create_autocmd("BufEnter", {
       buffer = bufnr,

@@ -1,8 +1,30 @@
 local query_result = require("sqlserver.core.query_result")
 local result_cell = require("sqlserver.core.result_cell")
 local renderer = require("sqlserver.ui.results.renderer")
+local result_sets = require("sqlserver.core.result_sets")
 
 local T = MiniTest.new_set()
+
+T["Result descriptions retain SQL Tools Service column metadata"] = function()
+  local metadata = {
+    columnName = "Amount",
+    dataTypeName = "decimal",
+    numericPrecision = 12,
+    numericScale = 2,
+    allowDBNull = false,
+  }
+  local descriptors = result_sets.describe({
+    ownerUri = "file:///query.sql",
+    batchSummaries = {
+      { hasError = false, resultSetSummaries = { { rowCount = 0, columnInfo = { metadata } } } },
+    },
+  }, 100)
+
+  assert(vim.deep_equal(descriptors[1].columns, { "Amount" }))
+  assert(vim.deep_equal(descriptors[1].column_metadata, { metadata }))
+  metadata.dataTypeName = "changed"
+  assert(descriptors[1].column_metadata[1].dataTypeName == "decimal", "Metadata should be owned by the result")
+end
 
 T["Result renderer preserves models and describes truncation"] = require("tests.helpers").async(function()
   local model = query_result.create({

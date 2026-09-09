@@ -1,14 +1,51 @@
 local query_result = require("sqlserver.core.query_result")
 local result_cell = require("sqlserver.core.result_cell")
 local view = require("sqlserver.ui.results.view")
+local column_info = require("sqlserver.ui.results.column_info")
 
 local T = MiniTest.new_set()
+
+T["Column information uses SQL type declarations"] = function()
+  assert(column_info.format_type({ dataTypeName = "int", columnSize = 4 }) == "int")
+  assert(column_info.format_type({ dataTypeName = "varchar", columnSize = 100 }) == "varchar(100)")
+  assert(column_info.format_type({ dataTypeName = "nvarchar", columnSize = 1073741823 }) == "nvarchar(max)")
+  assert(
+    column_info.format_type({ dataTypeName = "decimal", numericPrecision = 12, numericScale = 2 }) == "decimal(12, 2)"
+  )
+  assert(column_info.format_type({ dataTypeName = "datetime2", numericScale = 7 }) == "datetime2(7)")
+  assert(column_info.format_type({ dataTypeName = "varchar(max)", columnSize = 2147483647 }) == "varchar(max)")
+  assert(vim.deep_equal(
+    column_info.lines({
+      dataTypeName = "decimal",
+      numericPrecision = 12,
+      numericScale = 2,
+      allowDBNull = false,
+      baseSchemaName = "dbo",
+      baseTableName = "Product",
+      baseColumnName = "Price",
+    }),
+    { "decimal(12, 2) NOT NULL", "-- Source: dbo.Product.Price" }
+  ))
+  assert(vim.deep_equal(
+    column_info.lines({
+      dataTypeName = "money",
+      allowDBNull = true,
+      isExpression = true,
+    }),
+    { "money NULL" }
+  ))
+end
 
 T["Result column navigation follows rendered cell boundaries"] = require("tests.helpers").async(function()
   view.clear()
   local source = vim.api.nvim_create_buf(false, true)
   local model = query_result.create({
     columns = { "ID", "X", "Payload" },
+    column_metadata = {
+      { columnName = "ID", dataTypeName = "int", columnSize = 4, allowDBNull = false },
+      { columnName = "X", dataTypeName = "nvarchar", columnSize = 20, allowDBNull = true },
+      { columnName = "Payload", dataTypeName = "varchar(max)", allowDBNull = true },
+    },
     rows = {
       {
         result_cell.create({ display_value = "1" }),
@@ -45,6 +82,16 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
   assert(vim.api.nvim_win_get_cursor(0)[2] == 16, "Unicode rows require their own byte boundaries")
   assert(view.previous_column())
   assert(vim.api.nvim_win_get_cursor(0)[2] == 7)
+
+  local hover_lines
+  local original_preview = vim.lsp.util.open_floating_preview
+  vim.lsp.util.open_floating_preview = function(lines)
+    hover_lines = lines
+  end
+  local shown = view.show_column_info()
+  vim.lsp.util.open_floating_preview = original_preview
+  assert(shown)
+  assert(vim.deep_equal(hover_lines, { "nvarchar(20) NULL" }))
 
   vim.api.nvim_win_set_cursor(0, { 5, 0 })
   assert(not view.next_column(), "Summary lines should not be treated as result cells")

@@ -44,6 +44,11 @@ buffer; deleting the source buffer discards its complete result history.
 The result winbar identifies the source buffer and shows both positions, such
 as `Run 2/4  Result 1/2`.
 
+Use `]c` and `[c` to move between result columns. Press `K` on a header or data
+cell to inspect a compact SQL type such as `varchar(100) NULL` or
+`decimal(12, 2) NOT NULL`. A source object appears on a second line when SQL
+Tools Service provides reliable origin metadata.
+
 When the real column-header row scrolls out of view, a non-focusable sticky copy
 is displayed over the first content row. Normal- and visual-mode commands still
 operate on the original result buffer; return to the first row to interact with
