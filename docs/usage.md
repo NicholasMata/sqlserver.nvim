@@ -4,82 +4,122 @@
 `keymap_prefix` is configured, the mappings below are added after that prefix.
 Command completion includes only actions valid for the current workspace state.
 
-## Daily workflow
+## Workspace layout
 
-| Default suffix | Command | Behavior |
+<p align="center">
+  <img src="assets/workspace-layout-annotated.png" alt="Annotated sqlserver.nvim query and result workspace" width="800">
+</p>
+
+| Label | Term | Meaning |
 | --- | --- | --- |
-| `n` | `NewQuery` | Open a new SQL query buffer |
-| `d` | `NewDefaultQuery` | Open a query using the `default` connection profile |
-| `c` | `Connect` | Connect the current query buffer |
-| `R` | `Reconnect` | Retry the query buffer's previous connection |
-| `q` | `Disconnect` | Disconnect the current query buffer |
-| `x` | `ExecuteQuery` | Execute the statement under the cursor |
-| visual `x` | `ExecuteQuery` | Execute the selected text |
-| `X` | `ExecuteBuffer` | Execute the complete buffer |
-| `l` | `CancelQuery` | Cancel the active query |
-| `a` | `Activity` | Toggle workspace activity |
+| 1 | Query buffer | Editable `sql` buffer that owns its connection, active execution, and retained result history |
+| 2 | Workspace winbar | Neovim's built-in per-window bar showing the connected server, database, and current state |
+| 3 | Result view | Reusable Neovim window displaying one `sqlserver-result` buffer at a time |
+| 4 | Result winbar | Identifies the source query and the active execution and result-set positions |
+| 5 | Column header | Real first buffer row; a non-focusable sticky copy remains visible when this row scrolls away |
+
+A buffer owns text and plugin state; a window displays a buffer. Query and
+result buffers remain tied together even when either buffer is hidden or shown
+in a different window. One query execution can produce several result sets, and
+each result set has its own result buffer. A retained sequence of those
+executions is the query buffer's result history.
+
+## SQL buffer workflow
+
+| Vim Mode | Mapping | Command | Behavior |
+| --- | --- | --- | --- |
+| Normal | `<keymap_prefix>n` | `NewQuery` | Open a new SQL query buffer |
+| Normal | `<keymap_prefix>d` | `NewDefaultQuery` | Open a query using the `default` connection profile |
+| Normal | `<keymap_prefix>e` | `EditConnections` | Edit connection profiles |
+| Normal | `<keymap_prefix>c` | `Connect` | Connect the current query buffer |
+| Normal | `<keymap_prefix>R` | `Reconnect` | Retry the query buffer's previous connection |
+| Normal | `<keymap_prefix>q` | `Disconnect` | Disconnect the current query buffer |
+| Normal | `<keymap_prefix>s` | `SwitchDatabase` | Change database on the connected server |
+| Normal | `<keymap_prefix>x` | `ExecuteQuery` | Execute the statement under the cursor |
+| Visual | `<keymap_prefix>x` | `ExecuteQuery` | Execute the selected text |
+| Normal | `<keymap_prefix>X` | `ExecuteBuffer` | Execute the complete buffer |
+| Normal | `<keymap_prefix>l` | `CancelQuery` | Cancel the active query |
+| Normal | `<keymap_prefix>v` | `ShowResults` | Reopen the active retained execution |
+| Normal | `<keymap_prefix>f` | `Find` | Build a query for a selected database object |
+| Normal | `<keymap_prefix>o` | `ObjectDefinition` | Open a selected database object's definition |
+| Normal | `<keymap_prefix>r` | `RefreshCache` | Refresh object and IntelliSense metadata |
+| Normal | `<keymap_prefix>a` | `Activity` | Toggle workspace activity |
 
 If a disconnected query is executed, the plugin attempts to use the connection
 profile named `default`. Current-statement parsing is delegated to SQL Tools
 Service.
 
-## Query results and errors
+## Result view workflow
 
 Every SQL source buffer retains its own recent successful executions in memory.
 Each execution can contain one or more `sqlserver-result` buffers, displayed in
-a reusable results window. `:SQLServer ShowResults` or `<keymap_prefix>v`
-restores the active execution belonging to the current SQL buffer.
+a reusable results window. Unless noted otherwise, these mappings run from a
+result buffer:
 
-Use `]r`, `[r`, `:SQLServer NextResult`, or `:SQLServer PreviousResult` to move
-between result sets from one execution. From a result buffer, use
-`<keymap_prefix>n`, `<keymap_prefix>p`, `:SQLServer NextExecution`, or
-`:SQLServer PreviousExecution` to move between retained executions. Executing
-again selects the new execution without deleting the older result buffers.
-Use `<keymap_prefix>d` or `:SQLServer RemoveResult` to remove the current result
-set after confirmation. The nearest result set replaces it. Removing the final
-result set also removes its empty execution and selects the nearest retained
-execution; removing the final result closes the results view.
-`results.history_limit` controls how many executions are retained per source
-buffer; deleting the source buffer discards its complete result history.
-The result winbar identifies the source buffer and shows both positions, such
-as `Run 2/4  Result 1/2`.
+| Vim Mode | Mapping | Command | Behavior |
+| --- | --- | --- | --- |
+| Normal | `]r` | `NextResult` | Show the next result set in the execution |
+| Normal | `[r` | `PreviousResult` | Show the previous result set in the execution |
+| Normal | `<keymap_prefix>n` | `NextExecution` | Show the next retained execution |
+| Normal | `<keymap_prefix>p` | `PreviousExecution` | Show the previous retained execution |
+| Normal | `]c` | — | Move to the next result column |
+| Normal | `[c` | — | Move to the previous result column |
+| Normal | `K` | — | Inspect the current column's SQL type and metadata |
+| Normal | `<keymap_prefix>d` | `RemoveResult` | Remove the current result after confirmation |
+| Normal | `<keymap_prefix>s` | `ExportQueryResults` | Export the complete result set |
+| Visual | `<keymap_prefix>s` | `ExportQueryResults` | Export the selected rows and columns |
+| Visual | `<keymap_prefix>y` | — | Copy the selected cells as a rich HTML table |
+| Normal | — | `CopyResultCell` | Copy the complete value under the cursor; command only |
 
-Use `]c` and `[c` to move between result columns. Press `K` on a header or data
-cell to inspect a compact SQL type such as `varchar(100) NULL` or
-`decimal(12, 2) NOT NULL`. A source object appears on a second line when SQL
-Tools Service provides reliable origin metadata.
+### Result history
 
-Use `:SQLServer CopyResultCell` on a data cell to copy its complete underlying
-display value into Neovim's unnamed register. This copies content omitted by
-display-width truncation and preserves embedded newlines. Raw-cell copying has
-no default mapping.
+Executing again activates a new execution without deleting older result
+buffers. `results.history_limit` controls how many executions are retained for
+each source buffer. Deleting the source buffer discards its complete history.
 
-In visual mode, `<keymap_prefix>y` copies the selected rows and columns as a
-rich HTML table, including the selected column headings. The table uses complete
-underlying values rather than display-width-truncated text and can be pasted
-into applications such as Microsoft Teams. Rich clipboard support uses the
-native macOS and Windows facilities; Linux requires `wl-copy` or `xclip`.
+### Result winbar
 
-When the real column-header row scrolls out of view, a non-focusable sticky copy
-is displayed over the first content row. Normal- and visual-mode commands still
-operate on the original result buffer; return to the first row to interact with
-the real header. Set `results.sticky_header = false` to disable the overlay.
+The result winbar identifies the source SQL buffer and shows the current
+execution and result-set positions. For example, `Run 2/4  Result 1/2` means the
+view is showing the first result set from the second of four retained
+executions.
 
-Each result can be exported independently with the buffer-local
-`<keymap_prefix>s` mapping or `:SQLServer ExportQueryResults`. Choose CSV, JSON,
-or XML to open the SQL Tools Service serialization in a modified, unsaved
-buffer. Edit it if needed and use Neovim's normal `:write` command to save it.
-Excel `.xlsx` is binary, so it asks for a destination and writes the file
-directly. No result-buffer mappings using `keymap_prefix` are created when that
-option is disabled. In visual mode, `<keymap_prefix>s` exports the rectangular
-range of rows and columns covered by the selection. Linewise selections include
-every column.
+### Removing results
+
+Removing a result selects the nearest remaining result. Removing the final
+result in an execution removes that execution; removing the final retained
+result also closes the results view.
+
+### Columns and sticky header
+
+Column inspection displays compact types such as `varchar(100) NULL` or
+`decimal(12, 2) NOT NULL`, plus source-object metadata when SQL Tools Service
+provides it. The sticky header keeps column names visible while scrolling and
+can be disabled with `results.sticky_header = false`.
+
+### Copying and exporting
+
+Copy and export actions use complete underlying cell values rather than
+display-width-truncated text. Rich HTML clipboard copy includes the selected
+headings and uses native macOS and Windows facilities; Linux requires `wl-copy`
+or `xclip`.
+
+CSV, JSON, and XML exports open as modified, unsaved buffers. Edit them if
+needed and use Neovim's normal `:write` command to save them. Binary Excel
+`.xlsx` exports ask for a destination and write directly. Visual exports use
+the rectangular range covered by the selection; linewise selections include
+every column. Result mappings that use `keymap_prefix` are omitted when no
+prefix is configured.
+
+### Limits and value fidelity
 
 When the configured row limit is reached, the buffer reports how many rows are
 shown. Cell-width truncation affects only the rendered table. Database `NULL`
 remains distinct from the string `"NULL"`, and Unicode, decimal, datetime,
 binary, and invariant-culture values are preserved when SQL Tools Service
 provides them.
+
+### SQL errors and batches
 
 Successful result sets are retained when another batch raises an error. Empty
 result slots from failed batches are omitted, but surviving buffer names retain
@@ -93,6 +133,8 @@ run later statements as independent batches; the plugin does not silently
 split T-SQL because that would change variable, transaction, temporary-table,
 and other batch semantics.
 
+### Cancellation and cleanup
+
 An intentional cancellation remains in progress until SQL Tools Service
 reports completion, after which the connected buffer can execute again. A
 query timeout also requests server-side cancellation but leaves the workspace
@@ -104,12 +146,16 @@ failures have distinct secret-safe messages. Detailed redacted diagnostics are
 retained in activity history. Deleting a SQL buffer disposes its connection;
 leaving Neovim stops plugin-owned SQL Tools Service clients.
 
-## Activity and language features
+## Activity view
 
-Open the activity view with `:SQLServer Activity` or the `a` suffix and press
-`q` inside it to close it. A mixed query outcome uses a warning state while each
-underlying SQL error remains an error; an error-only execution uses the failed
-state.
+| Vim Mode | Mapping | Command | Behavior |
+| --- | --- | --- | --- |
+| Normal | `q` | — | Close the activity view |
+
+A mixed query outcome uses a warning state while each underlying SQL error
+remains an error; an error-only execution uses the failed state.
+
+## Language features
 
 SQL Tools Service attaches through Neovim's standard LSP client, so existing
 completion, diagnostics, hover, signature-help, definition, and formatting
@@ -132,13 +178,9 @@ metadata for the current connection.
 ## Object workflow
 
 The object picker searches a snapshot of tables, views, stored procedures,
-scalar functions, and table-valued functions in the connected database.
-
-| Default suffix | Command | Behavior |
-| --- | --- | --- |
-| `f` | `Find` | Build `SELECT` SQL for a table/view or `EXEC` SQL for a procedure |
-| `o` | `ObjectDefinition` | Open the selected object's editable definition |
-| `r` | `RefreshCache` | Refresh object and IntelliSense metadata |
+scalar functions, and table-valued functions in the connected database. Its
+actions are invoked from the SQL buffer and are listed in the SQL buffer
+workflow table above.
 
 Generated table and view queries execute immediately by default. Procedure
 calls are inserted but never executed automatically because they may have side

@@ -94,13 +94,21 @@ With the prefix above, use `<leader>sx` for the statement under the cursor or a
 visual selection, and `<leader>sX` for the complete buffer. Commands are also
 available through `:SQLServer`.
 
-See [Configuration](docs/configuration.md) for setup options and UI
-customization, [Usage](docs/usage.md) for commands and daily workflows, and the
-[Public Lua API](docs/public-api.md) for UI-independent connection, execution,
-object, cancellation, and export operations. The
-[documentation index](docs/index.md) links every guide by task.
+## Documentation
 
-Release changes are tracked in the [changelog](CHANGELOG.md).
+| Goal | Guide |
+| --- | --- |
+| Install and configure the plugin | [Configuration](docs/configuration.md) |
+| Create secure connection profiles | [Connection profiles](docs/connections-json.md) |
+| Execute queries and work with results | [Usage](docs/usage.md) |
+| Configure SQL formatting and IntelliSense | [SQL Tools Service settings](docs/lsp-settings.md) |
+| Automate the plugin from Lua | [Public Lua API](docs/public-api.md) |
+| Move from `mssql.nvim` | [Migrating from mssql.nvim](docs/migrating-from-mssql.md) |
+| Understand the project direction | [Vision](docs/vision.md) and [roadmap](docs/roadmap.md) |
+| Understand module ownership | [Architecture](docs/architecture.md) |
+| Develop and test locally | [Contributing](CONTRIBUTING.md) |
+| Prepare a release | [Release checklist](docs/releasing.md) |
+| Review user-visible changes | [Changelog](CHANGELOG.md) |
 
 ## Contributing
 
