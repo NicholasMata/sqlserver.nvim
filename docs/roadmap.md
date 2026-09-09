@@ -75,6 +75,8 @@ remaining release gate is tracked in [the 1.0 checklist](releasing.md):
 
 ## Later
 
+- Result-cell text objects and operators, including `yiC` for copying the
+  complete underlying value of the cell under the cursor.
 - Hierarchical object browsing and individual-node refresh.
 - Explicit `ALTER` and `DROP` scripting actions with destructive-operation UX.
 - Execution-plan capture and readable summaries.

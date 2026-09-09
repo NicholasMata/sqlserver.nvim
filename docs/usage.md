@@ -49,9 +49,16 @@ cell to inspect a compact SQL type such as `varchar(100) NULL` or
 `decimal(12, 2) NOT NULL`. A source object appears on a second line when SQL
 Tools Service provides reliable origin metadata.
 
-Use `<keymap_prefix>y` or `:SQLServer CopyResultCell` on a data cell to copy its
-complete underlying display value into Neovim's unnamed register. This copies
-content omitted by display-width truncation and preserves embedded newlines.
+Use `:SQLServer CopyResultCell` on a data cell to copy its complete underlying
+display value into Neovim's unnamed register. This copies content omitted by
+display-width truncation and preserves embedded newlines. Raw-cell copying has
+no default mapping.
+
+In visual mode, `<keymap_prefix>y` copies the selected rows and columns as a
+rich HTML table, including the selected column headings. The table uses complete
+underlying values rather than display-width-truncated text and can be pasted
+into applications such as Microsoft Teams. Rich clipboard support uses the
+native macOS and Windows facilities; Linux requires `wl-copy` or `xclip`.
 
 When the real column-header row scrolls out of view, a non-focusable sticky copy
 is displayed over the first content row. Normal- and visual-mode commands still

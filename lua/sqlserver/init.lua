@@ -1085,6 +1085,15 @@ local command_handlers = {
     end
   end,
 
+  copy_result_selection = function()
+    local ok, err, copied = query_results.copy_selection_as_html()
+    if not ok then
+      utils.log_error(err)
+      return
+    end
+    utils.log_info(("Copied %d rows × %d columns as HTML"):format(copied.rows, copied.columns))
+  end,
+
   show_results = function()
     local workspace = workspace_registry.get()
     local bufnr = workspace and workspace.bufnr or nil

@@ -23,14 +23,16 @@ local function attach_configured(prefix, handlers, bufnr)
       pcall(vim.keymap.del, "n", previous_prefix .. suffix, { buffer = bufnr })
     end
     pcall(vim.keymap.del, "x", previous_prefix .. "s", { buffer = bufnr })
+    pcall(vim.keymap.del, "x", previous_prefix .. "y", { buffer = bufnr })
   end
+  -- Remove the pre-1.0 raw-cell mapping when reconfiguring an existing buffer.
+  pcall(vim.keymap.del, "n", prefix .. "y", { buffer = bufnr })
 
   local mappings = {
     { "s", handlers.export_query_results, "Export SQL result" },
     { "n", handlers.next_execution, "Next SQL execution" },
     { "p", handlers.previous_execution, "Previous SQL execution" },
     { "d", handlers.remove_result, "Remove SQL result" },
-    { "y", handlers.copy_result_cell, "Copy raw SQL result cell" },
   }
   for _, mapping in ipairs(mappings) do
     vim.keymap.set("n", prefix .. mapping[1], mapping[2], { buffer = bufnr, desc = mapping[3] })
@@ -38,6 +40,10 @@ local function attach_configured(prefix, handlers, bufnr)
   vim.keymap.set("x", prefix .. "s", function()
     handlers.export_query_results({ selection = true })
   end, { buffer = bufnr, desc = "Export selected SQL result cells" })
+  vim.keymap.set("x", prefix .. "y", handlers.copy_result_selection, {
+    buffer = bufnr,
+    desc = "Copy selected SQL result cells as HTML",
+  })
   vim.b[bufnr].sqlserver_result_keymap_prefix = prefix
 end
 
@@ -66,7 +72,6 @@ function M.which_key_items(handlers)
     { "n", handlers.next_execution, desc = "Next Execution" },
     { "p", handlers.previous_execution, desc = "Previous Execution" },
     { "d", handlers.remove_result, desc = "Remove Result", icon = { icon = "󰆴", color = "red" } },
-    { "y", handlers.copy_result_cell, desc = "Copy Raw Cell" },
   }
 end
 
@@ -79,6 +84,11 @@ function M.which_key_visual_items(handlers)
       end,
       desc = "Export Selected Cells",
       icon = { icon = "", color = "green" },
+    },
+    {
+      "y",
+      handlers.copy_result_selection,
+      desc = "Copy Selected Cells as HTML",
     },
   }
 end
