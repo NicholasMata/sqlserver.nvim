@@ -26,7 +26,7 @@ local function attach_configured(prefix, handlers, bufnr)
   end
 
   local mappings = {
-    { "s", handlers.save_query_results, "Save SQL result" },
+    { "s", handlers.export_query_results, "Export SQL result" },
     { "n", handlers.next_execution, "Next SQL execution" },
     { "p", handlers.previous_execution, "Previous SQL execution" },
     { "d", handlers.remove_result, "Remove SQL result" },
@@ -36,7 +36,7 @@ local function attach_configured(prefix, handlers, bufnr)
     vim.keymap.set("n", prefix .. mapping[1], mapping[2], { buffer = bufnr, desc = mapping[3] })
   end
   vim.keymap.set("x", prefix .. "s", function()
-    handlers.save_query_results({ selection = true })
+    handlers.export_query_results({ selection = true })
   end, { buffer = bufnr, desc = "Export selected SQL result cells" })
   vim.b[bufnr].sqlserver_result_keymap_prefix = prefix
 end
@@ -62,7 +62,7 @@ end
 
 function M.which_key_items(handlers)
   return {
-    { "s", handlers.save_query_results, desc = "Save Query Results", icon = { icon = "", color = "green" } },
+    { "s", handlers.export_query_results, desc = "Export Query Result", icon = { icon = "", color = "green" } },
     { "n", handlers.next_execution, desc = "Next Execution" },
     { "p", handlers.previous_execution, desc = "Previous Execution" },
     { "d", handlers.remove_result, desc = "Remove Result", icon = { icon = "󰆴", color = "red" } },
@@ -75,7 +75,7 @@ function M.which_key_visual_items(handlers)
     {
       "s",
       function()
-        handlers.save_query_results({ selection = true })
+        handlers.export_query_results({ selection = true })
       end,
       desc = "Export Selected Cells",
       icon = { icon = "", color = "green" },

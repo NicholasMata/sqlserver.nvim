@@ -15,6 +15,7 @@ local modules = {
   "result_filetype_spec",
   "result_column_navigation_spec",
   "result_selection_spec",
+  "result_export_view_spec",
   "result_session_spec",
   "result_sticky_header_spec",
   "query_selection_spec",

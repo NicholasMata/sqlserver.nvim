@@ -25,7 +25,7 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
   assert(mappings["K"] == "Show SQL result column type")
 
   local noop = function() end
-  local handlers = setmetatable({ save_query_results = noop }, {
+  local handlers = setmetatable({ export_query_results = noop }, {
     __index = function()
       return noop
     end,
@@ -36,7 +36,7 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
   for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(result_buffer, "n")) do
     prefixed_mappings[mapping.desc] = true
   end
-  assert(prefixed_mappings["Save SQL result"], "The configured prefix should add a result-local save mapping")
+  assert(prefixed_mappings["Export SQL result"], "The configured prefix should add a result-local export mapping")
   assert(prefixed_mappings["Next SQL execution"])
   assert(prefixed_mappings["Previous SQL execution"])
   assert(prefixed_mappings["Remove SQL result"])

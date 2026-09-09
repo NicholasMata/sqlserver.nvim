@@ -1,6 +1,7 @@
 local tools_installer = require("sqlserver.adapters.sql_tools_service.installer")
 local utils = require("sqlserver.utils")
 local query_results = require("sqlserver.results.ui.view")
+local result_export_view = require("sqlserver.results.ui.export")
 local query_selection = require("sqlserver.queries.selection")
 local sql_keymaps = require("sqlserver.ui.keymaps")
 local commands = require("sqlserver.ui.commands")
@@ -744,29 +745,8 @@ local function connect_to_default(workspace, opts)
   end
 end
 
-local function save_query_results_async(result_info, selection)
-  utils.wait_for_schedule_async()
+local function export_to_file_async(result_info, selection, extension, file, notify)
   local subset_params = result_info.subset_params
-
-  local file = utils.ui_input_async({
-    prompt = "Export filename: ",
-    completion = "file",
-  })
-  if file == nil then
-    return
-  end
-  if file == "" then
-    utils.log_error("Enter a filename to export the query results")
-    return
-  end
-
-  local extension = file:match("%.([^.]+)$")
-  extension = extension and extension:lower() or nil
-  if not vim.tbl_contains({ "csv", "json", "xml", "xlsx" }, extension) then
-    utils.log_error("Filename must end with .csv, .json, .xml, or .xlsx")
-    return
-  end
-
   local existing = vim.uv.fs_stat(file)
   if existing and existing.type ~= "file" then
     utils.log_error("Export path exists and is not a file: " .. file)
@@ -781,20 +761,67 @@ local function save_query_results_async(result_info, selection)
     end
   end
 
-  local openAfterSave = extension ~= "xlsx"
-
   await_public(function(callback)
     public_api.export_results({
       result_set = { locator = subset_params },
       path = file,
+      format = extension,
       selection = selection,
     }, callback)
   end)
 
-  utils.log_info("Exported query results to " .. file)
+  if notify ~= false then
+    utils.log_info("Exported query results to " .. file)
+  end
+end
 
-  if openAfterSave then
-    vim.cmd("edit " .. vim.fn.fnameescape(file))
+local function save_excel_results_async(result_info, selection)
+  local file = utils.ui_input_async({
+    prompt = "Export Excel filename: ",
+    completion = "file",
+  })
+  if file == nil then
+    return
+  end
+  if file == "" then
+    utils.log_error("Enter a filename to export the query results")
+    return
+  end
+  if file:lower():sub(-5) ~= ".xlsx" then
+    utils.log_error("Excel export filename must end with .xlsx")
+    return
+  end
+  export_to_file_async(result_info, selection, "xlsx", file)
+end
+
+local function open_text_results_async(result_info, selection, format)
+  local path = vim.fn.tempname() .. "." .. format
+  local ok, err = pcall(function()
+    export_to_file_async(result_info, selection, format, path, false)
+    result_export_view.open(path, format, result_info)
+  end)
+  vim.fn.delete(path)
+  if not ok then
+    error(err, 0)
+  end
+  utils.log_info("Opened query results as " .. format:upper())
+end
+
+local function export_query_results_async(result_info, selection)
+  utils.wait_for_schedule_async()
+  local format = utils.ui_select_async({ "csv", "json", "xml", "xlsx" }, {
+    prompt = "Open query results as:",
+    format_item = function(item)
+      return item == "xlsx" and "Excel (.xlsx)" or item:upper()
+    end,
+  })
+  if not format then
+    return
+  end
+  if format == "xlsx" then
+    save_excel_results_async(result_info, selection)
+  else
+    open_text_results_async(result_info, selection, format)
   end
 end
 
@@ -993,7 +1020,7 @@ local command_handlers = {
     end))
   end,
 
-  save_query_results = function(opts)
+  export_query_results = function(opts)
     local result_info = vim.b.query_result_info
     if not result_info then
       utils.log_error("Go to a query result buffer to save results")
@@ -1009,7 +1036,7 @@ local command_handlers = {
       end
     end
     utils.try_resume(coroutine.create(function()
-      save_query_results_async(result_info, selection)
+      export_query_results_async(result_info, selection)
     end))
   end,
 

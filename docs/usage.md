@@ -58,12 +58,15 @@ is displayed over the first content row. Normal- and visual-mode commands still
 operate on the original result buffer; return to the first row to interact with
 the real header. Set `results.sticky_header = false` to disable the overlay.
 
-Each result can be saved independently with the buffer-local
-`<keymap_prefix>s` mapping or `:SQLServer SaveQueryResults`. No result-buffer
-mappings using `keymap_prefix` are created when that option is disabled.
-In visual mode, `<keymap_prefix>s` exports the rectangular range of rows and
-columns covered by the selection. Linewise selections include every column.
-Exports support CSV, JSON, XML, and Excel `.xlsx`.
+Each result can be exported independently with the buffer-local
+`<keymap_prefix>s` mapping or `:SQLServer ExportQueryResults`. Choose CSV, JSON,
+or XML to open the SQL Tools Service serialization in a modified, unsaved
+buffer. Edit it if needed and use Neovim's normal `:write` command to save it.
+Excel `.xlsx` is binary, so it asks for a destination and writes the file
+directly. No result-buffer mappings using `keymap_prefix` are created when that
+option is disabled. In visual mode, `<keymap_prefix>s` exports the rectangular
+range of rows and columns covered by the selection. Linewise selections include
+every column.
 
 When the configured row limit is reached, the buffer reports how many rows are
 shown. Cell-width truncation affects only the rendered table. Database `NULL`
@@ -156,7 +159,7 @@ scope.
 | `ObjectDefinition` | Script a database object's definition |
 | `RefreshCache` | Refresh metadata and IntelliSense caches |
 | `EditConnections` | Edit connection profiles |
-| `SaveQueryResults` | Export the current result set |
+| `ExportQueryResults` | Export the current result set |
 | `ShowResults` | Focus or reopen the current SQL buffer's active execution |
 | `NextResult` | Display the next result set |
 | `PreviousResult` | Display the previous result set |

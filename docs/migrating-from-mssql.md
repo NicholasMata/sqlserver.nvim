@@ -120,8 +120,9 @@ When a query returns multiple result sets:
 - the first result is displayed initially;
 - `]r`, `[r`, `:SQLServer NextResult`, and `:SQLServer PreviousResult` navigate
   between them;
-- each result set can be saved independently with the buffer-local
-  `<keymap_prefix>s` mapping or `:SQLServer SaveQueryResults`;
+- each result set can be exported independently with the buffer-local
+  `<keymap_prefix>s` mapping or `:SQLServer ExportQueryResults`; text formats open
+  as editable buffers, while Excel asks for a destination;
 - `<keymap_prefix>v` or `:SQLServer ShowResults` reopens the last viewed result
   after its window is closed.
 
