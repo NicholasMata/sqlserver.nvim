@@ -169,11 +169,22 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
     api.export_results({
       result_set = { locator = { ownerUri = "file:///public-api.sql" } },
       path = "/tmp/result.csv",
+      selection = { row_start = 1, row_end = 2, column_start = 3, column_end = 4 },
     }, callback)
   end)
   assert(export_result.format == "csv" and exported.path == "/tmp/result.csv")
 
   assert(exported.opts.timeout == 10000)
+  assert(exported.opts.selection.row_start == 1 and exported.opts.selection.column_end == 4)
+
+  local _, selection_error = completed(function(callback)
+    api.export_results({
+      result_set = { locator = { ownerUri = "file:///public-api.sql" } },
+      path = "/tmp/result.csv",
+      selection = { row_start = 2, row_end = 1, column_start = 0, column_end = 0 },
+    }, callback)
+  end)
+  assert(selection_error.code == "invalid_argument")
 
   local disconnected = completed(function(callback)
     api.disconnect(321, callback)

@@ -95,6 +95,12 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
   assert(shown)
   assert(vim.deep_equal(hover_lines, { "nvarchar(20) NULL" }))
 
+  vim.api.nvim_win_set_cursor(0, { 3, 7 })
+  vim.cmd("normal! v")
+  local selected = assert(view.visual_selection())
+  vim.cmd("normal! \27")
+  assert(vim.deep_equal(selected, { row_start = 0, row_end = 0, column_start = 1, column_end = 1 }))
+
   vim.api.nvim_win_set_cursor(0, { 5, 0 })
   assert(not view.next_column(), "Summary lines should not be treated as result cells")
   assert(not view.copy_cell(), "Summary lines should not be copied as result cells")

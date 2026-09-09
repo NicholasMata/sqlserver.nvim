@@ -744,7 +744,7 @@ local function connect_to_default(workspace, opts)
   end
 end
 
-local function save_query_results_async(result_info)
+local function save_query_results_async(result_info, selection)
   utils.wait_for_schedule_async()
   local subset_params = result_info.subset_params
 
@@ -787,6 +787,7 @@ local function save_query_results_async(result_info)
     public_api.export_results({
       result_set = { locator = subset_params },
       path = file,
+      selection = selection,
     }, callback)
   end)
 
@@ -992,14 +993,23 @@ local command_handlers = {
     end))
   end,
 
-  save_query_results = function()
+  save_query_results = function(opts)
     local result_info = vim.b.query_result_info
     if not result_info then
       utils.log_error("Go to a query result buffer to save results")
       return
     end
+    local selection
+    if opts and opts.selection then
+      local selection_error
+      selection, selection_error = query_results.visual_selection()
+      if not selection then
+        utils.log_error(selection_error)
+        return
+      end
+    end
     utils.try_resume(coroutine.create(function()
-      save_query_results_async(result_info)
+      save_query_results_async(result_info, selection)
     end))
   end,
 

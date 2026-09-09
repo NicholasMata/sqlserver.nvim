@@ -108,11 +108,14 @@ T["Query backend should translate execution scopes"] = require("tests.helpers").
   backend.export_result_async(
     { ownerUri = "file:///query.sql", batchIndex = 0, resultSetIndex = 0, _sqlserver_query_id = 4 },
     "/tmp/result.xlsx",
-    "xlsx"
+    "xlsx",
+    { selection = { row_start = 1, row_end = 3, column_start = 2, column_end = 4 } }
   )
   local excel_export = requests[#requests]
   assert(excel_export.method == "query/saveExcel")
   assert(excel_export.params.IncludeHeaders == true)
+  assert(excel_export.params.RowStartIndex == 1 and excel_export.params.RowEndIndex == 3)
+  assert(excel_export.params.ColumnStartIndex == 2 and excel_export.params.ColumnEndIndex == 4)
   local legacy_excel, legacy_excel_error = pcall(
     backend.export_result_async,
     { ownerUri = "file:///query.sql", _sqlserver_query_id = 4 },

@@ -22,6 +22,7 @@ local function attach_configured(prefix, handlers, bufnr)
     for _, suffix in ipairs(configured_suffixes) do
       pcall(vim.keymap.del, "n", previous_prefix .. suffix, { buffer = bufnr })
     end
+    pcall(vim.keymap.del, "x", previous_prefix .. "s", { buffer = bufnr })
   end
 
   local mappings = {
@@ -34,6 +35,9 @@ local function attach_configured(prefix, handlers, bufnr)
   for _, mapping in ipairs(mappings) do
     vim.keymap.set("n", prefix .. mapping[1], mapping[2], { buffer = bufnr, desc = mapping[3] })
   end
+  vim.keymap.set("x", prefix .. "s", function()
+    handlers.save_query_results({ selection = true })
+  end, { buffer = bufnr, desc = "Export selected SQL result cells" })
   vim.b[bufnr].sqlserver_result_keymap_prefix = prefix
 end
 
@@ -63,6 +67,19 @@ function M.which_key_items(handlers)
     { "p", handlers.previous_execution, desc = "Previous Execution" },
     { "d", handlers.remove_result, desc = "Remove Result", icon = { icon = "󰆴", color = "red" } },
     { "y", handlers.copy_result_cell, desc = "Copy Raw Cell" },
+  }
+end
+
+function M.which_key_visual_items(handlers)
+  return {
+    {
+      "s",
+      function()
+        handlers.save_query_results({ selection = true })
+      end,
+      desc = "Export Selected Cells",
+      icon = { icon = "", color = "green" },
+    },
   }
 end
 

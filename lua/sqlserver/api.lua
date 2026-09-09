@@ -225,7 +225,25 @@ function M.script_object(opts, callback)
   end)
 end
 
----@param opts { result_set?: SqlServerResultSet, bufnr?: integer, path: string, format?: string }
+local function validate_result_selection(selection)
+  if selection == nil then
+    return
+  end
+  if type(selection) ~= "table" then
+    error(api_error("invalid_argument", "export_results() selection must be a table"), 0)
+  end
+  for _, name in ipairs({ "row_start", "row_end", "column_start", "column_end" }) do
+    local value = selection[name]
+    if type(value) ~= "number" or value < 0 or value % 1 ~= 0 then
+      error(api_error("invalid_argument", "selection." .. name .. " must be a non-negative integer"), 0)
+    end
+  end
+  if selection.row_start > selection.row_end or selection.column_start > selection.column_end then
+    error(api_error("invalid_argument", "export_results() selection bounds are reversed"), 0)
+  end
+end
+
+---@param opts { result_set?: SqlServerResultSet, bufnr?: integer, path: string, format?: string, selection?: SqlServerResultSelection }
 ---@param callback fun(result?: table, error?: table)
 function M.export_results(opts, callback)
   opts = opts or {}
@@ -241,6 +259,7 @@ function M.export_results(opts, callback)
     if not (result_set and result_set.locator) then
       error(api_error("invalid_argument", "export_results() requires a result_set or result buffer"), 0)
     end
+    validate_result_selection(opts.selection)
     local format = opts.format or opts.path:match("%.([^.]+)$")
     format = format and format:lower() or nil
     local workspace = workspace_registry.find_by_owner_uri(result_set.locator.ownerUri)
@@ -249,8 +268,9 @@ function M.export_results(opts, callback)
     end
     workspace.export_result_async(result_set.locator, opts.path, format, {
       timeout = require_config().timeouts.export,
+      selection = opts.selection,
     })
-    return { path = opts.path, format = format }
+    return { path = opts.path, format = format, selection = vim.deepcopy(opts.selection) }
   end)
 end
 

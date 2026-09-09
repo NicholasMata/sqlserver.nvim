@@ -1,6 +1,7 @@
 local renderer = require("sqlserver.results.ui.renderer")
 local sticky_header = require("sqlserver.results.ui.sticky_header")
 local column_info = require("sqlserver.results.ui.column_info")
+local result_selection = require("sqlserver.results.selection")
 
 local M = {}
 local namespace = vim.api.nvim_create_namespace("sqlserver-results")
@@ -335,6 +336,23 @@ function M.copy_cell()
   end
   vim.fn.setreg('"', cell.display_value, "v")
   return true
+end
+
+function M.visual_selection()
+  local session = result_sessions[vim.api.nvim_get_current_buf()]
+  if not session then
+    return nil, "Go to a query result buffer to export a selection"
+  end
+  local anchor = vim.fn.getpos("v")
+  local cursor = vim.fn.getpos(".")
+  local mode = vim.fn.mode(1)
+  return result_selection.create(
+    session.result_set,
+    session.cell_ranges,
+    { line = anchor[2], col = math.max(anchor[3] - 1, 0) },
+    { line = cursor[2], col = math.max(cursor[3] - 1, 0) },
+    mode
+  )
 end
 
 local function select_execution(offset, open_results_in)

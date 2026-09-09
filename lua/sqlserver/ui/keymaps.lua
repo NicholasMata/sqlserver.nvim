@@ -178,6 +178,9 @@ return {
       local visual_group = vim.tbl_deep_extend("keep", wkeygroup, {})
       visual_group.mode = "v"
       visual_group.expand = function()
+        if vim.b.query_result_info then
+          return result_keymaps.which_key_visual_items(M)
+        end
         local workspace = workspace_registry.get()
         if not workspace then
           return { keymaps.new_query, keymaps.new_default_query, keymaps.edit_connections }

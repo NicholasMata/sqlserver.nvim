@@ -75,6 +75,27 @@ T["Public API should execute and inspect live SQL Server state"] = require("test
   assert(excel:find("PK\005\006", 1, true), "XLSX export should contain a ZIP end record")
   vim.fn.delete(excel_path)
 
+  local selected_execution = await(function(callback)
+    sqlserver.execute({
+      bufnr = 0,
+      text = "SELECT * FROM (VALUES (1, N'First'), (2, N'Second')) AS SelectionData(ID, Name)",
+    }, callback)
+  end)
+  local selected_path = vim.fn.tempname() .. ".csv"
+  local _, selected_error = await(function(callback)
+    sqlserver.export_results({
+      result_set = selected_execution.result_sets[1],
+      path = selected_path,
+      selection = { row_start = 1, row_end = 1, column_start = 1, column_end = 1 },
+    }, callback)
+  end)
+  assert(not selected_error, selected_error and selected_error.message)
+  local selected_csv = read_file(selected_path)
+  assert(selected_csv:find("Name", 1, true) and selected_csv:find("Second", 1, true))
+  assert(not selected_csv:find("First", 1, true) and not selected_csv:find("ID", 1, true))
+  vim.fn.delete(selected_path)
+  assert(selected_execution.dispose())
+
   local newer_execution = await(function(callback)
     sqlserver.execute({ bufnr = 0, text = "SELECT 84 AS NewValue" }, callback)
   end)

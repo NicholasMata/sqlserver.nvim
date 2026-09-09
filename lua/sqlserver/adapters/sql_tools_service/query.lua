@@ -125,6 +125,12 @@ function M.export_result_async(locator, path, format, opts)
     IncludeHeaders = true,
     Formatted = true,
   }
+  if opts.selection then
+    params.RowStartIndex = opts.selection.row_start
+    params.RowEndIndex = opts.selection.row_end
+    params.ColumnStartIndex = opts.selection.column_start
+    params.ColumnEndIndex = opts.selection.column_end
+  end
   local _, err = utils.lsp_request_async(client, method, params)
   if err then
     error("Could not export query result: " .. err.message, 0)

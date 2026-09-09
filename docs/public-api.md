@@ -102,12 +102,19 @@ picker:
 sqlserver.export_results({
   result_set = execution.result_sets[1],
   path = "/tmp/result.csv",
+  selection = {
+    row_start = 0,
+    row_end = 9,
+    column_start = 1,
+    column_end = 3,
+  },
 }, callback)
 ```
 
 Supported formats are `csv`, `json`, `xml`, and `xlsx`. The format is inferred
 from `path` unless `format` is supplied. A result-buffer number may be provided
-as `bufnr` instead of `result_set`.
+as `bufnr` instead of `result_set`. `selection` is optional; its row and column
+bounds are zero-based and inclusive.
 
 ## Interactive Commands
 

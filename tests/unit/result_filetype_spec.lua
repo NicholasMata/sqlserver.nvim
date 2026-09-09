@@ -41,6 +41,11 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
   assert(prefixed_mappings["Previous SQL execution"])
   assert(prefixed_mappings["Remove SQL result"])
   assert(prefixed_mappings["Copy raw SQL result cell"])
+  local visual_mappings = {}
+  for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(result_buffer, "x")) do
+    visual_mappings[mapping.desc] = true
+  end
+  assert(visual_mappings["Export selected SQL result cells"])
 end)
 
 return T
