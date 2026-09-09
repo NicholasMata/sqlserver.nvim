@@ -7,7 +7,9 @@
 [![Documentation](https://img.shields.io/badge/Documentation-guides-blue?style=flat-square)](#documentation)
 [![License](https://img.shields.io/github/license/NicholasMata/sqlserver.nvim?style=flat-square)](LICENSE)
 
-https://github.com/user-attachments/assets/d7838d49-58e5-44c0-8a71-c649a2b2df34
+<p align="center">
+  <img src="docs/assets/sqlserver-showcase.gif" alt="sqlserver.nvim showcase" width="900">
+</p>
 
 Stay in Neovim for the daily SQL Server workflow—from connecting and exploring
 objects to executing T-SQL and inspecting results.
