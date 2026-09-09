@@ -32,7 +32,7 @@ guide and checklist.
 
 ## Installation
 
-Requires Neovim 0.11 or newer. With [lazy.nvim](https://github.com/folke/lazy.nvim):
+Requires Neovim 0.11.7 or newer. With [lazy.nvim](https://github.com/folke/lazy.nvim):
 
 ```lua
 {

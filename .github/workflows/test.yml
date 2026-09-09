@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  NVIM_VERSION: v0.11.7
+
 jobs:
   unit-unix:
     name: Unit tests (${{ matrix.os }})
@@ -25,9 +28,7 @@ jobs:
       - name: Install StyLua
         run: cargo install stylua --version 2.5.2 --locked
 
-      - name: Install Neovim 0.11.4
-        env:
-          NVIM_VERSION: v0.11.4
+      - name: Install Neovim 0.11.7
         run: |
           if [ "${{ runner.os }}" = "Linux" ]; then
             archive=nvim-linux-x86_64.tar.gz
@@ -63,11 +64,11 @@ jobs:
       - name: Install StyLua
         run: cargo install stylua --version 2.5.2 --locked
 
-      - name: Install Neovim 0.11.4
+      - name: Install Neovim 0.11.7
         shell: pwsh
         run: |
           $archive = "$env:RUNNER_TEMP\nvim-win64.zip"
-          Invoke-WebRequest "https://github.com/neovim/neovim/releases/download/v0.11.4/nvim-win64.zip" -OutFile $archive
+          Invoke-WebRequest "https://github.com/neovim/neovim/releases/download/$env:NVIM_VERSION/nvim-win64.zip" -OutFile $archive
           Expand-Archive $archive "$env:RUNNER_TEMP\neovim"
           "$env:RUNNER_TEMP\neovim\nvim-win64\bin" | Out-File -Append -FilePath $env:GITHUB_PATH
 
@@ -114,9 +115,9 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Install Neovim 0.11.4
+      - name: Install Neovim 0.11.7
         run: |
-          curl -fsSL https://github.com/neovim/neovim/releases/download/v0.11.4/nvim-linux-x86_64.tar.gz \
+          curl -fsSL "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-x86_64.tar.gz" \
             -o "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz"
           sudo tar -C /opt -xzf "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz"
           echo "/opt/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
