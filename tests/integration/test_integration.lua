@@ -24,6 +24,7 @@ for _, module in ipairs({
   "edit_connections_spec",
   "new_query_completion_spec",
   "connect_spec",
+  "unnamed_query_buffer_spec",
 }) do
   T["environment"][module] = require("tests.integration.specs." .. module)
 end

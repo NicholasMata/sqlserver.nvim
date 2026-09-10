@@ -138,6 +138,16 @@ local function enable_lsp(opts)
   })
 end
 
+local function ensure_sql_buffer_name(bufnr)
+  if vim.api.nvim_buf_get_name(bufnr) ~= "" then
+    return false
+  end
+
+  vim.api.nvim_buf_set_name(bufnr, vim.fs.abspath(("untitled-%d.sql"):format(bufnr)))
+  vim.b[bufnr].is_temp_name = true
+  return true
+end
+
 local function set_auto_commands(opts)
   vim.api.nvim_create_augroup("AutoNameSQL", { clear = true })
 
@@ -156,17 +166,26 @@ local function set_auto_commands(opts)
     end,
   })
 
-  if opts.sql_buffer_options and opts.sql_buffer_options ~= {} then
-    vim.api.nvim_create_autocmd("FileType", {
-      group = "AutoNameSQL",
-      pattern = "sql",
-      callback = function()
-        -- copy all properties
-        for k, v in pairs(opts.sql_buffer_options) do
-          vim.bo[k] = v
-        end
-      end,
-    })
+  local function configure_sql_buffer(bufnr)
+    ensure_sql_buffer_name(bufnr)
+    for option, value in pairs(opts.sql_buffer_options or {}) do
+      vim.api.nvim_set_option_value(option, value, { buf = bufnr })
+    end
+  end
+
+  vim.api.nvim_create_autocmd("FileType", {
+    group = "AutoNameSQL",
+    pattern = "sql",
+    callback = function(args)
+      configure_sql_buffer(args.buf)
+    end,
+  })
+
+  -- FileType may already have fired when setup() is called from an SQL buffer.
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].filetype == "sql" then
+      configure_sql_buffer(bufnr)
+    end
   end
 
   -- Release the SQL Tools Service connection and object cache with the buffer.
@@ -375,8 +394,8 @@ local function setup_async(opts)
     end
   end
 
-  enable_lsp(opts)
   set_auto_commands(opts)
+  enable_lsp(opts)
   for bufnr in workspace_registry.iter() do
     apply_winbar(bufnr, opts)
   end
@@ -491,14 +510,13 @@ local connect_async = function(opts, workspace)
 end
 
 local function new_query_async(name)
-  -- The langauge server requires all files to have a file name.
-  -- Vscode names new files "untitled-1" etc so we'll do the same
+  -- The language server requires all files to have a unique name.
   vim.cmd("enew")
   local buf = vim.api.nvim_get_current_buf()
   if name then
     vim.api.nvim_buf_set_name(buf, vim.fs.abspath(name))
   else
-    vim.cmd("file untitled-" .. buf .. ".sql")
+    ensure_sql_buffer_name(buf)
   end
   vim.cmd("setfiletype sql")
   vim.b[buf].is_temp_name = true
