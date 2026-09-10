@@ -74,6 +74,27 @@ remaining release gate is tracked in [the 1.0 checklist](releasing.md):
 - complete and record the manual core-loop acceptance pass;
 - finalize the changelog and tag from a clean commit.
 
+## 1.1: SQL Agent Jobs
+
+Add a SQL Agent Jobs workflow using the capabilities exposed by the pinned SQL
+Tools Service release. Deliver it in read-only, runtime-action, editing, and
+release-hardening stages so destructive operations do not outrun the underlying
+models and tests.
+
+- Browse jobs and inspect status, steps, schedules, alerts, and history.
+- Run, stop, enable, and disable jobs with explicit action policy.
+- Create, update, and delete jobs, steps, schedules, alerts, operators, and
+  proxies through normalized public APIs.
+- Prefer reviewable script output for mutations when SQL Tools Service supports
+  script-only execution.
+- Investigate notebook job protocols and support them only when they work
+  independently of an Azure Data Studio host.
+- Test against an Agent-enabled SQL Server container and verify cleanup of all
+  created server resources.
+
+See the [SQL Agent Jobs plan](sql-agent-jobs-plan.md) for protocol coverage,
+architecture, delivery stages, and acceptance criteria.
+
 ## Later
 
 - Result-cell text objects and operators, including `yiC` for copying the

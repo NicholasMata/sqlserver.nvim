@@ -7,10 +7,12 @@ browse schema, write T-SQL, execute queries, inspect results, script objects,
 and use SQL Server-aware language intelligence.
 
 It is not an SSMS clone. SSMS is a broad administrative product with designers,
-wizards, SQL Agent management, backup and restore workflows, Activity Monitor,
-Query Store reports, security UI, diagrams, import/export wizards, and many
-other specialized surfaces. `sqlserver.nvim` should focus on the parts that
-make sense in a text editor and terminal-first workflow.
+wizards, broad SQL Agent administration, backup and restore workflows, Activity
+Monitor, Query Store reports, security UI, diagrams, import/export wizards, and
+many other specialized surfaces. `sqlserver.nvim` should focus on the parts
+that make sense in a text editor and terminal-first workflow. SQL Agent Jobs are
+an intentional post-1.0 exception where SQL Tools Service provides a bounded,
+testable protocol.
 
 ## Product Bet
 
@@ -85,7 +87,8 @@ These are explicitly out of scope for the early project:
 - table designer
 - visual query builder
 - database diagrams
-- SQL Agent management
+- SQL Agent administration beyond the SQL Tools Service job contracts supported
+  by the plugin
 - backup and restore UI
 - security and login management UI
 - Query Store dashboards
