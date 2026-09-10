@@ -6,6 +6,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.0-rc.3] - 2026-09-09
+
 ### Added
 
 - Added deterministic disposal of SQL Tools Service query storage when result
@@ -120,6 +122,7 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Inherited public API and configuration compatibility that conflicted with the
   `sqlserver.nvim` architecture.
 
-[Unreleased]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.2...HEAD
+[Unreleased]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.3...HEAD
+[1.0.0-rc.3]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.2...v1.0.0-rc.3
 [1.0.0-rc.2]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.1...v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/NicholasMata/sqlserver.nvim/releases/tag/v1.0.0-rc.1
