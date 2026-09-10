@@ -54,10 +54,10 @@ idempotent `dispose()` function.
 Result sets contain columns, typed cells, total and displayed row counts,
 truncation state, ordinal, and an opaque locator. No result buffers are opened.
 Call `dispose()` after finishing exports or other operations that use an opaque
-result locator. Built-in result views do this automatically when their run is
-removed, evicted from history, or deleted with its source buffer. Starting a
-new query for the same buffer also releases the previous SQL Tools Service
-query because the backend retains only one query per document URI.
+result locator. Built-in result views do this automatically when their
+execution is removed, evicted from history, or deleted with its source buffer.
+Starting a new query for the same buffer also releases the previous SQL Tools
+Service query because the backend retains only one query per document URI.
 
 Request cancellation with `cancel(bufnr, callback)`. The callback confirms the
 request; the query's execution callback completes after SQL Tools Service

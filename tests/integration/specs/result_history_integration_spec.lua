@@ -37,6 +37,10 @@ T["Repeated queries should retain navigable execution results"] = require("tests
   local result_window = vim.fn.win_findbuf(second_result)[1]
   local winbar = vim.api.nvim_get_option_value("winbar", { win = result_window })
   assert(winbar:find("sqlserver.results.ui.view", 1, true), "The result window did not install its winbar")
+  local rendered_winbar = require("sqlserver.results.ui.view").render_winbar(second_result)
+  assert(rendered_winbar:find("1 row", 1, true))
+  assert(rendered_winbar:find("Execution 2/2  Result 1/1", 1, true))
+  assert(rendered_winbar:find(" ms", 1, true), "The result winbar did not include SQL execution time")
 
   sqlserver.previous_execution()
   assert(vim.api.nvim_get_current_buf() == first_result)

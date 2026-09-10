@@ -9,7 +9,7 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 - Added deterministic disposal of SQL Tools Service query storage when result
-  runs are released.
+  executions are released.
 - Added `[c` and `]c` navigation between rendered result columns.
 - Added `K` inspection of SQL column types, nullability, precision, scale, and
   available source-object metadata from result buffers.
@@ -47,6 +47,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Include the final selected character when executing visual selections and
   complete buffers through SQL Tools Service document ranges.
+- Standardize result-history terminology on "execution" and show each result's
+  row count and producing batch duration in its winbar.
 - Reject exports from stale or disposed result locators instead of allowing a
   historical result to address newer SQL Tools Service query storage.
 

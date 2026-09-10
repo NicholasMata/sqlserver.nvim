@@ -1,5 +1,6 @@
 local query_result = require("sqlserver.results.result_set")
 local result_column = require("sqlserver.results.column")
+local query_summary = require("sqlserver.queries.summary")
 
 local M = {}
 
@@ -23,6 +24,7 @@ function M.describe(result, max_rows)
             :totable(),
           column_metadata = column_metadata,
           row_count = result_set.rowCount,
+          duration_ms = query_summary.parse_duration_ms(batch.executionElapsed),
           ordinal = ordinal,
           locator = {
             ownerUri = result.ownerUri,
@@ -51,6 +53,7 @@ function M.collect_async(result, max_rows, fetch_rows)
         column_metadata = descriptor.column_metadata,
         rows = fetch_rows(descriptor.locator),
         row_count = descriptor.row_count,
+        duration_ms = descriptor.duration_ms,
         locator = descriptor.locator,
         ordinal = descriptor.ordinal,
       })

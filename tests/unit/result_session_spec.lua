@@ -2,11 +2,12 @@ local query_result = require("sqlserver.results.result_set")
 local result_cell = require("sqlserver.results.cell")
 local view = require("sqlserver.results.ui.view")
 
-local function result(value, ordinal)
+local function result(value, ordinal, duration_ms, row_count)
   return query_result.create({
     columns = { "Value" },
     rows = { { result_cell.create({ display_value = value }) } },
-    row_count = 1,
+    row_count = row_count or 1,
+    duration_ms = duration_ms,
     locator = { resultSetIndex = ordinal - 1 },
     ordinal = ordinal,
   })
@@ -42,8 +43,9 @@ T["Result sessions should retain execution history per source buffer"] = require
   local first_execution_second_result = vim.api.nvim_get_current_buf()
   assert(contents(first_execution_second_result):find("first-b", 1, true))
 
-  assert(view.show({ result("second", 1) }, options(2, opened), source_one))
+  assert(view.show({ result("second", 1, nil, 10000) }, options(2, opened), source_one))
   local second_execution = vim.api.nvim_get_current_buf()
+  assert(view.render_winbar(second_execution):find("1 of 10,000 rows", 1, true))
   assert(vim.api.nvim_buf_is_valid(first_execution_second_result), "Previous execution was discarded")
   vim.api.nvim_set_current_buf(second_execution)
   assert(view.previous_execution(function() end))
@@ -51,19 +53,19 @@ T["Result sessions should retain execution history per source buffer"] = require
   assert(view.next_execution(function() end))
   assert(vim.api.nvim_get_current_buf() == second_execution)
 
-  assert(view.show({ result("third", 1) }, options(2, opened), source_one))
+  assert(view.show({ result("third", 1, 1250) }, options(2, opened), source_one))
   assert(not vim.api.nvim_buf_is_valid(first_execution), "Oldest execution exceeded the history limit")
   assert(not vim.api.nvim_buf_is_valid(first_execution_second_result))
   local winbar = view.render_winbar(vim.api.nvim_get_current_buf())
-  assert(winbar:find("Run 2/2  Result 1/1", 1, true))
+  assert(winbar:find("[No Name]  1 row  1.25 s%=", 1, true))
+  assert(winbar:find("Execution 2/2  Result 1/1", 1, true))
   assert(winbar:find("[No Name]", 1, true))
-  assert(vim.api.nvim_get_hl(0, { name = "SqlServerResultPosition", link = true }).link == "Comment")
   assert(view.previous_execution(function() end))
   local removed_execution = vim.api.nvim_get_current_buf()
   assert(view.remove_result())
   assert(not vim.api.nvim_buf_is_valid(removed_execution), "Removing the final result retained its buffer")
   assert(contents(vim.api.nvim_get_current_buf()):find("third", 1, true), "The nearest execution was not selected")
-  assert(view.render_winbar():find("Run 1/1", 1, true))
+  assert(view.render_winbar():find("Execution 1/1", 1, true))
 
   assert(view.show({ result("other-source", 1) }, options(2, opened), source_two))
   local other_source_result = opened.bufnr
@@ -86,7 +88,10 @@ T["Result sessions should retain execution history per source buffer"] = require
   assert(view.remove_result())
   assert(not vim.api.nvim_buf_is_valid(removed_result))
   assert(contents(vim.api.nvim_get_current_buf()):find("remove%-b"), "The next result set was not selected")
-  assert(view.render_winbar():find("Run 1/1  Result 1/1", 1, true), "Removing a result removed its nonempty run")
+  assert(
+    view.render_winbar():find("Execution 1/1  Result 1/1", 1, true),
+    "Removing a result removed its nonempty execution"
+  )
   assert(view.remove_result())
   assert(vim.api.nvim_get_current_buf() == source_three)
   assert(not view.has_results(source_three))
@@ -128,7 +133,7 @@ T["Result sessions should dispose released query storage"] = require("tests.help
   vim.wait(100, function()
     return disposed.deleted == 1
   end)
-  assert(disposed.deleted == 1, "Deleting a result buffer should dispose its empty run")
+  assert(disposed.deleted == 1, "Deleting a result buffer should dispose its empty execution")
 
   assert(view.show({ result("source", 1) }, options(1, opened), source, disposal("source")))
   vim.api.nvim_buf_delete(source, { force = true })

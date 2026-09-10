@@ -17,7 +17,6 @@ local highlight_links = {
   SqlServerResultBorder = "NonText",
   SqlServerResultNull = "Comment",
   SqlServerResultTruncated = "DiagnosticWarn",
-  SqlServerResultPosition = "Comment",
 }
 
 local function define_highlights()
@@ -151,6 +150,25 @@ function M.is_result_buffer(bufnr)
   return result_sessions[bufnr or vim.api.nvim_get_current_buf()] ~= nil
 end
 
+local function format_duration(duration_ms)
+  if duration_ms < 1000 then
+    return ("%d ms"):format(math.floor(duration_ms + 0.5))
+  end
+  if duration_ms < 60000 then
+    local precision = duration_ms < 10000 and 2 or 1
+    local seconds = ("%." .. precision .. "f"):format(duration_ms / 1000):gsub("0+$", ""):gsub("%.$", "")
+    return seconds .. " s"
+  end
+  if duration_ms < 3600000 then
+    return ("%dm %ds"):format(math.floor(duration_ms / 60000), math.floor(duration_ms % 60000 / 1000))
+  end
+  return ("%dh %dm"):format(math.floor(duration_ms / 3600000), math.floor(duration_ms % 3600000 / 60000))
+end
+
+local function format_row_count(count)
+  return tostring(count):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
+end
+
 function M.render_winbar(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local session = result_sessions[bufnr]
@@ -162,16 +180,31 @@ function M.render_winbar(bufnr)
     return ""
   end
   prune_source(source)
-  local run = execution_index(source, session.execution)
+  local execution = execution_index(source, session.execution)
   local result, result_count = result_position(session.execution, session.result_index)
-  if not (run and result) then
+  if not (execution and result) then
     return ""
   end
   local source_name = vim.api.nvim_buf_get_name(session.source_bufnr)
   source_name = source_name ~= "" and vim.fn.fnamemodify(source_name, ":t") or "[No Name]"
   source_name = source_name:gsub("%%", "%%%%")
-  local position = ("Run %d/%d  Result %d/%d"):format(run, #source.executions, result, result_count)
-  return ("%s%%=%%#SqlServerResultPosition#%s%%* "):format(source_name, position)
+  local result_set = session.result_set
+  local row_label = result_set.row_count == 1 and "row" or "rows"
+  local metadata
+  if result_set.truncated then
+    metadata = ("%s of %s %s"):format(
+      format_row_count(result_set.displayed_row_count),
+      format_row_count(result_set.row_count),
+      row_label
+    )
+  else
+    metadata = ("%s %s"):format(format_row_count(result_set.row_count), row_label)
+  end
+  if result_set.duration_ms then
+    metadata = metadata .. "  " .. format_duration(result_set.duration_ms)
+  end
+  local position = ("Execution %d/%d  Result %d/%d"):format(execution, #source.executions, result, result_count)
+  return ("%s  %s%%=%s "):format(source_name, metadata, position)
 end
 
 function M.winbar()

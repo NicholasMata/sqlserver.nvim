@@ -9,7 +9,7 @@ local M = {}
 
 ---@param value? string
 ---@return number?
-local function parse_duration_ms(value)
+function M.parse_duration_ms(value)
   if type(value) ~= "string" then
     return nil
   end
@@ -45,7 +45,7 @@ function M.create(result)
   for _, batch in ipairs(result.batchSummaries or {}) do
     summary.batch_count = summary.batch_count + 1
     summary.has_error = summary.has_error or batch.hasError == true
-    local batch_duration_ms = parse_duration_ms(batch.executionElapsed)
+    local batch_duration_ms = M.parse_duration_ms(batch.executionElapsed)
     if batch_duration_ms then
       summary.server_duration_ms = (summary.server_duration_ms or 0) + batch_duration_ms
     end

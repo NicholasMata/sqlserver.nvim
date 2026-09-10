@@ -16,7 +16,11 @@ T["Result descriptions retain SQL Tools Service column metadata"] = function()
   local descriptors = result_sets.describe({
     ownerUri = "file:///query.sql",
     batchSummaries = {
-      { hasError = false, resultSetSummaries = { { rowCount = 0, columnInfo = { metadata } } } },
+      {
+        hasError = false,
+        executionElapsed = "00:00:00.1250000",
+        resultSetSummaries = { { rowCount = 0, columnInfo = { metadata } } },
+      },
     },
   }, 100)
 
@@ -31,6 +35,7 @@ T["Result descriptions retain SQL Tools Service column metadata"] = function()
       is_long = false,
     },
   }))
+  assert(descriptors[1].duration_ms == 125)
   metadata.dataTypeName = "changed"
   assert(
     descriptors[1].column_metadata[1].type_name == "decimal",

@@ -5,12 +5,13 @@ local M = {}
 ---@field column_metadata SqlServerResultColumn[]
 ---@field rows SqlServerResultCell[][]
 ---@field row_count integer
+---@field duration_ms? number
 ---@field displayed_row_count integer
 ---@field truncated boolean
 ---@field locator table
 ---@field ordinal integer
 
----@param opts { columns: string[], column_metadata?: SqlServerResultColumn[], rows: SqlServerResultCell[][], row_count: integer, locator: table, ordinal?: integer }
+---@param opts { columns: string[], column_metadata?: SqlServerResultColumn[], rows: SqlServerResultCell[][], row_count: integer, duration_ms?: number, locator: table, ordinal?: integer }
 ---@return SqlServerResultSet
 function M.create(opts)
   assert(type(opts.columns) == "table", "Result columns are required")
@@ -23,6 +24,7 @@ function M.create(opts)
     column_metadata = vim.deepcopy(opts.column_metadata or {}),
     rows = vim.deepcopy(opts.rows),
     row_count = opts.row_count,
+    duration_ms = opts.duration_ms,
     displayed_row_count = #opts.rows,
     truncated = #opts.rows < opts.row_count,
     locator = vim.deepcopy(opts.locator),

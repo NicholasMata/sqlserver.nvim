@@ -80,9 +80,12 @@ each source buffer. Deleting the source buffer discards its complete history.
 ### Result winbar
 
 The result winbar identifies the source SQL buffer and shows the current
-execution and result-set positions. For example, `Run 2/4  Result 1/2` means the
-view is showing the first result set from the second of four retained
-executions.
+execution, result-set position, row count, and elapsed time reported by SQL
+Tools Service. For example, `query.sql  42 rows  38 ms` appears on the left,
+while `Execution 2/4  Result 1/2` stays anchored on the right. A limited result
+uses `100 of 10,000 rows` to distinguish displayed rows from the complete row
+count. The time belongs to the SQL batch that produced the result, so results
+from the same batch show the same time.
 
 ### Removing results
 
