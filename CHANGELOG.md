@@ -22,6 +22,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   automatically removes its execution when no result sets remain.
 - Added an optional sticky column header for result windows while preserving
   normal- and visual-mode access to the real header row.
+- Added result winbar row counts and SQL Tools Service batch durations, with
+  limited results showing both displayed and total rows.
 
 ### Changed
 
@@ -42,15 +44,22 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   buffers; keep binary XLSX as a direct file export.
 - Rename the interactive `SaveQueryResults` command to `ExportQueryResults`.
 - Require and test against Neovim 0.11.7 to include later 0.11 crash fixes.
+- Standardize result-history terminology on "execution" and keep changing
+  result metadata separate from right-aligned history navigation.
+- Expand usage documentation with an annotated workspace guide, buffer-specific
+  workflows, and an embedded showcase GIF.
+- Skip GitHub Actions when a push or pull request changes documentation only.
 
 ### Fixed
 
 - Include the final selected character when executing visual selections and
   complete buffers through SQL Tools Service document ranges.
-- Standardize result-history terminology on "execution" and show each result's
-  row count and producing batch duration in its winbar.
 - Reject exports from stale or disposed result locators instead of allowing a
   historical result to address newer SQL Tools Service query storage.
+- Assign unique temporary names to directly-created unnamed SQL buffers so
+  their LSP documents, connections, and executions remain isolated.
+- Stop cleanly when connection selection is cancelled instead of attempting to
+  load database objects and reporting an error.
 
 ## [1.0.0-rc.2] - 2026-09-02
 
