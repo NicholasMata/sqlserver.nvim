@@ -104,6 +104,22 @@ With the prefix above, use `<leader>sx` for the statement under the cursor or a
 visual selection, and `<leader>sX` for the complete buffer. Commands are also
 available through `:SQLServer`.
 
+## SQL Tool Service Coverage
+**Status**: ✅ Complete · 🟡 Partial · 🔵 Planned · ⚪ Not currently on the roadmap
+```
+                         SQL Tools Service
+                                │
+           ┌────────────────────┼────────────────────┐
+           │                    │                    │
+      Development          Administration       Diagnostics
+           │                    │                    │
+      ✅ IntelliSense       🔵 SQL Agent          ⚪ Profiler
+      ✅ Query              ⚪ Backup             ⚪ Query Store
+      🟡 Objects            ⚪ Restore            🔵 Query Plans
+      ⚪ Schema Compare     ⚪ Edit Data          ⚪ Assessment
+      ⚪ Table Design       ⚪ Security
+```
+
 ## Documentation
 
 | Goal | Guide |
