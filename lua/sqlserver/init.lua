@@ -489,13 +489,13 @@ local connect_async = function(opts, workspace)
   local json = get_connections(opts)
   if not json then
     edit_connections(opts)
-    return
+    return false
   end
 
   local con_name = utils.ui_select_async(vim.tbl_keys(json), { prompt = "Choose connection" })
   if not con_name then
     utils.log_info("No connection chosen")
-    return
+    return false
   end
 
   local con = prepare_connection(json[con_name], con_name)
@@ -507,6 +507,7 @@ local connect_async = function(opts, workspace)
   if con.promptForDatabase then
     switch_database_async()
   end
+  return true
 end
 
 local function new_query_async(name)
@@ -884,8 +885,9 @@ local command_handlers = {
       return
     end
     utils.try_resume(coroutine.create(function()
-      connect_async(plugin_opts, workspace)
-      workspace.initialise_objects_async()
+      if connect_async(plugin_opts, workspace) then
+        workspace.initialise_objects_async()
+      end
     end))
   end,
 
