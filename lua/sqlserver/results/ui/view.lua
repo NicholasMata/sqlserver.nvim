@@ -4,6 +4,7 @@ local column_info = require("sqlserver.results.ui.column_info")
 local result_selection = require("sqlserver.results.selection")
 local result_html = require("sqlserver.results.html")
 local clipboard = require("sqlserver.platform.clipboard")
+local result_winbar = require("sqlserver.results.ui.winbar")
 
 local M = {}
 local namespace = vim.api.nvim_create_namespace("sqlserver-results")
@@ -150,25 +151,6 @@ function M.is_result_buffer(bufnr)
   return result_sessions[bufnr or vim.api.nvim_get_current_buf()] ~= nil
 end
 
-local function format_duration(duration_ms)
-  if duration_ms < 1000 then
-    return ("%d ms"):format(math.floor(duration_ms + 0.5))
-  end
-  if duration_ms < 60000 then
-    local precision = duration_ms < 10000 and 2 or 1
-    local seconds = ("%." .. precision .. "f"):format(duration_ms / 1000):gsub("0+$", ""):gsub("%.$", "")
-    return seconds .. " s"
-  end
-  if duration_ms < 3600000 then
-    return ("%dm %ds"):format(math.floor(duration_ms / 60000), math.floor(duration_ms % 60000 / 1000))
-  end
-  return ("%dh %dm"):format(math.floor(duration_ms / 3600000), math.floor(duration_ms % 3600000 / 60000))
-end
-
-local function format_row_count(count)
-  return tostring(count):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
-end
-
 function M.render_winbar(bufnr)
   bufnr = bufnr or vim.api.nvim_get_current_buf()
   local session = result_sessions[bufnr]
@@ -187,24 +169,17 @@ function M.render_winbar(bufnr)
   end
   local source_name = vim.api.nvim_buf_get_name(session.source_bufnr)
   source_name = source_name ~= "" and vim.fn.fnamemodify(source_name, ":t") or "[No Name]"
-  source_name = source_name:gsub("%%", "%%%%")
   local result_set = session.result_set
-  local row_label = result_set.row_count == 1 and "row" or "rows"
-  local metadata
-  if result_set.truncated then
-    metadata = ("%s of %s %s"):format(
-      format_row_count(result_set.displayed_row_count),
-      format_row_count(result_set.row_count),
-      row_label
-    )
-  else
-    metadata = ("%s %s"):format(format_row_count(result_set.row_count), row_label)
-  end
-  if result_set.duration_ms then
-    metadata = metadata .. "  " .. format_duration(result_set.duration_ms)
-  end
-  local position = ("Execution %d/%d  Result %d/%d"):format(execution, #source.executions, result, result_count)
-  return ("%s  %s%%=%s "):format(source_name, metadata, position)
+  return result_winbar.render({
+    source_name = source_name,
+    execution = execution,
+    execution_count = #source.executions,
+    result = result,
+    result_count = result_count,
+    displayed_rows = result_set.displayed_row_count,
+    total_rows = result_set.row_count,
+    duration_ms = result_set.duration_ms,
+  })
 end
 
 function M.winbar()

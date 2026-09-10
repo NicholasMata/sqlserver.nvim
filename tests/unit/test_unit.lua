@@ -19,6 +19,7 @@ local modules = {
   "clipboard_spec",
   "result_export_view_spec",
   "result_session_spec",
+  "result_winbar_spec",
   "result_sticky_header_spec",
   "query_selection_spec",
   "sql_tools_service_query_spec",
