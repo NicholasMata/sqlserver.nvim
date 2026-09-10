@@ -1,7 +1,7 @@
 # Connection profiles
 
 Each connection JSON object can contain the following properties (taken from the
-[SQL Tools Service source code](https://github.com/microsoft/sqltoolsservice/blob/main/src/Microsoft.SqlTools.ServiceLayer/Connection/Contracts/ConnectionDetails.cs)).
+[SQL Tools Service source code](https://github.com/microsoft/sqltoolsservice/blob/main/src/Microsoft.SqlTools.LanguageService/Connection/Contracts/ConnectionDetails.cs)).
 
 Use `${ENVIRONMENT_VARIABLE}` anywhere inside a string value to keep secrets or
 machine-specific values out of the file. Variables are resolved immediately
