@@ -10,11 +10,11 @@ T["Query result limits should be visible and consistent"] = require("tests.helpe
 WITH Numbers AS (
   SELECT 1 AS Value
   UNION ALL
-  SELECT Value + 1 FROM Numbers WHERE Value < 150
+  SELECT Value + 1 FROM Numbers WHERE Value < 1050
 )
 SELECT Value, REPLICATE(N'x', 120) AS WideValue
 FROM Numbers
-OPTION (MAXRECURSION 150);
+OPTION (MAXRECURSION 0);
 ]]
   vim.api.nvim_buf_set_lines(query_buffer, 0, -1, false, vim.split(query, "\n"))
   utils.wait_for_schedule_async()
@@ -28,7 +28,7 @@ OPTION (MAXRECURSION 150);
   local result_buffer = test_utils.result_buffers(query_buffer)[1]
   assert(result_buffer, "The limited query result was not displayed")
   local rendered = table.concat(vim.api.nvim_buf_get_lines(result_buffer, 0, -1, false), "\n")
-  assert(rendered:find("Showing 100 of 150 rows", 1, true), "The configured row limit was not reported")
+  assert(rendered:find("Showing 1000 of 1050 rows", 1, true), "The configured row limit was not reported")
   assert(rendered:find("…", 1, true), "The configured cell-width limit was not indicated")
 
   vim.api.nvim_buf_delete(result_buffer, { force = true })

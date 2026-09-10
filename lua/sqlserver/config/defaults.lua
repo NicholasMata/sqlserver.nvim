@@ -40,7 +40,7 @@ return {
     -- Number of successful executions retained for each SQL source buffer.
     history_limit = 10,
     -- Limit fetched rows so large result sets do not overwhelm Neovim.
-    max_rows = 100,
+    max_rows = 1000,
     -- Truncate cells wider than this while preserving the underlying result model.
     max_cell_width = 100,
   },

@@ -25,7 +25,7 @@ require("sqlserver").setup({
   results = {
     sticky_header = true,
     history_limit = 10,
-    max_rows = 100,
+    max_rows = 1000,
     max_cell_width = 100,
   },
 
@@ -82,7 +82,7 @@ indefinitely.
 | `ui.height` | `12` | Height of the built-in activity split. |
 | `results.sticky_header` | `true` | Keeps the column header visible while scrolling through result rows. |
 | `results.history_limit` | `10` | Successful executions retained in memory for each SQL source buffer. |
-| `results.max_rows` | `100` | Maximum rows fetched for each result set. |
+| `results.max_rows` | `1000` | Maximum rows fetched for each result set. |
 | `results.max_cell_width` | `100` | Maximum displayed cell width. The underlying value remains unchanged. |
 | `timeouts.lsp_attach` | `10000` | Maximum wait for SQL Tools Service to attach to a SQL buffer. |
 | `timeouts.connection` | `10000` | Maximum wait for a connection or disconnection operation. |

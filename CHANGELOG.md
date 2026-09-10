@@ -27,6 +27,7 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Increase the default result limit from 100 to 1,000 rows.
 - Limit Excel export to `.xlsx` because SQL Tools Service produces OOXML rather
   than the legacy `.xls` binary format.
 - Replace the custom Lua test harness with pinned `mini.test` runners, focused
