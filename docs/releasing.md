@@ -8,6 +8,53 @@ pass. Use the candidate period to complete and record the manual core-loop pass
 and to fix release-blocking defects. Promote the latest candidate to `1.0.0`
 only when the complete checklist passes.
 
+## Release identity
+
+- Use `v<version>` for the Git tag, such as `v1.0.0-rc.3`.
+- Use `<version>` for the GitHub release title, such as `1.0.0-rc.3`.
+- Use `sqlserver.nvim v<version>` for the annotated tag message.
+- Mark release candidates as GitHub prereleases. Do not mark a stable release
+  as a prerelease.
+
+## Release notes
+
+Write curated, user-facing release notes instead of publishing a raw commit
+list. Use the changelog as the exhaustive record and the release description as
+an approachable summary of the release.
+
+Follow this structure and omit any empty section:
+
+```markdown
+A short paragraph describing the release's overall purpose.
+
+## Highlights
+
+- Three to seven of the most important user-facing changes.
+
+## Added
+
+- New capabilities not already covered by the highlights.
+
+## Changed
+
+- Behavior, defaults, dependencies, or workflow changes.
+
+## Fixed
+
+- User-visible defects corrected by the release.
+
+## Testing
+
+- Important automated and manual validation completed for the release.
+
+See the [full comparison](COMPARISON_URL) for implementation details.
+```
+
+Keep `Highlights` selective and avoid repeating its details in the remaining
+sections. Include internal work only when it affects compatibility, reliability,
+or contributors. The `Testing` section must describe checks that were actually
+completed rather than offer a general assurance.
+
 ## Repository
 
 - [ ] Promote the release-candidate entries in `CHANGELOG.md` to a `1.0.0`
