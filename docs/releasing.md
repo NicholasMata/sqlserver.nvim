@@ -61,6 +61,8 @@ completed rather than offer a general assurance.
   section dated on release day.
 - [ ] Confirm `README.md`, configuration, usage, public API, migration, and
   roadmap documentation match the release.
+- [ ] Update the commented `version` in the README installation example to the
+  release tag so users can opt into an exact, reproducible pin.
 - [ ] Create an annotated `v1.0.0` tag from a clean `main` branch only after CI
   and the manual acceptance pass.
 
