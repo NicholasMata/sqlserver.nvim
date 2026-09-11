@@ -35,4 +35,28 @@ T["Object scripting should separate queries from definitions"] = require("tests.
   assert(not valid and err:find("Unsupported", 1, true))
 end)
 
+T["Object scripting should reject empty definitions"] = function()
+  for _, script in ipairs({ "", " \n\t\r\n" }) do
+    local valid, err = pcall(object_script.response_text, { script = script }, "definition")
+    assert(not valid)
+    assert(err:find("returned no object definition", 1, true))
+  end
+end
+
+T["Object scripting should normalize returned scripts"] = function()
+  assert(object_script.response_text({ script = "SELECT 1\r\n" }, "query") == "SELECT 1\n")
+  assert(
+    object_script.response_text({ script = "CREATE VIEW dbo.Cars AS\r\nSELECT 1" }, "definition")
+      == "CREATE VIEW dbo.Cars AS\nSELECT 1"
+  )
+end
+
+T["Object scripting should reject missing scripts"] = function()
+  for _, response in ipairs({ false, {}, { script = vim.NIL } }) do
+    local valid, err = pcall(object_script.response_text, response, "definition")
+    assert(not valid)
+    assert(err:find("no script returned", 1, true))
+  end
+end
+
 return T

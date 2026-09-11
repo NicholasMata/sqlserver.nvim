@@ -1,5 +1,6 @@
 local utils = require("sqlserver.utils")
 local object_script = require("sqlserver.objects.script")
+local scripting = require("sqlserver.adapters.sql_tools_service.scripting")
 local object_explorer_timeout = 10000
 
 ---Same as utils.wait_for_notification_async but ignores any owner uri
@@ -270,18 +271,10 @@ local generate_script_async = function(item, client, owner_uri, intent)
     ownerURI = owner_uri,
     operation = spec.operation,
   }
-  local res, script_err = utils.lsp_request_async(client, "scripting/script", scripting_params)
-  if script_err then
-    error("SQL Tools Service could not script the selected object: " .. script_err.message, 0)
-  end
-
-  if not (res and res.script) then
-    error("Error generating script (no script returned from language server)", 0)
-  end
+  local res = scripting.script_async(client, scripting_params, object_explorer_timeout)
 
   return {
-    -- strip carriage returns
-    script = res.script:gsub("\r", ""),
+    script = object_script.response_text(res, intent),
     execute_immediately = spec.execute_immediately == true,
     object = public_object(item),
   }

@@ -30,4 +30,19 @@ function M.supported_types()
   return vim.tbl_keys(definition_specs)
 end
 
+---@param response table?
+---@param intent "query"|"definition"
+---@return string
+function M.response_text(response, intent)
+  if not (response and type(response.script) == "string") then
+    error("Error generating script (no script returned from language server)", 0)
+  end
+
+  local script = response.script:gsub("\r", "")
+  if intent == "definition" and not script:find("%S") then
+    error("SQL Tools Service returned no object definition", 0)
+  end
+  return script
+end
+
 return M
