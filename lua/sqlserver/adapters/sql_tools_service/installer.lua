@@ -87,8 +87,10 @@ function M.download_tools_async(release, data_folder)
       "powershell",
       "-NoProfile",
       "-Command",
-      "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest -Uri $args[0] -OutFile $args[1]",
+      "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest",
+      "-Uri",
       release.url,
+      "-OutFile",
       archive,
     })
   else
@@ -106,8 +108,10 @@ function M.download_tools_async(release, data_folder)
       "powershell",
       "-NoProfile",
       "-Command",
-      "Expand-Archive -LiteralPath $args[0] -DestinationPath $args[1]",
+      "Expand-Archive",
+      "-LiteralPath",
       archive,
+      "-DestinationPath",
       staging,
     })
   else
