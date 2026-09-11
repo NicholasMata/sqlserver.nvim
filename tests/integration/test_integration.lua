@@ -46,6 +46,7 @@ for _, module in ipairs({
   "query_error_presentation_spec",
   "finder_spec",
   "object_scripting_spec",
+  "object_refresh_spec",
   "query_zero_rows_spec",
   "file_with_space_spec",
   "non_ascii_spec",
