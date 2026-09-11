@@ -11,6 +11,9 @@ BEGIN
   DROP DATABASE TestDbB;
 END;
 GO
+IF EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'sqlserver_nvim_restricted')
+  DROP LOGIN sqlserver_nvim_restricted;
+GO
 
 CREATE DATABASE TestDbA;
 GO
@@ -87,4 +90,14 @@ RETURN
   FROM dbo.Car
   WHERE PersonId = @PersonID
 );
+GO
+USE master;
+CREATE LOGIN sqlserver_nvim_restricted
+  WITH PASSWORD = 'Restricted_Password_123';
+GO
+USE TestDbB;
+CREATE USER sqlserver_nvim_restricted
+  FOR LOGIN sqlserver_nvim_restricted;
+GRANT SELECT ON OBJECT::dbo.Car TO sqlserver_nvim_restricted;
+GRANT VIEW DEFINITION ON OBJECT::dbo.Car TO sqlserver_nvim_restricted;
 GO
