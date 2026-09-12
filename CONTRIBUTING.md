@@ -137,12 +137,16 @@ commit range or generated list of commit subjects is not a substitute. Describe
 what changed, why it is needed, and link any resolved issue with a GitHub
 keyword such as `Fixes #123`.
 
-Use the [pull request template](.github/PULL_REQUEST_TEMPLATE.md) to classify
-the change and confirm that tests, documentation, and the changelog were
-considered. GitHub Checks is the source of truth for automated test results; do
-not copy CI status or test counts into the description. For a visible Neovim
-change, include a screenshot or recording. Explain compatibility concerns,
-known limitations, important design choices, and alternatives when they apply.
+Every pull request, whether authored by a human or an agent, must use and
+adhere to the [pull request template](.github/PULL_REQUEST_TEMPLATE.md). Check
+every applicable type and every item under **Checklist** before requesting
+review. A pull request with an unchecked checklist item is not ready for
+review; resolve the requirement or explain the permitted alternative in the
+pull request description before checking it. GitHub Checks is the source of
+truth for automated test results; do not copy CI status or test counts into the
+description. For a visible Neovim change, include a screenshot or recording.
+Explain compatibility concerns, known limitations, important design choices,
+and alternatives when they apply.
 
 Before requesting review, make sure the branch is based on the current target
 branch, relevant local checks pass, required GitHub checks complete,

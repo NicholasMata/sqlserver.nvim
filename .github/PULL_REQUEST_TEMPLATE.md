@@ -17,6 +17,12 @@ as "Fixes #123" when this pull request resolves one.
 
 ## Checklist
 
+<!--
+Every item below must be true and checked before this pull request is ready for
+review. This requirement applies to pull requests authored by humans and
+agents.
+-->
+
 - [ ] I have read the [contributing guide](https://github.com/NicholasMata/sqlserver.nvim/blob/main/CONTRIBUTING.md).
 - [ ] This pull request contains one coherent change.
 - [ ] I have added or updated relevant tests, or explained why none are needed.
