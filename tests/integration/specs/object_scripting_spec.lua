@@ -32,6 +32,13 @@ local function run_action_async(action)
   return table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n"), bufnr
 end
 
+local function execute_async(bufnr, text)
+  local execution = test_utils.await(function(callback)
+    sqlserver.execute({ bufnr = bufnr, text = text }, callback)
+  end)
+  execution.dispose()
+end
+
 local T = MiniTest.new_set()
 
 T["Object actions should build queries and definitions"] = require("tests.helpers").async(function()
@@ -90,6 +97,59 @@ T["Object actions should build queries and definitions"] = require("tests.helper
   assert(vim.fn.fnamemodify(vim.api.nvim_buf_get_name(duplicate_definition), ":t") == "dbo.CarView (2).sql")
   vim.api.nvim_buf_delete(original_definition, { force = true })
   vim.api.nvim_buf_delete(duplicate_definition, { force = true })
+end)
+
+T["Object definitions should surface SQL Tools Service errors"] = require("tests.helpers").async(function()
+  local admin_bufnr = vim.api.nvim_get_current_buf()
+  test_utils.await(function(callback)
+    sqlserver.disconnect(admin_bufnr, callback)
+  end)
+  test_utils.connect(admin_bufnr, "TestDbB")
+
+  local restricted_bufnr = test_utils.new_query_buffer()
+  test_utils.connect_with(restricted_bufnr, {
+    database = "TestDbB",
+    user = "sqlserver_nvim_restricted",
+    password = "Restricted_Password_123",
+  })
+
+  execute_async(admin_bufnr, "DENY VIEW DEFINITION ON OBJECT::dbo.Car TO sqlserver_nvim_restricted;")
+
+  local original_notify = vim.notify
+  local notification
+  vim.notify = function(message, level, opts)
+    if message:find("could not script the selected object", 1, true) then
+      notification = { message = message, level = level }
+      return
+    end
+    return original_notify(message, level, opts)
+  end
+
+  local ok, failure = xpcall(function()
+    vim.api.nvim_set_current_buf(restricted_bufnr)
+    select_object("Table", "Car")
+    local buffers_before = #vim.api.nvim_list_bufs()
+    local completed = false
+    sqlserver.show_object_definition(function()
+      completed = true
+    end)
+
+    assert(
+      vim.wait(30000, function()
+        return notification ~= nil
+      end, 10),
+      "Object scripting failure was not presented"
+    )
+    assert(notification.level == vim.log.levels.ERROR)
+    assert(notification.message:find("An error occurred while scripting the objects", 1, true))
+    assert(not completed, "Failed object scripting must not report success")
+    assert(vim.api.nvim_get_current_buf() == restricted_bufnr, "Failed object scripting changed the current buffer")
+    assert(#vim.api.nvim_list_bufs() == buffers_before, "Failed object scripting opened a definition buffer")
+  end, debug.traceback)
+
+  vim.notify = original_notify
+  execute_async(admin_bufnr, "GRANT VIEW DEFINITION ON OBJECT::dbo.Car TO sqlserver_nvim_restricted;")
+  assert(ok, failure)
 end)
 
 return T

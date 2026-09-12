@@ -52,7 +52,7 @@ function M.new_query_buffer()
   return bufnr
 end
 
-function M.connect(bufnr, database)
+function M.connect_with(bufnr, options)
   local connection
   local ready
   local ready_error
@@ -61,11 +61,11 @@ function M.connect(bufnr, database)
     function()
       connection = M.await(function(callback)
         require("sqlserver").connect({
-          server = vim.env.DbServer,
-          database = database or vim.env.DbDatabase,
+          server = options.server or vim.env.DbServer,
+          database = options.database or vim.env.DbDatabase,
           authenticationType = "SqlLogin",
-          user = vim.env.DbUser,
-          password = vim.env.DbPassword,
+          user = options.user,
+          password = options.password,
           trustServerCertificate = true,
         }, { bufnr = bufnr }, callback)
       end)
@@ -77,6 +77,14 @@ function M.connect(bufnr, database)
   assert(not ready_error, ready_error and ready_error.message)
   assert(ready, "SQL Tools Service did not report that IntelliSense was ready")
   return connection
+end
+
+function M.connect(bufnr, database)
+  return M.connect_with(bufnr, {
+    database = database,
+    user = vim.env.DbUser,
+    password = vim.env.DbPassword,
+  })
 end
 
 function M.cleanup()
