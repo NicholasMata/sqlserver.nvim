@@ -9,7 +9,6 @@ package.path = table.concat({
 local runner = require("luacov.runner")
 local configuration = runner.load_config()
 local stats = require("luacov.stats")
-local collected = stats.load(configuration.statsfile) or {}
 local normalized = {}
 
 local function relative_plugin_path(filename)
@@ -29,11 +28,25 @@ local function merge_file(target, source)
   end
 end
 
-for filename, file_stats in pairs(collected) do
-  local relative = relative_plugin_path(filename)
-  if relative then
-    normalized[relative] = normalized[relative] or { max = 0, max_hits = 0 }
-    merge_file(normalized[relative], file_stats)
+local function merge_stats_file(statsfile)
+  local collected = stats.load(statsfile) or {}
+  for filename, file_stats in pairs(collected) do
+    local relative = relative_plugin_path(filename)
+    if relative then
+      normalized[relative] = normalized[relative] or { max = 0, max_hits = 0 }
+      merge_file(normalized[relative], file_stats)
+    end
+  end
+end
+
+merge_stats_file(configuration.statsfile)
+
+local shards = vim.fs.joinpath(root, "coverage", "shards")
+if vim.uv.fs_stat(shards) then
+  for filename, file_type in vim.fs.dir(shards, { depth = math.huge }) do
+    if file_type == "file" and filename:match("luacov%.stats%.out$") then
+      merge_stats_file(vim.fs.joinpath(shards, filename))
+    end
   end
 end
 

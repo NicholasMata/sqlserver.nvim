@@ -32,6 +32,17 @@ downloaded into `.tests/deps/` by the Makefile. Unit tests do not download SQL
 Tools Service or require a database. Test configuration, data, state, cache,
 and dependencies are isolated under `.tests/`.
 
+Run the native SQL Tools Service installation and lifecycle suite:
+
+```sh
+make test-platform
+```
+
+Platform integration downloads the pinned SQL Tools Service release, installs
+it through the plugin, attaches it to a SQL buffer, and shuts it down. CI runs
+this suite natively on Linux, macOS, and Windows. SQL Server-backed integration
+tests remain on Linux because their database is provided by a Linux container.
+
 Run a focused case by matching any part of its `mini.test` description:
 
 ```sh
@@ -43,14 +54,17 @@ Generate line-coverage reports with LuaCov:
 
 ```sh
 make coverage-unit        # unit tests only
+make coverage-platform    # native SQL Tools Service lifecycle only
 make coverage-integration # Docker integration tests only
-make coverage             # combined unit and integration coverage
+make coverage             # combined unit, platform, and database coverage
 ```
 
 The commands write an annotated report to `coverage/luacov.report.out` and a
 per-file and overall summary to `coverage/summary.txt`. Coverage runs disable
 LuaJIT so LuaCov can observe executed lines reliably. Coverage is diagnostic;
-the project does not currently enforce a minimum percentage.
+the project does not currently enforce a minimum percentage. CI merges raw
+coverage statistics from Linux, macOS, Windows, and the Docker integration
+suite so platform-specific branches are represented in one report.
 
 ## Integration tests
 

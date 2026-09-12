@@ -19,13 +19,13 @@ export DbUser ?= sa
 export DbPassword ?= Test_Password_123
 export SQLSERVER_PORT ?= 1433
 
-.NOTPARALLEL: test-all test-integration-local coverage coverage-unit coverage-integration
+.NOTPARALLEL: test-all test-integration-local coverage coverage-unit coverage-platform coverage-integration
 
 .PHONY: format format-check lint lint-doc-filenames
-.PHONY: test test-deps test-unit test-integration test-integration-local test-all assert-no-process-leaks
+.PHONY: test test-deps test-unit test-platform test-integration test-integration-local test-all assert-no-process-leaks
 .PHONY: test-env-up test-env-seed test-env-reset test-env-down
-.PHONY: coverage coverage-clean coverage-deps coverage-unit coverage-integration coverage-report
-.PHONY: coverage-run-unit coverage-run-integration
+.PHONY: coverage coverage-clean coverage-deps coverage-unit coverage-platform coverage-integration coverage-report
+.PHONY: coverage-run-unit coverage-run-platform coverage-run-integration
 
 test: test-unit
 
@@ -59,6 +59,10 @@ test-unit: test-deps
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=unit \
 		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
 
+test-platform: test-deps
+	$(TEST_ENV) SQLSERVER_TEST_SUITE=platform \
+		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+
 test-integration: test-deps
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=integration \
 		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
@@ -66,7 +70,7 @@ test-integration: test-deps
 
 test-integration-local: test-env-seed test-integration
 
-test-all: test-unit test-integration-local
+test-all: test-unit test-platform test-integration-local
 
 coverage-clean:
 	$(RM) -r "$(COVERAGE_DIR)"
@@ -74,6 +78,11 @@ coverage-clean:
 
 coverage-run-unit: coverage-deps
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=unit SQLSERVER_COVERAGE=1 \
+		LUACOV_CONFIG=$(CURDIR)/.luacov \
+		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+
+coverage-run-platform: coverage-deps
+	$(TEST_ENV) SQLSERVER_TEST_SUITE=platform SQLSERVER_COVERAGE=1 \
 		LUACOV_CONFIG=$(CURDIR)/.luacov \
 		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
 
@@ -92,6 +101,11 @@ coverage-unit:
 	$(MAKE) coverage-run-unit
 	$(MAKE) coverage-report
 
+coverage-platform:
+	$(MAKE) coverage-clean
+	$(MAKE) coverage-run-platform
+	$(MAKE) coverage-report
+
 coverage-integration:
 	$(MAKE) coverage-clean
 	$(MAKE) test-env-seed
@@ -101,6 +115,7 @@ coverage-integration:
 coverage:
 	$(MAKE) coverage-clean
 	$(MAKE) coverage-run-unit
+	$(MAKE) coverage-run-platform
 	$(MAKE) test-env-seed
 	$(MAKE) coverage-run-integration
 	$(MAKE) coverage-report
