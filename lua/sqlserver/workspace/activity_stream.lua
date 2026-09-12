@@ -8,6 +8,7 @@ local M = {}
 ---@field operation_id? integer
 ---@field duration_ms? number
 ---@field server_duration_ms? number
+---@field phase? string
 ---@field time string
 
 ---@class SqlServerActivityStream

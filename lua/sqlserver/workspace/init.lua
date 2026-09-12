@@ -1,6 +1,6 @@
 local M = {}
-local uv = vim.uv or vim.loop
 local query_summary = require("sqlserver.queries.summary")
+local operations = require("sqlserver.workspace.operations")
 
 M.states = {
   disconnected = "disconnected",
@@ -23,8 +23,6 @@ function M.create(opts)
   local backend = opts.backend
   local objects = opts.objects
   local activity = {}
-  local active_operations = {}
-  local next_operation_id = 0
   local disposed = false
   local workspace
 
@@ -39,59 +37,72 @@ function M.create(opts)
     end
   end
 
-  local function begin_operation(kind, title, message)
-    next_operation_id = next_operation_id + 1
-    local operation = {
-      id = next_operation_id,
-      kind = kind,
-      title = title,
-      message = message,
-      started_at_ns = uv.hrtime(),
-    }
-    active_operations[operation.id] = operation
-    emit({
-      kind = kind,
-      title = title,
-      message = message,
-      status = "running",
-      operation_id = operation.id,
-    })
-    return operation.id
-  end
+  local operation_manager = operations.create({
+    on_error = function(message)
+      emit({ kind = "message", message = message, status = "error" })
+    end,
+  })
 
-  local function update_operation(operation_id, message)
-    local operation = active_operations[operation_id]
-    if not operation then
+  operation_manager.subscribe(function(operation)
+    if operation.status == operations.statuses.pending then
       return
     end
-    operation.message = message
-    emit({
-      kind = operation.kind,
-      title = operation.title,
-      message = message,
-      status = "running",
-      operation_id = operation.id,
-    })
-  end
-
-  local function finish_operation(operation_id, status, message, details)
-    local operation = active_operations[operation_id]
-    if not operation then
-      return
-    end
-    active_operations[operation_id] = nil
+    local status = ({
+      [operations.statuses.running] = "running",
+      [operations.statuses.succeeded] = "success",
+      [operations.statuses.failed] = "error",
+      [operations.statuses.cancelled] = "cancelled",
+    })[operation.status]
     local event = {
       kind = operation.kind,
       title = operation.title,
-      message = message,
-      status = status,
+      message = operation.message,
+      status = operation.details and operation.details.activity_status or status,
       operation_id = operation.id,
-      duration_ms = (uv.hrtime() - operation.started_at_ns) / 1e6,
+      phase = operation.phase,
+      duration_ms = operation.duration_ms,
     }
-    if details then
-      event = vim.tbl_extend("force", event, details)
+    if operation.details then
+      event = vim.tbl_extend("force", event, operation.details)
+      event.activity_status = nil
     end
     emit(event)
+  end)
+
+  local function begin_operation(kind, title, message)
+    return operation_manager.start({
+      kind = kind,
+      title = title,
+      message = message,
+      phase = kind,
+      source_bufnr = opts.bufnr,
+    }).id
+  end
+
+  local function update_operation(operation_id, message)
+    local operation = operation_manager.operation(operation_id)
+    if not operation then
+      return
+    end
+    operation.update({ message = message })
+  end
+
+  local function finish_operation(operation_id, status, message, details)
+    local operation = operation_manager.operation(operation_id)
+    if not operation then
+      return
+    end
+    local update = { message = message, details = details }
+    if status == "success" then
+      operation.succeed(update)
+    elseif status == "warning" then
+      update.details = vim.tbl_extend("force", details or {}, { activity_status = "warning" })
+      operation.succeed(update)
+    elseif status == "cancelled" then
+      operation.cancel(update)
+    else
+      operation.fail({ code = operation.snapshot().kind .. "_failed", message = message }, update)
+    end
   end
 
   local function set_state(next_state)
@@ -108,13 +119,7 @@ function M.create(opts)
   end
 
   function workspace.get_active_operation()
-    local latest
-    for _, operation in pairs(active_operations) do
-      if not latest or operation.id > latest.id then
-        latest = operation
-      end
-    end
-    return latest and vim.deepcopy(latest) or nil
+    return operation_manager.latest_active()
   end
 
   function workspace.get_activity()
@@ -236,7 +241,7 @@ function M.create(opts)
     if state ~= M.states.disconnected then
       pcall(backend.disconnect_async)
     end
-    active_operations = {}
+    operation_manager.dispose({ phase = "disposed", message = "Operation cancelled" })
     connect_params = nil
     last_connect_params = nil
     set_state(M.states.disconnected)
