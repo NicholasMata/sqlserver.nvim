@@ -120,7 +120,7 @@ local function is_object_branch(node_path, database_path)
   end)
 end
 
-local get_object_cache_async = function(lsp_client, connection_options, cancellation_token)
+local get_object_cache_async = function(lsp_client, connection_options, cancellation_token, force_refresh)
   utils.wait_for_schedule_async()
   local session = get_session_async(lsp_client, connection_options)
   utils.safe_assert(session and session.sessionId)
@@ -158,7 +158,8 @@ local get_object_cache_async = function(lsp_client, connection_options, cancella
         clean_up_and_return(nil, "cancelled")
         return
       end
-      lsp_client:request("objectexplorer/expand", {
+      local method = force_refresh and "objectexplorer/refresh" or "objectexplorer/expand"
+      lsp_client:request(method, {
         sessionId = session_id,
         nodePath = path,
       }, function(err, result, _, _)
@@ -330,7 +331,7 @@ local initialise_cache_async = function(lsp_client, connection_options, force)
   local refresh_coroutine = coroutine.running()
   global_cache[key].refresh_coroutine = refresh_coroutine
   vim.cmd("redrawstatus")
-  local new_cache, refresh_error = get_object_cache_async(lsp_client, connection_options, cancellation_token)
+  local new_cache, refresh_error = get_object_cache_async(lsp_client, connection_options, cancellation_token, force)
   if global_cache[key] and global_cache[key].refresh_coroutine == refresh_coroutine then
     global_cache[key].refresh_coroutine = nil
     global_cache[key].cancellation_token = nil
