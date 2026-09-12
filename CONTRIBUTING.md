@@ -97,6 +97,33 @@ Service or SQL Server.
 Documentation filenames under `docs/` use lowercase kebab-case, such as
 `public-api.md`. Keep media in `docs/assets/` and follow the same convention.
 
+## Pull requests
+
+Keep pull requests focused on one coherent change. Split unrelated behavior,
+refactoring, and documentation work when they can be reviewed and merged
+independently. Use a draft pull request while the design or implementation is
+still changing substantially.
+
+Write an imperative, capitalized title that describes the outcome, without a
+trailing period. The description must explain the change in its own words; a
+commit range or generated list of commit subjects is not a substitute. Describe
+what changed, why it is needed, and link any resolved issue with a GitHub
+keyword such as `Fixes #123`.
+
+Use the [pull request template](.github/PULL_REQUEST_TEMPLATE.md) to classify
+the change and confirm that tests, documentation, and the changelog were
+considered. GitHub Checks is the source of truth for automated test results; do
+not copy CI status or test counts into the description. For a visible Neovim
+change, include a screenshot or recording. Explain compatibility concerns,
+known limitations, important design choices, and alternatives when they apply.
+
+Before requesting review, make sure the branch is based on the current target
+branch, relevant local checks pass, required GitHub checks complete,
+documentation matches the implementation, and user-visible changes appear
+under `Unreleased` in [CHANGELOG.md](CHANGELOG.md). Do not include credentials,
+connection strings, access tokens, or private database contents in
+descriptions, logs, screenshots, or fixtures.
+
 ## Commit messages
 
 Follow [Tim Pope's commit message guidance](https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html):
