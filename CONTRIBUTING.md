@@ -64,7 +64,9 @@ per-file and overall summary to `coverage/summary.txt`. Coverage runs disable
 LuaJIT so LuaCov can observe executed lines reliably. Coverage is diagnostic;
 the project does not currently enforce a minimum percentage. CI merges raw
 coverage statistics from Linux, macOS, Windows, and the Docker integration
-suite so platform-specific branches are represented in one report.
+suite so platform-specific branches are represented in one report. The Docker
+suite runs as isolated `core` and `objects` jobs in CI; each job starts and
+seeds its own SQL Server container and uploads a uniquely named coverage shard.
 
 ## Integration tests
 
@@ -78,6 +80,17 @@ make test-integration-local
 This requires Docker with the Compose plugin. The target starts SQL Server,
 waits for it to become healthy, recreates fixture databases, downloads SQL
 Tools Service into `.tests/`, and runs the integration suite.
+
+The local commands remain unsharded. To reproduce one CI shard against an
+already seeded test environment, run either:
+
+```sh
+make test-integration-shard SHARD=core
+make test-integration-shard SHARD=objects
+```
+
+Every integration spec is assigned to exactly one shard. A unit test fails when
+a spec is unassigned, assigned more than once, or no longer exists.
 
 Stop and remove the test database and its volumes with:
 

@@ -171,8 +171,12 @@ jobs:
           }
 
   integration-linux:
-    name: Database integration tests (ubuntu-latest)
+    name: Database integration tests (${{ matrix.shard }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [core, objects]
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -190,13 +194,13 @@ jobs:
         run: make test-env-seed
 
       - name: Run integration tests with coverage
-        run: make coverage-clean coverage-run-integration
+        run: make coverage-clean coverage-run-integration-shard SHARD=${{ matrix.shard }}
 
       - name: Upload coverage statistics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-stats-integration-${{ runner.os }}-${{ runner.arch }}
+          name: coverage-stats-integration-${{ matrix.shard }}-${{ runner.os }}-${{ runner.arch }}
           path: coverage/luacov.stats.out
           if-no-files-found: error
 

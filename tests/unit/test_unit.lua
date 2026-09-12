@@ -27,6 +27,7 @@ local modules = {
   "sql_tools_service_scripting_spec",
   "query_summary_spec",
   "object_script_spec",
+  "integration_shards_spec",
 }
 
 for _, module in ipairs(modules) do

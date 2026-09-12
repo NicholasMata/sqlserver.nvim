@@ -22,10 +22,10 @@ export SQLSERVER_PORT ?= 1433
 .NOTPARALLEL: test-all test-integration-local coverage coverage-unit coverage-platform coverage-integration
 
 .PHONY: format format-check lint lint-doc-filenames
-.PHONY: test test-deps test-unit test-platform test-integration test-integration-local test-all assert-no-process-leaks
+.PHONY: test test-deps test-unit test-platform test-integration test-integration-shard test-integration-local test-all assert-no-process-leaks
 .PHONY: test-env-up test-env-seed test-env-reset test-env-down
 .PHONY: coverage coverage-clean coverage-deps coverage-unit coverage-platform coverage-integration coverage-report
-.PHONY: coverage-run-unit coverage-run-platform coverage-run-integration
+.PHONY: coverage-run-unit coverage-run-platform coverage-run-integration coverage-run-integration-shard
 
 test: test-unit
 
@@ -68,6 +68,12 @@ test-integration: test-deps
 		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
 	$(MAKE) assert-no-process-leaks
 
+test-integration-shard: test-deps
+	@test -n "$(SHARD)" || { printf 'SHARD is required (core or objects)\n' >&2; exit 1; }
+	$(TEST_ENV) SQLSERVER_TEST_SUITE=integration SQLSERVER_INTEGRATION_SHARD=$(SHARD) \
+		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+	$(MAKE) assert-no-process-leaks
+
 test-integration-local: test-env-seed test-integration
 
 test-all: test-unit test-platform test-integration-local
@@ -88,6 +94,13 @@ coverage-run-platform: coverage-deps
 
 coverage-run-integration: coverage-deps
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=integration SQLSERVER_COVERAGE=1 \
+		LUACOV_CONFIG=$(CURDIR)/.luacov \
+		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+	$(MAKE) assert-no-process-leaks
+
+coverage-run-integration-shard: coverage-deps
+	@test -n "$(SHARD)" || { printf 'SHARD is required (core or objects)\n' >&2; exit 1; }
+	$(TEST_ENV) SQLSERVER_TEST_SUITE=integration SQLSERVER_INTEGRATION_SHARD=$(SHARD) SQLSERVER_COVERAGE=1 \
 		LUACOV_CONFIG=$(CURDIR)/.luacov \
 		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
 	$(MAKE) assert-no-process-leaks
