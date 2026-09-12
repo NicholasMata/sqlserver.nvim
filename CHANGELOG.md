@@ -8,6 +8,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Pass download and extraction arguments correctly to PowerShell so managed
+  SQL Tools Service installation works on Windows.
 - Return asynchronous installation and configuration failures through the
   `setup()` callback instead of only displaying an error notification.
 
