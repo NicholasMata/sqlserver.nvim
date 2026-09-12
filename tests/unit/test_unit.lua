@@ -6,6 +6,7 @@ local modules = {
   "sql_tools_service_client_spec",
   "sql_tools_service_installer_spec",
   "workspace_spec",
+  "operations_spec",
   "activity_stream_spec",
   "config_ui_spec",
   "timeouts_spec",
