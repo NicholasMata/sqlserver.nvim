@@ -36,14 +36,19 @@ function M.get_tools_download_url()
   return M.get_release().url
 end
 
-local function run_async(command)
+local function run_async(command, opts)
   local co = coroutine.running()
-  vim.system(command, { text = true }, function(result)
+  opts = vim.tbl_extend("force", { text = true }, opts or {})
+  vim.system(command, opts, function(result)
     vim.schedule(function()
       utils.try_resume(co, result)
     end)
   end)
   return coroutine.yield()
+end
+
+local function run_powershell_async(script, env)
+  return run_async({ "powershell", "-NoProfile", "-Command", script }, { env = env })
 end
 
 local function remove(path)
@@ -83,16 +88,15 @@ function M.download_tools_async(release, data_folder)
 
   local download
   if jit.os == "Windows" then
-    download = run_async({
-      "powershell",
-      "-NoProfile",
-      "-Command",
-      "$ProgressPreference='SilentlyContinue'; Invoke-WebRequest",
-      "-Uri",
-      release.url,
-      "-OutFile",
-      archive,
-    })
+    download = run_powershell_async(
+      "$ProgressPreference='SilentlyContinue'; "
+        .. "Invoke-WebRequest -Uri $env:SQLSERVER_NVIM_DOWNLOAD_URI "
+        .. "-OutFile $env:SQLSERVER_NVIM_DOWNLOAD_ARCHIVE",
+      {
+        SQLSERVER_NVIM_DOWNLOAD_URI = release.url,
+        SQLSERVER_NVIM_DOWNLOAD_ARCHIVE = archive,
+      }
+    )
   else
     download = run_async({ "curl", "-fsSL", release.url, "-o", archive })
   end
@@ -104,16 +108,14 @@ function M.download_tools_async(release, data_folder)
 
   local extract
   if jit.os == "Windows" then
-    extract = run_async({
-      "powershell",
-      "-NoProfile",
-      "-Command",
-      "Expand-Archive",
-      "-LiteralPath",
-      archive,
-      "-DestinationPath",
-      staging,
-    })
+    extract = run_powershell_async(
+      "Expand-Archive -LiteralPath $env:SQLSERVER_NVIM_DOWNLOAD_ARCHIVE "
+        .. "-DestinationPath $env:SQLSERVER_NVIM_INSTALL_STAGING",
+      {
+        SQLSERVER_NVIM_DOWNLOAD_ARCHIVE = archive,
+        SQLSERVER_NVIM_INSTALL_STAGING = staging,
+      }
+    )
   else
     extract = run_async({ "tar", "-xzf", archive, "-C", staging })
   end
