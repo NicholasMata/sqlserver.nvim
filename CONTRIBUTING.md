@@ -39,6 +39,19 @@ SQLSERVER_TEST_FILTER=query_selection make test-unit
 SQLSERVER_TEST_FILTER=cancel_query make test-integration-local
 ```
 
+Generate line-coverage reports with LuaCov:
+
+```sh
+make coverage-unit        # unit tests only
+make coverage-integration # Docker integration tests only
+make coverage             # combined unit and integration coverage
+```
+
+The commands write an annotated report to `coverage/luacov.report.out` and a
+per-file and overall summary to `coverage/summary.txt`. Coverage runs disable
+LuaJIT so LuaCov can observe executed lines reliably. Coverage is diagnostic;
+the project does not currently enforce a minimum percentage.
+
 ## Integration tests
 
 Run the complete integration suite against the disposable SQL Server 2022

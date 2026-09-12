@@ -145,3 +145,45 @@ jobs:
       - name: Stop SQL Server
         if: always()
         run: make test-env-down
+
+  coverage-linux:
+    name: Coverage (ubuntu-latest)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Neovim 0.11.7
+        run: |
+          curl -fsSL "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-x86_64.tar.gz" \
+            -o "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz"
+          sudo tar -C /opt -xzf "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz"
+          echo "/opt/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+
+      - name: Generate combined coverage
+        run: make coverage
+
+      - name: Add coverage summary
+        if: always()
+        run: |
+          if [ -f coverage/summary.txt ]; then
+            printf '## Lua coverage\n\n```text\n' >> "$GITHUB_STEP_SUMMARY"
+            cat coverage/summary.txt >> "$GITHUB_STEP_SUMMARY"
+            printf '```\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lua-coverage
+          path: |
+            coverage/luacov.report.out
+            coverage/summary.txt
+          if-no-files-found: error
+
+      - name: Stop SQL Server
+        if: always()
+        run: make test-env-down
