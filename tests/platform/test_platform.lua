@@ -10,8 +10,11 @@ local T = MiniTest.new_set({
   },
 })
 
-T["managed SQL Tools Service installs and starts"] = helpers.async(function()
-  local data_dir = vim.fn.tempname()
+T["managed SQL Tools Service installs from special-character paths"] = helpers.async(function()
+  -- PowerShell treats spaces and ampersands as syntax when native command
+  -- arguments are not preserved correctly. Exercise both the download archive
+  -- and extraction destination with a path that requires proper quoting.
+  local data_dir = vim.fn.tempname() .. " sqlserver.nvim & installer"
   local setup_complete = false
   local setup_error
   local stop_error
