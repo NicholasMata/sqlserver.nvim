@@ -19,7 +19,7 @@ env:
 
 jobs:
   unit-unix:
-    name: Unit tests (${{ matrix.os }})
+    name: Unit and platform tests (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -52,14 +52,25 @@ jobs:
       - name: Check formatting
         run: make lint
 
-      - name: Run unit tests
-        run: make test-unit
+      - name: Run unit tests with coverage
+        run: make coverage-clean coverage-run-unit
+
+      - name: Run platform integration tests with coverage
+        run: make coverage-run-platform
+
+      - name: Upload coverage statistics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-stats-native-${{ runner.os }}-${{ runner.arch }}
+          path: coverage/luacov.stats.out
+          if-no-files-found: error
 
       - name: Assert clean repository
         run: test -z "$(git status --porcelain --untracked-files=all)"
 
   unit-windows:
-    name: Unit tests (windows-latest)
+    name: Unit and platform tests (windows-latest)
     runs-on: windows-latest
     steps:
       - name: Checkout repository
@@ -95,15 +106,37 @@ jobs:
         run: |
           $root = "$env:GITHUB_WORKSPACE\.tests"
           $mini = "$root\deps\mini.nvim"
+          $luacov = "$root\deps\luacov"
           New-Item -ItemType Directory -Force "$root\deps" | Out-Null
           git clone --filter=blob:none https://github.com/nvim-mini/mini.nvim.git $mini
           git -C $mini checkout 1345d191bb3da9c7b0e977f4387c5761f9bff68d
+          git clone --filter=blob:none https://github.com/lunarmodules/luacov.git $luacov
+          git -C $luacov checkout b1f9eae400da976b93edb7f94cf5d05f538a0655
+          New-Item -ItemType Directory -Force "$env:GITHUB_WORKSPACE\coverage" | Out-Null
           $env:XDG_CONFIG_HOME = "$root\config"
           $env:XDG_DATA_HOME = "$root\data"
           $env:XDG_STATE_HOME = "$root\state"
           $env:XDG_CACHE_HOME = "$root\cache"
           $env:SQLSERVER_TEST_SUITE = "unit"
+          $env:SQLSERVER_COVERAGE = "1"
+          $env:LUACOV_CONFIG = "$env:GITHUB_WORKSPACE\.luacov"
           nvim --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+
+      - name: Run platform integration tests with coverage
+        shell: pwsh
+        run: |
+          $env:SQLSERVER_TEST_SUITE = "platform"
+          $env:SQLSERVER_COVERAGE = "1"
+          $env:LUACOV_CONFIG = "$env:GITHUB_WORKSPACE\.luacov"
+          nvim --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+
+      - name: Upload coverage statistics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-stats-native-${{ runner.os }}-${{ runner.arch }}
+          path: coverage/luacov.stats.out
+          if-no-files-found: error
 
       - name: Assert clean repository
         shell: pwsh
@@ -113,7 +146,7 @@ jobs:
           }
 
   integration-linux:
-    name: Integration tests (ubuntu-latest)
+    name: Database integration tests (ubuntu-latest)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -131,8 +164,16 @@ jobs:
       - name: Start and seed SQL Server
         run: make test-env-seed
 
-      - name: Run integration tests
-        run: make test-integration
+      - name: Run integration tests with coverage
+        run: make coverage-clean coverage-run-integration
+
+      - name: Upload coverage statistics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-stats-integration-${{ runner.os }}-${{ runner.arch }}
+          path: coverage/luacov.stats.out
+          if-no-files-found: error
 
       - name: Assert process cleanup
         if: always()
@@ -145,3 +186,49 @@ jobs:
       - name: Stop SQL Server
         if: always()
         run: make test-env-down
+
+  coverage-report:
+    name: Combined coverage report
+    needs: [unit-unix, unit-windows, integration-linux]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Neovim 0.11.7
+        run: |
+          curl -fsSL "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-x86_64.tar.gz" \
+            -o "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz"
+          sudo tar -C /opt -xzf "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz"
+          echo "/opt/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+
+      - name: Download coverage statistics
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-stats-*
+          path: coverage/shards
+
+      - name: Generate combined coverage report
+        run: make coverage-report
+
+      - name: Add coverage summary
+        if: always()
+        run: |
+          if [ -f coverage/summary.txt ]; then
+            printf '## Lua coverage\n\n```text\n' >> "$GITHUB_STEP_SUMMARY"
+            cat coverage/summary.txt >> "$GITHUB_STEP_SUMMARY"
+            printf '```\n' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lua-coverage
+          path: |
+            coverage/luacov.report.out
+            coverage/summary.txt
+          if-no-files-found: error

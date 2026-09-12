@@ -6,6 +6,11 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Return asynchronous installation and configuration failures through the
+  `setup()` callback instead of only displaying an error notification.
+
 ## [1.0.0-rc.3] - 2026-09-09
 
 ### Added

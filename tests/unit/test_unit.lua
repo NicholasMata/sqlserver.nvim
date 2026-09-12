@@ -1,6 +1,7 @@
 local T = MiniTest.new_set()
 
 local modules = {
+  "setup_spec",
   "lsp_nulls_spec",
   "sql_tools_service_client_spec",
   "sql_tools_service_installer_spec",

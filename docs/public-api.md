@@ -13,6 +13,10 @@ function(result, err)
 end
 ```
 
+`setup(opts, callback)` follows this convention as well. Its result is `true`
+after setup completes, and installation or configuration failures are returned
+immediately through `err` instead of only being displayed as notifications.
+
 The callback runs exactly once. Errors are tables with `code`, `message`, and an
 optional redacted `cause`. API methods do not prompt, open result windows, or
 turn failures into notifications. Ex commands and mappings use separate UI

@@ -1241,14 +1241,20 @@ M.subscribe_activity = function(subscriber)
 end
 
 M.setup = function(opts, callback)
-  utils.try_resume(coroutine.create(function()
-    setup_async(opts)
-    commands.setup(command_handlers)
-    sql_keymaps.set_keymaps(plugin_opts.keymap_prefix, command_handlers)
-    if callback ~= nil then
-      callback()
+  local setup = coroutine.create(function()
+    local ok, err = xpcall(function()
+      setup_async(opts)
+      commands.setup(command_handlers)
+      sql_keymaps.set_keymaps(plugin_opts.keymap_prefix, command_handlers)
+    end, debug.traceback)
+
+    if callback then
+      callback(ok and true or nil, ok and nil or err)
+    elseif not ok then
+      error(err, 0)
     end
-  end))
+  end)
+  utils.try_resume(setup)
 end
 
 return M

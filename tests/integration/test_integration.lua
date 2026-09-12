@@ -19,7 +19,6 @@ T["environment"] = MiniTest.new_set({
   hooks = { post_case = helpers.async(integration.cleanup) },
 })
 for _, module in ipairs({
-  "download_spec",
   "saved_file_completion_spec",
   "edit_connections_spec",
   "new_query_completion_spec",

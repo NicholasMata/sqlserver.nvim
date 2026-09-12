@@ -9,6 +9,7 @@ nvim.log
 
 # Isolated local test state
 /.tests/
+/coverage/
 /untitled-*.sql
 
 # macOS metadata
