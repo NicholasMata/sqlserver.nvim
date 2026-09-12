@@ -13,6 +13,7 @@ local T = MiniTest.new_set({
 T["managed SQL Tools Service installs and starts"] = helpers.async(function()
   local data_dir = vim.fn.tempname()
   local setup_complete = false
+  local setup_error
   local stop_error
 
   vim.fn.mkdir(data_dir, "p")
@@ -20,16 +21,18 @@ T["managed SQL Tools Service installs and starts"] = helpers.async(function()
     require("sqlserver").setup({
       data_dir = data_dir,
       ui = { presenter = false, winbar = false },
-    }, function()
+    }, function(_, err)
+      setup_error = err
       setup_complete = true
     end)
 
     assert(
-      vim.wait(600000, function()
+      vim.wait(180000, function()
         return setup_complete
       end, 20),
       "SQL Tools Service installation timed out"
     )
+    assert(not setup_error, setup_error)
 
     local executable = client.default_executable({ data_dir = data_dir })
     assert(vim.fn.filereadable(executable) == 1, "SQL Tools Service executable was not installed")
@@ -63,6 +66,6 @@ T["managed SQL Tools Service installs and starts"] = helpers.async(function()
 
   assert(ok, err)
   assert(not stop_error, stop_error)
-end, 720000)
+end, 240000)
 
 return T
