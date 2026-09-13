@@ -74,7 +74,7 @@ T["Workspace should own connection and query state"] = require("tests.helpers").
   })
   assert(workspace.get_state() == workspace_module.states.connected)
   assert(workspace.get_connection().database == "ApplicationDb")
-  assert(initialized_connection.trustServerCertificate == true)
+  assert(initialized_connection == nil, "Connection notifications must not start an untracked metadata refresh")
   assert(activity[1].message == "Connecting" and activity[1].status == "running")
   assert(activity[#activity].message == "Connected" and activity[#activity].status == "success")
 
