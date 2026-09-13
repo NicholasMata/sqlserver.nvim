@@ -141,4 +141,29 @@ T["Result sessions should dispose released query storage"] = require("tests.help
   view.clear()
 end)
 
+T["Result sessions should render completely before presentation"] = require("tests.helpers").async(function()
+  view.clear()
+  local source = vim.api.nvim_create_buf(false, true)
+  local opened = {}
+  local renderer = require("sqlserver.results.ui.renderer")
+  local original_render = renderer.render
+  local render_count = 0
+  renderer.render = function(result_set, opts)
+    render_count = render_count + 1
+    if render_count == 2 then
+      error("render failed")
+    end
+    return original_render(result_set, opts)
+  end
+
+  local ok, err = pcall(view.show, { result("first", 1), result("second", 2) }, options(2, opened), source)
+  renderer.render = original_render
+
+  assert(not ok and tostring(err):find("render failed", 1, true))
+  assert(opened.bufnr == nil, "Incomplete results must not be presented")
+  assert(not view.has_results(source), "Incomplete results must not enter execution history")
+  vim.api.nvim_buf_delete(source, { force = true })
+  view.clear()
+end)
+
 return T

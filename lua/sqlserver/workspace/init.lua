@@ -247,16 +247,57 @@ function M.create(opts)
     set_state(M.states.disconnected)
   end
 
+  local function complete_query(operation_id, result)
+    if state == M.states.cancelling then
+      if backend.dispose_query_async and result and result._sqlserver_query_id then
+        pcall(backend.dispose_query_async, result._sqlserver_query_id)
+      end
+      set_state(M.states.connected)
+      finish_operation(operation_id, "cancelled", "Query cancelled")
+      return false
+    end
+
+    local summary = query_summary.create(result)
+    if summary.has_error and summary.row_count == 0 and backend.is_connected_async then
+      local probe_ok, connected = pcall(backend.is_connected_async)
+      if not probe_ok or not connected then
+        set_state(M.states.disconnected)
+        finish_operation(operation_id, "error", "Connection lost", {
+          server_duration_ms = summary.server_duration_ms,
+        })
+        return true
+      end
+    end
+    set_state(M.states.connected)
+    if summary.has_error then
+      if summary.row_count > 0 then
+        finish_operation(
+          operation_id,
+          "warning",
+          string.format("Query completed with errors (%d rows)", summary.row_count),
+          { server_duration_ms = summary.server_duration_ms }
+        )
+      else
+        finish_operation(operation_id, "error", "Query failed", { server_duration_ms = summary.server_duration_ms })
+      end
+    else
+      finish_operation(operation_id, "success", string.format("Query completed (%d rows)", summary.row_count), {
+        server_duration_ms = summary.server_duration_ms,
+      })
+    end
+    return true
+  end
+
   ---@param request SqlServerQueryRequest
-  function workspace.execute_async(request)
+  ---@param execution_opts? { defer_completion?: boolean }
+  function workspace.execute_async(request, execution_opts)
     if state ~= M.states.connected then
       error("You are currently " .. state, 0)
     end
     local operation_id = begin_operation("query", "SQL Server query", "Executing query")
     set_state(M.states.executing)
     local ok, result = pcall(backend.execute_async, request)
-    local was_cancelled = state == M.states.cancelling
-    if was_cancelled then
+    if state == M.states.cancelling then
       if backend.dispose_query_async and result and result._sqlserver_query_id then
         pcall(backend.dispose_query_async, result._sqlserver_query_id)
       end
@@ -277,34 +318,44 @@ function M.create(opts)
       finish_operation(operation_id, "error", "Query returned no results")
       error("Could not execute query: no results returned", 0)
     end
-    local summary = query_summary.create(result)
-    if summary.has_error and summary.row_count == 0 and backend.is_connected_async then
-      local probe_ok, connected = pcall(backend.is_connected_async)
-      if not probe_ok or not connected then
-        set_state(M.states.disconnected)
-        finish_operation(operation_id, "error", "Connection lost", {
-          server_duration_ms = summary.server_duration_ms,
-        })
-        return result
+    local finished = false
+    local lifecycle = {}
+
+    function lifecycle.update(phase, message, details)
+      if finished or state ~= M.states.executing then
+        return false
       end
+      local operation = operation_manager.operation(operation_id)
+      return operation and operation.update({ phase = phase, message = message, details = details }) or false
     end
-    set_state(M.states.connected)
-    if summary.has_error then
-      if summary.row_count > 0 then
-        finish_operation(
-          operation_id,
-          "warning",
-          string.format("Query completed with errors (%d rows)", summary.row_count),
-          { server_duration_ms = summary.server_duration_ms }
-        )
-      else
-        finish_operation(operation_id, "error", "Query failed", { server_duration_ms = summary.server_duration_ms })
+
+    function lifecycle.complete()
+      if finished then
+        return false
       end
-    else
-      finish_operation(operation_id, "success", string.format("Query completed (%d rows)", summary.row_count), {
-        server_duration_ms = summary.server_duration_ms,
+      finished = true
+      return complete_query(operation_id, result)
+    end
+
+    function lifecycle.fail(message, err)
+      if finished then
+        return false
+      end
+      finished = true
+      if state == M.states.cancelling then
+        return complete_query(operation_id, result)
+      end
+      set_state(M.states.connected)
+      finish_operation(operation_id, "error", message, {
+        error = type(err) == "table" and vim.deepcopy(err) or { message = tostring(err) },
       })
+      return true
     end
+
+    if execution_opts and execution_opts.defer_completion then
+      return result, lifecycle
+    end
+    lifecycle.complete()
     return result
   end
 
