@@ -79,6 +79,24 @@ function M.configure(opts)
   config = opts
 end
 
+local function initialize_connection_async(workspace, lifecycle)
+  if not lifecycle then
+    error(api_error("connection_cancelled", "SQL Server connection was cancelled"), 0)
+  end
+  lifecycle.update("loading_metadata", "Loading database objects")
+  local refreshed, refresh_result = pcall(workspace.initialise_objects_async, false, { silent = true })
+  if not refreshed then
+    lifecycle.fail("Connection initialization failed", refresh_result)
+    error(refresh_result, 0)
+  elseif refresh_result and refresh_result.cancelled then
+    lifecycle.fail("Connection initialization cancelled", refresh_result)
+    error(api_error("connection_cancelled", "SQL Server connection initialization was cancelled"), 0)
+  end
+  if not lifecycle.complete() then
+    error(api_error("connection_cancelled", "SQL Server connection was cancelled"), 0)
+  end
+end
+
 ---@param profile string|table
 ---@param opts? { bufnr?: integer, profile_name?: string, refresh_objects?: boolean }
 ---@param callback fun(connection?: table, error?: table)
@@ -87,9 +105,12 @@ function M.connect(profile, opts, callback)
   run("connection_failed", callback, function()
     local workspace = get_workspace(opts.bufnr)
     local connection = resolve_profile(profile, opts.profile_name)
-    workspace.connect_async({ connection = { options = connection } })
-    if opts.refresh_objects ~= false then
-      workspace.initialise_objects_async()
+    local _, lifecycle = workspace.connect_async(
+      { connection = { options = connection } },
+      { defer_completion = opts.refresh_objects ~= false }
+    )
+    if lifecycle then
+      initialize_connection_async(workspace, lifecycle)
     end
     return connection_profiles.public_view(workspace.get_connection())
   end)
@@ -100,8 +121,8 @@ end
 function M.reconnect(bufnr, callback)
   run("connection_failed", callback, function()
     local workspace = get_workspace(bufnr)
-    workspace.reconnect_async()
-    workspace.initialise_objects_async()
+    local _, lifecycle = workspace.reconnect_async({ defer_completion = true })
+    initialize_connection_async(workspace, lifecycle)
     return connection_profiles.public_view(workspace.get_connection())
   end)
 end
