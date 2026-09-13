@@ -85,6 +85,7 @@ T["Activity UI should expose persistent workspace state"] = require("tests.helpe
     title = "SQL Server query",
     message = "Executing query",
     status = "running",
+    phase = "executing",
   })
   activity_ui.on_event(progress_workspace, {
     operation_id = 1,

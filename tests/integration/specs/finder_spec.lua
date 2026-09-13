@@ -30,7 +30,7 @@ T["Finder should work"] = require("tests.helpers").async(function()
   end)
   test_utils.connect(bufnr, "TestDbB")
   test_utils.ui_select_fake(function(item)
-    return item.objectType == "Table" and item.metadata and item.metadata.name == "Car"
+    return item.object and item.object.type == "Table" and item.object.name == "Car"
   end)
   -- wait until objects are cached
   test_utils.defer_async(2000)

@@ -43,6 +43,23 @@ T["Result descriptions retain SQL Tools Service column metadata"] = function()
   )
 end
 
+T["Result descriptions exclude non-tabular summaries"] = function()
+  local descriptors = result_sets.describe({
+    ownerUri = "file:///query.sql",
+    batchSummaries = {
+      {
+        hasError = false,
+        resultSetSummaries = {
+          { rowCount = 1, columnInfo = {} },
+          { rowCount = 0 },
+        },
+      },
+    },
+  }, 100)
+
+  assert(#descriptors == 0, "Summaries without columns must not create empty result buffers")
+end
+
 T["Result renderer preserves models and describes truncation"] = require("tests.helpers").async(function()
   local model = query_result.create({
     columns = { "ID", "Payload" },
