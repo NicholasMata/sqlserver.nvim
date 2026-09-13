@@ -6,14 +6,9 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 Ongoing development for the next release is recorded in the
 [`next` branch changelog](https://github.com/NicholasMata/sqlserver.nvim/blob/next/CHANGELOG.md).
-After the current transition entries are released, this `main` changelog will
-contain released versions only.
+This `main` changelog contains released versions only.
 
-## [Unreleased]
-
-These entries were merged before the project adopted `next` as its integration
-branch. New unreleased entries belong in the `next` branch changelog linked
-above.
+## [1.0.0-rc.4] - 2026-09-13
 
 ### Fixed
 
@@ -143,7 +138,7 @@ above.
 - Inherited public API and configuration compatibility that conflicted with the
   `sqlserver.nvim` architecture.
 
-[Unreleased]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.3...HEAD
+[1.0.0-rc.4]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.3...v1.0.0-rc.4
 [1.0.0-rc.3]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.2...v1.0.0-rc.3
 [1.0.0-rc.2]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.1...v1.0.0-rc.2
 [1.0.0-rc.1]: https://github.com/NicholasMata/sqlserver.nvim/releases/tag/v1.0.0-rc.1
