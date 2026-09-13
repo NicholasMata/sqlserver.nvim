@@ -70,22 +70,22 @@ function M.create(opts)
     emit(event)
   end)
 
-  local function begin_operation(kind, title, message)
+  local function begin_operation(kind, title, message, phase)
     return operation_manager.start({
       kind = kind,
       title = title,
       message = message,
-      phase = kind,
+      phase = phase or kind,
       source_bufnr = opts.bufnr,
     }).id
   end
 
-  local function update_operation(operation_id, message)
+  local function update_operation(operation_id, message, phase)
     local operation = operation_manager.operation(operation_id)
     if not operation then
       return
     end
-    operation.update({ message = message })
+    operation.update({ message = message, phase = phase })
   end
 
   local function finish_operation(operation_id, status, message, details)
@@ -511,15 +511,15 @@ function M.create(opts)
 
   function workspace.initialise_objects_async(force, refresh_opts)
     assert(connect_params, "Connect before loading database objects")
-    if objects.is_refreshing(connect_params.connection.options) and not force then
-      return
-    end
     refresh_opts = refresh_opts or {}
     local operation_id
     if not refresh_opts.silent then
       operation_id = begin_operation("metadata", "SQL Server metadata", "Refreshing database objects")
     end
     local ok, result = pcall(objects.initialise_cache_async, backend.client, connect_params.connection.options, force)
+    if disposed then
+      return { cancelled = true }
+    end
     if not ok then
       if operation_id then
         finish_operation(operation_id, "error", "Metadata refresh failed")
@@ -543,7 +543,28 @@ function M.create(opts)
   ---@param intent "query"|"definition"
   function workspace.find_object_async(intent)
     assert(connect_params, "Connect before finding database objects")
-    return objects.find_async(connect_params.connection.options, backend.client, backend.owner_uri, intent)
+    local selected, item = pcall(objects.select_async, connect_params.connection.options, intent)
+    if disposed then
+      return nil
+    end
+    if not selected then
+      error(item, 0)
+    end
+    if not item then
+      return nil
+    end
+
+    local operation_id = begin_operation("object", "SQL Server object", "Generating object script", "generating_script")
+    local scripted, result = pcall(objects.generate_script_async, item, backend.client, backend.owner_uri, intent)
+    if disposed then
+      return nil
+    end
+    if not scripted then
+      finish_operation(operation_id, "error", "Object scripting failed")
+      error(result, 0)
+    end
+    finish_operation(operation_id, "success", "Object script ready")
+    return result
   end
 
   function workspace.list_objects(filters)
@@ -553,7 +574,18 @@ function M.create(opts)
 
   function workspace.script_object_async(opts)
     assert(connect_params, "Connect before scripting a database object")
-    return objects.script_async(connect_params.connection.options, backend.client, backend.owner_uri, opts)
+    local operation_id = begin_operation("object", "SQL Server object", "Generating object script", "generating_script")
+    local scripted, result =
+      pcall(objects.script_async, connect_params.connection.options, backend.client, backend.owner_uri, opts)
+    if disposed then
+      return nil
+    end
+    if not scripted then
+      finish_operation(operation_id, "error", "Object scripting failed")
+      error(result, 0)
+    end
+    finish_operation(operation_id, "success", "Object script ready")
+    return result
   end
 
   function workspace.is_refreshing()

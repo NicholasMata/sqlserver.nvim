@@ -385,7 +385,8 @@ local function setup_async(opts)
     error("results.history_limit must be a positive integer", 0)
   end
   opts.timeouts = timeout_options.normalize(opts.timeouts)
-  finder.setup(opts.timeouts)
+  opts.ui.object_picker = ui_options.normalize_object_picker(opts.ui.object_picker)
+  finder.setup(opts.timeouts, opts.ui.object_picker)
   query_results.setup(opts.results)
   opts.ui.winbar = ui_options.normalize_winbar(opts.ui.winbar)
   opts.connections_file = opts.connections_file or joinpath(opts.data_dir, "connections.json")
@@ -1225,7 +1226,7 @@ local command_handlers = {
       return
     end
 
-    if workspace.is_refreshing() then
+    if workspace.is_refreshing() and not workspace.has_object_cache() then
       workspace.record_message("Database objects are still refreshing", false)
       return
     end
@@ -1267,7 +1268,7 @@ local command_handlers = {
       return
     end
 
-    if workspace.is_refreshing() then
+    if workspace.is_refreshing() and not workspace.has_object_cache() then
       workspace.record_message("Database objects are still refreshing", false)
       return
     end
