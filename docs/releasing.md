@@ -8,6 +8,22 @@ pass. Use the candidate period to complete and record the manual core-loop pass
 and to fix release-blocking defects. Promote the latest candidate to `1.0.0`
 only when the complete checklist passes.
 
+## Release branches
+
+`main` represents the latest released state. `next` integrates work for the
+next release, and ordinary pull requests target `next`. The active
+`Unreleased` changelog is therefore maintained on `next`, not `main`.
+
+Prepare and validate a release on `next`. Once its changelog entries have been
+promoted to a dated version section and the release checklist passes, open a
+pull request from `next` to `main`. Tag the merge commit on `main`, publish the
+GitHub release, then restore an empty `Unreleased` section on `next` for the
+following release.
+
+An urgent fix for the currently released version may target `main` directly.
+Release that fix promptly and bring the resulting commit into `next` so the
+branches do not diverge.
+
 ## Release identity
 
 - Use `v<version>` for the Git tag, such as `v1.0.0-rc.3`.
@@ -57,14 +73,15 @@ completed rather than offer a general assurance.
 
 ## Repository
 
-- [ ] Promote the release-candidate entries in `CHANGELOG.md` to a `1.0.0`
-  section dated on release day.
+- [ ] Promote the release-candidate entries in the `next` branch's
+  `CHANGELOG.md` to a `1.0.0` section dated on release day.
 - [ ] Confirm `README.md`, configuration, usage, public API, migration, and
   roadmap documentation match the release.
 - [ ] Update the commented `version` in the README installation example to the
   release tag so users can opt into an exact, reproducible pin.
-- [ ] Create an annotated `v1.0.0` tag from a clean `main` branch only after CI
-  and the manual acceptance pass.
+- [ ] Merge the validated `next` release into `main`, then create an annotated
+  `v1.0.0` tag from the clean merge commit only after CI and the manual
+  acceptance pass.
 
 ## Automated acceptance
 

@@ -24,10 +24,11 @@ agents.
 -->
 
 - [ ] I have read the [contributing guide](https://github.com/NicholasMata/sqlserver.nvim/blob/main/CONTRIBUTING.md).
+- [ ] This pull request targets `next`, or it is a documented release promotion or urgent hotfix targeting `main`.
 - [ ] This pull request contains one coherent change.
 - [ ] I have added or updated relevant tests, or explained why none are needed.
 - [ ] I have updated relevant documentation, or none is needed.
-- [ ] I have updated the Unreleased changelog, or the change is not user-visible.
+- [ ] I have updated `Unreleased` in the [`next` changelog](https://github.com/NicholasMata/sqlserver.nvim/blob/next/CHANGELOG.md), or the change is not user-visible.
 - [ ] I have not included credentials or private database contents.
 
 ## Further context

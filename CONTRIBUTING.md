@@ -139,6 +139,13 @@ Documentation filenames under `docs/` use lowercase kebab-case, such as
 
 ## Pull requests
 
+Open ordinary feature, fix, refactoring, and documentation pull requests
+against `next`. Create branches from an up-to-date `next` branch so each pull
+request includes the current release-integration work. The only changes that
+normally target `main` are a release promotion from `next` and an urgent fix
+for the currently released version. Bring every urgent `main` fix back into
+`next` before continuing development there.
+
 Keep pull requests focused on one coherent change. Split unrelated behavior,
 refactoring, and documentation work when they can be reviewed and merged
 independently. Use a draft pull request while the design or implementation is
@@ -164,9 +171,9 @@ and alternatives when they apply.
 Before requesting review, make sure the branch is based on the current target
 branch, relevant local checks pass, required GitHub checks complete,
 documentation matches the implementation, and user-visible changes appear
-under `Unreleased` in [CHANGELOG.md](CHANGELOG.md). Do not include credentials,
-connection strings, access tokens, or private database contents in
-descriptions, logs, screenshots, or fixtures.
+under `Unreleased` in the [`next` changelog](https://github.com/NicholasMata/sqlserver.nvim/blob/next/CHANGELOG.md).
+Do not include credentials, connection strings, access tokens, or private
+database contents in descriptions, logs, screenshots, or fixtures.
 
 ## Commit messages
 
@@ -183,6 +190,8 @@ Agents and AI coding tools must also follow [AGENTS.md](AGENTS.md).
 
 ## Releases
 
-User-visible changes belong under `Unreleased` in [CHANGELOG.md](CHANGELOG.md).
+User-visible changes belong under `Unreleased` in the
+[`next` changelog](https://github.com/NicholasMata/sqlserver.nvim/blob/next/CHANGELOG.md).
 Maintainers must complete [the release checklist](docs/releasing.md), including
-the documented manual core-loop pass, before tagging a stable release.
+the documented manual core-loop pass, before promoting `next` to `main` and
+tagging a stable release.

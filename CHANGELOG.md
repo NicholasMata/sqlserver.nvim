@@ -4,7 +4,16 @@ All notable changes to `sqlserver.nvim` will be documented in this file. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+Ongoing development for the next release is recorded in the
+[`next` branch changelog](https://github.com/NicholasMata/sqlserver.nvim/blob/next/CHANGELOG.md).
+After the current transition entries are released, this `main` changelog will
+contain released versions only.
+
 ## [Unreleased]
+
+These entries were merged before the project adopted `next` as its integration
+branch. New unreleased entries belong in the `next` branch changelog linked
+above.
 
 ### Fixed
 
