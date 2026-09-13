@@ -4,9 +4,31 @@ All notable changes to `sqlserver.nvim` will be documented in this file. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Ongoing development for the next release is recorded in the
-[`next` branch changelog](https://github.com/NicholasMata/sqlserver.nvim/blob/next/CHANGELOG.md).
-This `main` changelog contains released versions only.
+## [Unreleased]
+
+### Added
+
+- Add a shared asynchronous operation model for SQL Tools Service startup,
+  connections, queries, metadata, object scripting, and result exports.
+- Add configurable object selection with automatic Snacks integration,
+  `vim.ui.select`, and custom picker providers.
+
+### Changed
+
+- Keep connection status active until initial database metadata is ready, and
+  show distinct startup, result-loading, rendering, scripting, and export
+  phases through the winbar, activity stream, and native progress messages.
+- Prepare generated SQL, query-result, and text-export buffers outside the
+  current window and display them only after their contents are complete.
+- Continue serving the previous object cache while an explicit metadata
+  refresh is running and coordinate initial refreshes shared by workspaces.
+
+### Fixed
+
+- Prevent slow, cancelled, or failed asynchronous work from opening empty or
+  partially initialized query, result, definition, and export buffers.
+- Roll back partially initialized connections, suppress late callbacks after
+  workspace or result disposal, and clean up plugin-owned export files.
 
 ## [1.0.0-rc.4] - 2026-09-13
 
@@ -138,6 +160,7 @@ This `main` changelog contains released versions only.
 - Inherited public API and configuration compatibility that conflicted with the
   `sqlserver.nvim` architecture.
 
+[Unreleased]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.4...HEAD
 [1.0.0-rc.4]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.3...v1.0.0-rc.4
 [1.0.0-rc.3]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.2...v1.0.0-rc.3
 [1.0.0-rc.2]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.1...v1.0.0-rc.2
