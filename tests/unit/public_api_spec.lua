@@ -118,7 +118,10 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
       _sqlserver_query_id = 2,
       ownerUri = "file:///public-api.sql",
       batchSummaries = {
-        { hasError = false, resultSetSummaries = { { rowCount = 0, columnInfo = {} } } },
+        {
+          hasError = false,
+          resultSetSummaries = { { rowCount = 0, columnInfo = { { columnName = "Value", dataTypeName = "int" } } } },
+        },
       },
     }
   end
