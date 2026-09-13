@@ -49,6 +49,13 @@ If a disconnected query is executed, the plugin attempts to use the connection
 profile named `default`. Current-statement parsing is delegated to SQL Tools
 Service.
 
+The workspace winbar and activity stream show background phases such as
+`Starting SQL Tools Service`, `Connecting`, `Loading database objects`,
+`Executing query`, `Loading query results`, and `Rendering query results`.
+Interactive prompts and object pickers do not start a timer; timing begins only
+when backend work starts. Generated buffers are displayed after their contents
+are ready, so the current window remains unchanged when preparation fails.
+
 ## Result view workflow
 
 Every SQL source buffer retains its own recent successful executions in memory.
@@ -112,7 +119,9 @@ needed and use Neovim's normal `:write` command to save them. Binary Excel
 `.xlsx` exports ask for a destination and write directly. Visual exports use
 the rectangular range covered by the selection; linewise selections include
 every column. Result mappings that use `keymap_prefix` are omitted when no
-prefix is configured.
+prefix is configured. Export progress covers SQL Tools Service serialization
+and buffer preparation; successful text exports rely on the opened buffer and
+do not produce an additional notification.
 
 ### Limits and value fidelity
 

@@ -6,6 +6,11 @@ local uv = vim.uv or vim.loop
 local config = { layout = "split", alignment = "right" }
 
 local state_details = {
+  [workspace_module.states.starting] = {
+    icon = "◐",
+    label = "Starting SQL Tools Service",
+    highlight = "SqlServerWorking",
+  },
   [workspace_module.states.disconnected] = {
     icon = "○",
     label = "Disconnected",

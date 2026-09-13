@@ -79,6 +79,24 @@ function M.configure(opts)
   config = opts
 end
 
+local function initialize_connection_async(workspace, lifecycle)
+  if not lifecycle then
+    error(api_error("connection_cancelled", "SQL Server connection was cancelled"), 0)
+  end
+  lifecycle.update("loading_metadata", "Loading database objects")
+  local refreshed, refresh_result = pcall(workspace.initialise_objects_async, false, { silent = true })
+  if not refreshed then
+    lifecycle.fail("Connection initialization failed", refresh_result)
+    error(refresh_result, 0)
+  elseif refresh_result and refresh_result.cancelled then
+    lifecycle.fail("Connection initialization cancelled", refresh_result)
+    error(api_error("connection_cancelled", "SQL Server connection initialization was cancelled"), 0)
+  end
+  if not lifecycle.complete() then
+    error(api_error("connection_cancelled", "SQL Server connection was cancelled"), 0)
+  end
+end
+
 ---@param profile string|table
 ---@param opts? { bufnr?: integer, profile_name?: string, refresh_objects?: boolean }
 ---@param callback fun(connection?: table, error?: table)
@@ -87,9 +105,12 @@ function M.connect(profile, opts, callback)
   run("connection_failed", callback, function()
     local workspace = get_workspace(opts.bufnr)
     local connection = resolve_profile(profile, opts.profile_name)
-    workspace.connect_async({ connection = { options = connection } })
-    if opts.refresh_objects ~= false then
-      workspace.initialise_objects_async()
+    local _, lifecycle = workspace.connect_async(
+      { connection = { options = connection } },
+      { defer_completion = opts.refresh_objects ~= false }
+    )
+    if lifecycle then
+      initialize_connection_async(workspace, lifecycle)
     end
     return connection_profiles.public_view(workspace.get_connection())
   end)
@@ -100,8 +121,8 @@ end
 function M.reconnect(bufnr, callback)
   run("connection_failed", callback, function()
     local workspace = get_workspace(bufnr)
-    workspace.reconnect_async()
-    workspace.initialise_objects_async()
+    local _, lifecycle = workspace.reconnect_async({ defer_completion = true })
+    initialize_connection_async(workspace, lifecycle)
     return connection_profiles.public_view(workspace.get_connection())
   end)
 end
@@ -143,22 +164,24 @@ local function execution_request(opts)
   return query_selection.statement(opts.bufnr)
 end
 
----@param opts? { bufnr?: integer, scope?: "statement"|"selection"|"buffer", text?: string, request?: SqlServerQueryRequest }
+---@param opts? { bufnr?: integer, scope?: "statement"|"selection"|"buffer", text?: string, request?: SqlServerQueryRequest, _present?: fun(execution: table): boolean }
 ---@param callback fun(result?: table, error?: table)
 function M.execute(opts, callback)
   opts = opts or {}
   run("query_failed", callback, function()
     local workspace = get_workspace(opts.bufnr)
-    local raw = workspace.execute_async(execution_request(opts))
+    local raw, lifecycle = workspace.execute_async(execution_request(opts), { defer_completion = true })
     if not raw then
       return { cancelled = true, result_sets = {} }
     end
+    lifecycle.update("loading_results", "Loading query results")
     local configured = require_config()
     local query_id = raw._sqlserver_query_id
     local collected_ok, collected =
       pcall(result_sets.collect_async, raw, configured.results.max_rows, workspace.fetch_result_rows_async)
     if not collected_ok then
       pcall(workspace.dispose_query_async, query_id)
+      lifecycle.fail("Loading query results failed", collected)
       error(collected, 0)
     end
     for _, result_set in ipairs(collected) do
@@ -177,9 +200,24 @@ function M.execute(opts, callback)
         return workspace.release_query(query_id)
       end,
     }
+    if opts._present then
+      if not lifecycle.update("rendering_results", "Rendering query results") then
+        lifecycle.complete()
+        return { cancelled = true, result_sets = {} }
+      end
+      local presented, presentation_error = pcall(opts._present, execution)
+      if not presented then
+        execution.dispose()
+        lifecycle.fail("Rendering query results failed", presentation_error)
+        error(presentation_error, 0)
+      end
+    end
+
+    if not lifecycle.complete() then
+      return { cancelled = true, result_sets = {} }
+    end
     if #collected == 0 then
-      released = true
-      pcall(workspace.dispose_query_async, query_id)
+      execution.dispose()
     end
     return execution
   end)
@@ -221,7 +259,11 @@ end
 function M.script_object(opts, callback)
   opts = opts or {}
   run("object_script_failed", callback, function()
-    return get_workspace(opts.bufnr).script_object_async(opts)
+    local workspace = get_workspace(opts.bufnr)
+    if workspace.is_refreshing() and not workspace.has_object_cache() then
+      error(api_error("metadata_refreshing", "Database objects are still refreshing"), 0)
+    end
+    return workspace.script_object_async(opts)
   end)
 end
 
@@ -243,7 +285,7 @@ local function validate_result_selection(selection)
   end
 end
 
----@param opts { result_set?: SqlServerResultSet, bufnr?: integer, path: string, format?: string, selection?: SqlServerResultSelection }
+---@param opts { result_set?: SqlServerResultSet, bufnr?: integer, path: string, format?: string, selection?: SqlServerResultSelection, _present?: fun(path: string, format: string): any }
 ---@param callback fun(result?: table, error?: table)
 function M.export_results(opts, callback)
   opts = opts or {}
@@ -266,10 +308,30 @@ function M.export_results(opts, callback)
     if not workspace then
       error(api_error("result_unavailable", "The query workspace is no longer available for export"), 0)
     end
-    workspace.export_result_async(result_set.locator, opts.path, format, {
+    local _, lifecycle = workspace.export_result_async(result_set.locator, opts.path, format, {
       timeout = require_config().timeouts.export,
       selection = opts.selection,
+      defer_completion = opts._present ~= nil,
     })
+    if lifecycle == false then
+      error(api_error("export_cancelled", "Query result export was cancelled"), 0)
+    end
+    if lifecycle then
+      if not lifecycle.update("opening_buffer", "Opening export buffer") then
+        error(api_error("export_cancelled", "Query result export was cancelled"), 0)
+      end
+      local presented, presentation_result = pcall(opts._present, opts.path, format)
+      if not presented then
+        lifecycle.fail("Opening export buffer failed", presentation_result)
+        error(presentation_result, 0)
+      elseif presentation_result == false then
+        lifecycle.cancel("Export cancelled")
+        error(api_error("export_cancelled", "Query result export was cancelled"), 0)
+      end
+      if not lifecycle.complete() then
+        error(api_error("export_cancelled", "Query result export was cancelled"), 0)
+      end
+    end
     return { path = opts.path, format = format, selection = vim.deepcopy(opts.selection) }
   end)
 end
