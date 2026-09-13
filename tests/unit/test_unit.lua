@@ -12,6 +12,7 @@ local modules = {
   "timeouts_spec",
   "connection_profiles_spec",
   "public_api_spec",
+  "query_lifecycle_spec",
   "activity_ui_spec",
   "query_result_renderer_spec",
   "result_filetype_spec",

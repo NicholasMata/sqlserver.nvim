@@ -520,6 +520,14 @@ function M.show(result_sets, opts, source_bufnr, dispose)
   assert(vim.api.nvim_buf_is_valid(source_bufnr), "Result source buffer is no longer valid")
   define_highlights()
 
+  local prepared = {}
+  for index, result_set in ipairs(result_sets) do
+    prepared[index] = {
+      result_set = result_set,
+      rendered = renderer.render(result_set, { max_cell_width = opts.results.max_cell_width }),
+    }
+  end
+
   local source = ensure_source(source_bufnr)
   local execution = {
     id = next_execution_id,
@@ -530,8 +538,9 @@ function M.show(result_sets, opts, source_bufnr, dispose)
   }
   next_execution_id = next_execution_id + 1
 
-  for index, result_set in ipairs(result_sets) do
-    local rendered = renderer.render(result_set, { max_cell_width = opts.results.max_cell_width })
+  for index, prepared_result in ipairs(prepared) do
+    local result_set = prepared_result.result_set
+    local rendered = prepared_result.rendered
     local bufnr = vim.api.nvim_create_buf(false, false)
     vim.api.nvim_buf_set_name(
       bufnr,
