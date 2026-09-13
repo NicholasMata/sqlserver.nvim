@@ -279,7 +279,6 @@ function M.create(opts)
           })
         or false
     end
-
     if execution_opts and execution_opts.defer_completion then
       return result, lifecycle
     end
@@ -334,7 +333,70 @@ function M.create(opts)
   end
 
   function workspace.export_result_async(locator, path, format, export_opts)
-    return backend.export_result_async(locator, path, format, export_opts)
+    export_opts = export_opts or {}
+    local operation_id = begin_operation("export", "SQL Server export", "Exporting query results", "exporting")
+    local backend_opts = vim.deepcopy(export_opts)
+    backend_opts.defer_completion = nil
+    local ok, result = pcall(backend.export_result_async, locator, path, format, backend_opts)
+    if disposed then
+      return nil, false
+    end
+    if not ok then
+      finish_operation(operation_id, "error", "Export failed", {
+        error = type(result) == "table" and vim.deepcopy(result) or { message = tostring(result) },
+      })
+      error(result, 0)
+    end
+
+    local finished = false
+    local lifecycle = {}
+    function lifecycle.update(phase, message)
+      if finished or disposed then
+        return false
+      end
+      local operation = operation_manager.operation(operation_id)
+      return operation and operation.update({ phase = phase, message = message }) or false
+    end
+    function lifecycle.complete()
+      if finished or disposed then
+        return false
+      end
+      finished = true
+      local operation = operation_manager.operation(operation_id)
+      return operation and operation.succeed({ phase = "ready", message = "Export ready" }) or false
+    end
+    function lifecycle.fail(message, err)
+      if finished or disposed then
+        return false
+      end
+      finished = true
+      local operation = operation_manager.operation(operation_id)
+      return operation
+          and operation.fail({ code = "export_failed", message = message }, {
+            phase = "failed",
+            message = message,
+            details = {
+              error = type(err) == "table" and vim.deepcopy(err) or { message = tostring(err) },
+            },
+          })
+        or false
+    end
+    function lifecycle.cancel(message)
+      if finished or disposed then
+        return false
+      end
+      finished = true
+      local operation = operation_manager.operation(operation_id)
+      return operation and operation.cancel({ phase = "cancelled", message = message or "Export cancelled" }) or false
+    end
+
+    if export_opts.defer_completion then
+      return result, lifecycle
+    end
+    if not lifecycle.complete() then
+      return result, false
+    end
+    return result
   end
 
   function workspace.dispose_async()

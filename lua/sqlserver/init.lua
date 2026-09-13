@@ -854,7 +854,7 @@ local function connect_to_default(workspace, opts)
   end
 end
 
-local function export_to_file_async(result_info, selection, extension, file, notify)
+local function export_to_file_async(result_info, selection, extension, file, notify, result_bufnr)
   local subset_params = result_info.subset_params
   local existing = vim.uv.fs_stat(file)
   if existing and existing.type ~= "file" then
@@ -870,12 +870,31 @@ local function export_to_file_async(result_info, selection, extension, file, not
     end
   end
 
+  local presenter
+  if notify == false then
+    presenter = function(path, format)
+      if not (result_bufnr and vim.api.nvim_buf_is_valid(result_bufnr)) then
+        return false
+      end
+      local current_info = vim.b[result_bufnr].query_result_info
+      if
+        not current_info
+        or current_info.execution_id ~= result_info.execution_id
+        or current_info.result_ordinal ~= result_info.result_ordinal
+      then
+        return false
+      end
+      return result_export_view.open(path, format, result_info)
+    end
+  end
+
   await_public(function(callback)
     public_api.export_results({
       result_set = { locator = subset_params },
       path = file,
       format = extension,
       selection = selection,
+      _present = presenter,
     }, callback)
   end)
 
@@ -903,20 +922,13 @@ local function save_excel_results_async(result_info, selection)
   export_to_file_async(result_info, selection, "xlsx", file)
 end
 
-local function open_text_results_async(result_info, selection, format)
-  local path = vim.fn.tempname() .. "." .. format
-  local ok, err = pcall(function()
-    export_to_file_async(result_info, selection, format, path, false)
-    result_export_view.open(path, format, result_info)
+local function open_text_results_async(result_info, selection, format, result_bufnr)
+  result_export_view.with_temporary_file(format, function(path)
+    export_to_file_async(result_info, selection, format, path, false, result_bufnr)
   end)
-  vim.fn.delete(path)
-  if not ok then
-    error(err, 0)
-  end
-  utils.log_info("Opened query results as " .. format:upper())
 end
 
-local function export_query_results_async(result_info, selection)
+local function export_query_results_async(result_info, selection, result_bufnr)
   utils.wait_for_schedule_async()
   local format = utils.ui_select_async({ "csv", "json", "xml", "xlsx" }, {
     prompt = "Open query results as:",
@@ -930,7 +942,7 @@ local function export_query_results_async(result_info, selection)
   if format == "xlsx" then
     save_excel_results_async(result_info, selection)
   else
-    open_text_results_async(result_info, selection, format)
+    open_text_results_async(result_info, selection, format, result_bufnr)
   end
 end
 
@@ -1134,6 +1146,7 @@ local command_handlers = {
   end,
 
   export_query_results = function(opts)
+    local result_bufnr = vim.api.nvim_get_current_buf()
     local result_info = vim.b.query_result_info
     if not result_info then
       utils.log_error("Go to a query result buffer to save results")
@@ -1149,7 +1162,7 @@ local command_handlers = {
       end
     end
     utils.try_resume(coroutine.create(function()
-      export_query_results_async(result_info, selection)
+      export_query_results_async(result_info, selection, result_bufnr)
     end))
   end,
 

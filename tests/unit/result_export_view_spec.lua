@@ -20,4 +20,28 @@ T["Text result exports should open as modified normal buffers"] = function()
   vim.fn.delete(path)
 end
 
+T["Temporary export files are deleted after presentation failure"] = function()
+  local temporary_path
+  local ok, err = pcall(export_view.with_temporary_file, "json", function(path)
+    temporary_path = path
+    vim.fn.writefile({ "partial export" }, path)
+    error("presentation failed", 0)
+  end)
+
+  assert(not ok and err == "presentation failed")
+  assert(temporary_path and vim.fn.filereadable(temporary_path) == 0)
+end
+
+T["Temporary export files are deleted after successful presentation"] = function()
+  local temporary_path
+  local result = export_view.with_temporary_file("csv", function(path)
+    temporary_path = path
+    vim.fn.writefile({ "complete export" }, path)
+    return "presented"
+  end)
+
+  assert(result == "presented")
+  assert(temporary_path and vim.fn.filereadable(temporary_path) == 0)
+end
+
 return T
