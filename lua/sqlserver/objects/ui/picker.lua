@@ -2,6 +2,7 @@ local utils = require("sqlserver.utils")
 local object_script = require("sqlserver.objects.script")
 local scripting = require("sqlserver.adapters.sql_tools_service.scripting")
 local object_explorer_timeout = 10000
+local object_selector = require("sqlserver.objects.ui.select").select
 
 ---Same as utils.wait_for_notification_async but ignores any owner uri
 ---@param client vim.lsp.Client
@@ -316,9 +317,26 @@ local initialise_cache_async = function(lsp_client, connection_options, force)
     global_cache[key] = {}
   end
 
-  -- don't refresh if we are already refreshing or have refreshed previously
-  if (global_cache[key].cache or is_refreshing(key)) and not force then
-    return
+  -- Reuse a completed cache, or wait for another workspace that is already
+  -- populating this shared server/database cache.
+  if global_cache[key].cache and not force then
+    return { cancelled = false, count = #global_cache[key].cache }
+  end
+  if is_refreshing(key) and not force then
+    while global_cache[key] and is_refreshing(key) do
+      utils.defer_async(10)
+    end
+    local entry = global_cache[key]
+    if not entry then
+      return { cancelled = true }
+    end
+    if entry.last_refresh_error then
+      error(entry.last_refresh_error, 0)
+    end
+    if entry.cache then
+      return { cancelled = false, count = #entry.cache }
+    end
+    return { cancelled = true }
   end
 
   -- cancel any currently running
@@ -330,6 +348,7 @@ local initialise_cache_async = function(lsp_client, connection_options, force)
 
   local refresh_coroutine = coroutine.running()
   global_cache[key].refresh_coroutine = refresh_coroutine
+  global_cache[key].last_refresh_error = nil
   vim.cmd("redrawstatus")
   local new_cache, refresh_error = get_object_cache_async(lsp_client, connection_options, cancellation_token, force)
   if global_cache[key] and global_cache[key].refresh_coroutine == refresh_coroutine then
@@ -340,6 +359,7 @@ local initialise_cache_async = function(lsp_client, connection_options, force)
     return { cancelled = true }
   end
   if refresh_error then
+    global_cache[key].last_refresh_error = refresh_error
     error(refresh_error, 0)
   end
   if not cancellation_token.cancel then
@@ -358,49 +378,40 @@ local picker_icons = {
 }
 
 local pick_item_async = function(cache, title)
+  utils.wait_for_schedule_async()
   local co = coroutine.running()
-
-  local success, snacks = pcall(require, "snacks")
-  if not success then
-    return utils.ui_select_async(cache, {
-      prompt = title,
-      format_item = function(item)
-        return table.concat({
-          picker_icons[item.nodeType],
-          " ",
-          item.picker_path,
-          item.label,
-        })
-      end,
-    })
-  end
-
-  snacks.picker.pick({
-    title = title,
-    layout = "select",
-    items = cache,
-    format = function(item)
+  local completed = false
+  local items = vim
+    .iter(cache)
+    :map(function(item)
       return {
-        { picker_icons[item.nodeType], "SnacksPickerIcon" },
-        { " " },
-        { item.label },
-        { " " },
-        { item.picker_path, "SnacksPickerComment" },
+        id = item.nodePath or item.text,
+        label = item.label,
+        path = item.picker_path or "",
+        icon = picker_icons[item.nodeType] or "",
+        object = public_object(item),
+        _source = item,
       }
-    end,
-    confirm = function(picker, item)
-      picker:close()
-      coroutine.resume(co, item)
-    end,
-    cancel = function(picker)
-      picker:close()
-      coroutine.resume(co, nil)
-    end,
-  })
-  return coroutine.yield()
+    end)
+    :totable()
+
+  local ok, err = pcall(object_selector, { title = title, items = items }, function(selected)
+    if completed then
+      return
+    end
+    completed = true
+    vim.schedule(function()
+      utils.try_resume(co, selected)
+    end)
+  end)
+  if not ok then
+    error(err, 0)
+  end
+  local selected = coroutine.yield()
+  return selected and selected._source or nil
 end
 
-local find_async = function(connection_options, lsp_client, owner_uri, intent)
+local select_async = function(connection_options, intent)
   local title = intent == "definition" and "Object Definition" or "Find Query"
   if connection_options and connection_options.database and connection_options.server then
     title = connection_options.server .. " | " .. connection_options.database
@@ -411,11 +422,7 @@ local find_async = function(connection_options, lsp_client, owner_uri, intent)
     cache = global_cache[key].cache
   end
 
-  local item = pick_item_async(cache, title)
-  if not item then
-    return
-  end
-  return generate_script_async(item, lsp_client, owner_uri, intent)
+  return pick_item_async(cache, title)
 end
 
 local function cached_items(connection_options)
@@ -478,14 +485,16 @@ local function delete_unused_cache(in_use_connections)
 end
 
 return {
-  setup = function(timeouts)
+  setup = function(timeouts, selector)
     object_explorer_timeout = timeouts.object_explorer
+    object_selector = selector or object_selector
   end,
   initialise_cache_async = initialise_cache_async,
   delete_unused_cache = delete_unused_cache,
   is_refreshing = is_refreshing,
   has_cache = has_cache,
-  find_async = find_async,
+  select_async = select_async,
+  generate_script_async = generate_script_async,
   list = list_objects,
   script_async = script_object_async,
 }
