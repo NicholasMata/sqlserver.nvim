@@ -259,7 +259,11 @@ end
 function M.script_object(opts, callback)
   opts = opts or {}
   run("object_script_failed", callback, function()
-    return get_workspace(opts.bufnr).script_object_async(opts)
+    local workspace = get_workspace(opts.bufnr)
+    if workspace.is_refreshing() and not workspace.has_object_cache() then
+      error(api_error("metadata_refreshing", "Database objects are still refreshing"), 0)
+    end
+    return workspace.script_object_async(opts)
   end)
 end
 

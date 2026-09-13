@@ -28,6 +28,7 @@ return {
   -- Persistent workspace status and expandable activity UI.
   ui = {
     presenter = "default",
+    object_picker = "auto",
     winbar = true,
     native_progress = true,
     height = 12,
