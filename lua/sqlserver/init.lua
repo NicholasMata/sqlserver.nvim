@@ -16,6 +16,7 @@ local activity_stream = require("sqlserver.workspace.activity_stream").create({ 
 local activity_ui = require("sqlserver.ui.activity")
 local ui_options = require("sqlserver.config.ui")
 local status_ui = require("sqlserver.ui.status")
+local generated_buffer = require("sqlserver.ui.generated_buffer")
 local timeout_options = require("sqlserver.config.timeouts")
 local connection_profiles = require("sqlserver.connections.profiles")
 local public_api = require("sqlserver.api")
@@ -553,27 +554,44 @@ local connect_async = function(opts, workspace)
   return true
 end
 
-local function new_query_async(name)
+local function prepare_query_async(name, lines)
   -- The language server requires all files to have a unique name.
-  vim.cmd("enew")
-  local buf = vim.api.nvim_get_current_buf()
-  if name then
-    vim.api.nvim_buf_set_name(buf, vim.fs.abspath(name))
-  else
-    ensure_sql_buffer_name(buf)
-  end
-  vim.cmd("setfiletype sql")
-  vim.b[buf].is_temp_name = true
-
-  local client = sql_tools_service.wait_for_attach_async(buf, plugin_opts.timeouts.lsp_attach)
-  if not client then
-    local workspace = workspace_registry.get(buf)
-    if workspace then
-      workspace.service_failed("SQL Tools Service failed to attach")
+  local transaction = generated_buffer.create({ listed = true })
+  local buf = transaction.bufnr
+  local prepared, client_or_error = pcall(function()
+    if name then
+      vim.api.nvim_buf_set_name(buf, vim.fs.abspath(name))
+    else
+      ensure_sql_buffer_name(buf)
     end
-    error("SQL Tools Service failed to attach to the query buffer", 0)
+    vim.b[buf].is_temp_name = true
+    vim.api.nvim_set_option_value("filetype", "sql", { buf = buf })
+
+    if lines then
+      transaction.set_lines(lines)
+    end
+
+    local client = sql_tools_service.wait_for_attach_async(buf, plugin_opts.timeouts.lsp_attach)
+    if not client then
+      local workspace = workspace_registry.get(buf)
+      if workspace then
+        workspace.service_failed("SQL Tools Service failed to attach")
+      end
+      error("SQL Tools Service failed to attach to the query buffer", 0)
+    end
+    return client
+  end)
+  if not prepared then
+    transaction.rollback()
+    error(client_or_error, 0)
   end
-  return buf, client
+  return transaction, client_or_error
+end
+
+local function new_query_async(name)
+  local transaction, client = prepare_query_async(name)
+  transaction.commit()
+  return transaction.bufnr, client
 end
 
 local function sanitized_definition_name(object)
@@ -626,19 +644,26 @@ local function open_object_definition_async(source_workspace, item)
 
   local connect_params = source_workspace.get_connect_params()
   local connection = connect_params and connect_params.connection and connect_params.connection.options or {}
-  local bufnr = new_query_async(name)
-  local definition_workspace = workspace_registry.get(bufnr)
-  definition_workspace.connect_async(connect_params)
-  vim.api.nvim_buf_set_lines(bufnr, 0, -1, false, vim.split(item.script, "\n"))
-  vim.b[bufnr].sqlserver_object = {
-    server = connection.server,
-    database = connection.database,
-    id = item.object.id,
-    schema = item.object.schema,
-    name = item.object.name,
-    type = item.object.type,
-  }
-  return bufnr
+  local transaction = prepare_query_async(name, vim.split(item.script, "\n"))
+  local bufnr = transaction.bufnr
+  local prepared, prepare_error = pcall(function()
+    local definition_workspace = workspace_registry.get(bufnr)
+    definition_workspace.connect_async(connect_params)
+    vim.b[bufnr].sqlserver_object = {
+      server = connection.server,
+      database = connection.database,
+      id = item.object.id,
+      schema = item.object.schema,
+      name = item.object.name,
+      type = item.object.type,
+    }
+  end)
+  if not prepared then
+    transaction.rollback()
+    error(prepare_error, 0)
+  end
+  transaction.commit()
+  return transaction.bufnr
 end
 
 local function new_default_query_async(opts)
@@ -652,23 +677,31 @@ local function new_default_query_async(opts)
   end
   local connection = prepare_connection(connections.default, "default")
 
-  local buf = new_query_async()
+  local transaction = prepare_query_async()
+  local buf = transaction.bufnr
   local workspace = workspace_registry.get(buf)
   if not workspace then
     error("CRITICAL: Lsp attached without a SQL workspace")
   end
 
-  await_public(function(callback)
-    public_api.connect(
-      connection,
-      { bufnr = workspace.bufnr, profile_name = "default", refresh_objects = not connection.promptForDatabase },
-      callback
-    )
-  end)
+  local prepared, prepare_error = pcall(function()
+    await_public(function(callback)
+      public_api.connect(
+        connection,
+        { bufnr = workspace.bufnr, profile_name = "default", refresh_objects = not connection.promptForDatabase },
+        callback
+      )
+    end)
 
-  if connection.promptForDatabase then
-    switch_database_async(buf)
+    if connection.promptForDatabase then
+      switch_database_async(buf)
+    end
+  end)
+  if not prepared then
+    transaction.rollback()
+    error(prepare_error, 0)
   end
+  transaction.commit()
 end
 
 --- If the current buffer is empty, put the query into this buffer. Otherwise,
@@ -685,11 +718,18 @@ local function insert_query_into_buffer(query)
   end
 
   local connect_params = workspace.get_connect_params()
-  local buf = new_query_async()
-  workspace = workspace_registry.get(buf)
-  workspace.connect_async(connect_params)
-  vim.api.nvim_buf_set_lines(buf, 0, 0, false, vim.split(query, "\n"))
-  return buf
+  local transaction = prepare_query_async(nil, vim.split(query, "\n"))
+  local buf = transaction.bufnr
+  local connected, connection_error = pcall(function()
+    workspace = workspace_registry.get(buf)
+    workspace.connect_async(connect_params)
+  end)
+  if not connected then
+    transaction.rollback()
+    error(connection_error, 0)
+  end
+  transaction.commit()
+  return transaction.bufnr
 end
 
 local function backup_database_async(workspace)
