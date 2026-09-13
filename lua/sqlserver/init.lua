@@ -9,6 +9,7 @@ local default_opts = require("sqlserver.config.defaults")
 local finder = require("sqlserver.objects.ui.picker")
 local sql_tools_service = require("sqlserver.adapters.sql_tools_service.client")
 local query_backend = require("sqlserver.adapters.sql_tools_service.query")
+local backend_proxy = require("sqlserver.adapters.sql_tools_service.backend_proxy")
 local workspace_module = require("sqlserver.workspace")
 local workspace_registry = require("sqlserver.workspace.registry")
 local activity_stream = require("sqlserver.workspace.activity_stream").create({ on_error = utils.log_error })
@@ -23,6 +24,8 @@ local joinpath = vim.fs.joinpath
 local workspace_winbar_expression = "%{%v:lua.require'sqlserver.ui.status'.winbar()%}"
 local result_winbar_expression = "%{%v:lua.require'sqlserver.results.ui.view'.winbar()%}"
 local custom_presenter_unsubscribe
+local pending_backends = {}
+local workspace_clients = {}
 
 local function apply_winbar(bufnr, opts)
   for _, winid in ipairs(vim.fn.win_findbuf(bufnr)) do
@@ -119,7 +122,14 @@ local function enable_lsp(opts)
       clean_cache()
     end,
     on_attach = function(client, bufnr)
-      if not workspace_registry.get(bufnr) then
+      local workspace = workspace_registry.get(bufnr)
+      local proxy = pending_backends[bufnr]
+      if workspace and proxy then
+        proxy.bind(query_backend.create(bufnr, client, opts.timeouts))
+        pending_backends[bufnr] = nil
+        workspace_clients[bufnr] = client.id
+        workspace.service_ready()
+      elseif not workspace then
         local workspace = workspace_module.create({
           bufnr = bufnr,
           backend = query_backend.create(bufnr, client, opts.timeouts),
@@ -127,12 +137,27 @@ local function enable_lsp(opts)
           activity_stream = activity_stream,
         })
         workspace_registry.attach(bufnr, workspace)
+        workspace_clients[bufnr] = client.id
         apply_winbar(bufnr, opts)
       end
     end,
-    on_exit = function(code, signal)
+    on_exit = function(code, signal, exited_client_id)
       if code ~= 0 or signal ~= 0 then
-        utils.log_error(string.format("SQL Tools Service stopped unexpectedly (exit %d, signal %d)", code, signal))
+        local message = string.format("SQL Tools Service stopped unexpectedly (exit %d, signal %d)", code, signal)
+        for bufnr, client_id in pairs(workspace_clients) do
+          local workspace = workspace_registry.get(bufnr)
+          if workspace and client_id == exited_client_id then
+            workspace.service_stopped(message)
+            workspace_clients[bufnr] = nil
+          end
+        end
+        for bufnr in pairs(pending_backends) do
+          local workspace = workspace_registry.get(bufnr)
+          if workspace then
+            workspace.service_failed(message)
+          end
+        end
+        utils.log_error(message)
       end
     end,
   })
@@ -168,6 +193,21 @@ local function set_auto_commands(opts)
 
   local function configure_sql_buffer(bufnr)
     ensure_sql_buffer_name(bufnr)
+    if not workspace_registry.get(bufnr) then
+      local proxy = backend_proxy.create(utils.lsp_file_uri(bufnr))
+      pending_backends[bufnr] = proxy
+      workspace_registry.attach(
+        bufnr,
+        workspace_module.create({
+          bufnr = bufnr,
+          backend = proxy,
+          objects = finder,
+          activity_stream = activity_stream,
+          service_pending = true,
+        })
+      )
+      apply_winbar(bufnr, opts)
+    end
     for option, value in pairs(opts.sql_buffer_options or {}) do
       vim.api.nvim_set_option_value(option, value, { buf = bufnr })
     end
@@ -193,6 +233,8 @@ local function set_auto_commands(opts)
     group = "AutoNameSQL",
     callback = function(args)
       local workspace = workspace_registry.detach(args.buf)
+      pending_backends[args.buf] = nil
+      workspace_clients[args.buf] = nil
       if workspace then
         coroutine.resume(coroutine.create(function()
           workspace.dispose_async()
@@ -481,8 +523,9 @@ local function switch_database_async(buf)
   workspace.disconnect_async()
 
   connect_params.connection.options.database = db
-
-  workspace.connect_async(connect_params)
+  await_public(function(callback)
+    public_api.connect(connect_params.connection.options, { bufnr = workspace.bufnr }, callback)
+  end)
 end
 
 local connect_async = function(opts, workspace)
@@ -501,7 +544,7 @@ local connect_async = function(opts, workspace)
   local con = prepare_connection(json[con_name], con_name)
 
   await_public(function(callback)
-    public_api.connect(con, { bufnr = workspace.bufnr, profile_name = con_name, refresh_objects = false }, callback)
+    public_api.connect(con, { bufnr = workspace.bufnr, profile_name = con_name }, callback)
   end)
 
   if con.promptForDatabase then
@@ -523,6 +566,13 @@ local function new_query_async(name)
   vim.b[buf].is_temp_name = true
 
   local client = sql_tools_service.wait_for_attach_async(buf, plugin_opts.timeouts.lsp_attach)
+  if not client then
+    local workspace = workspace_registry.get(buf)
+    if workspace then
+      workspace.service_failed("SQL Tools Service failed to attach")
+    end
+    error("SQL Tools Service failed to attach to the query buffer", 0)
+  end
   return buf, client
 end
 
@@ -611,7 +661,7 @@ local function new_default_query_async(opts)
   await_public(function(callback)
     public_api.connect(
       connection,
-      { bufnr = workspace.bufnr, profile_name = "default", refresh_objects = false },
+      { bufnr = workspace.bufnr, profile_name = "default", refresh_objects = not connection.promptForDatabase },
       callback
     )
   end)
@@ -619,7 +669,6 @@ local function new_default_query_async(opts)
   if connection.promptForDatabase then
     switch_database_async(buf)
   end
-  workspace.initialise_objects_async()
 end
 
 --- If the current buffer is empty, put the query into this buffer. Otherwise,
@@ -869,7 +918,6 @@ local command_handlers = {
     end
     utils.try_resume(coroutine.create(function()
       switch_database_async()
-      workspace.initialise_objects_async()
       clean_cache()
       if callback then
         callback()
@@ -885,9 +933,7 @@ local command_handlers = {
       return
     end
     utils.try_resume(coroutine.create(function()
-      if connect_async(plugin_opts, workspace) then
-        workspace.initialise_objects_async()
-      end
+      connect_async(plugin_opts, workspace)
     end))
   end,
 
