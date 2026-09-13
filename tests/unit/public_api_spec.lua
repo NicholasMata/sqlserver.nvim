@@ -161,6 +161,10 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
     api.list_objects({ bufnr = 321 }, callback)
   end)
   assert(refreshing_error.code == "metadata_refreshing")
+  local _, scripting_refresh_error = completed(function(callback)
+    api.script_object({ bufnr = 321, id = "table-1", intent = "query" }, callback)
+  end)
+  assert(scripting_refresh_error.code == "metadata_refreshing")
   refreshing = false
   has_cache = true
   local scripted = completed(function(callback)

@@ -3,7 +3,7 @@ local test_utils = require("tests.helpers.integration")
 
 local function select_object(object_type, name, collision_choice)
   test_utils.ui_select_fake(function(item)
-    local matches = item.objectType == object_type and item.metadata and item.metadata.name == name
+    local matches = item.object and item.object.type == object_type and item.object.name == name
     if matches and collision_choice then
       test_utils.ui_select_fake(collision_choice)
     end

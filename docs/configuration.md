@@ -17,6 +17,7 @@ require("sqlserver").setup({
 
   ui = {
     presenter = "default",
+    object_picker = "auto",
     winbar = true,
     native_progress = true,
     height = 12,
@@ -75,6 +76,7 @@ indefinitely.
 | `open_results_in` | `"split"` | Opens results in `"split"`, `"vsplit"`, `"current_window"`, or with `function(bufnr)`. |
 | `view_messages_in` | `"activity"` | Sends SQL messages to `"activity"`, `"notification"`, `"buffer"`, or `function(message, is_error, error_selection)`. The optional selection uses zero-based document positions. |
 | `ui.presenter` | `"default"` | Uses the built-in presenter, `false` for none, or `function(workspace, event)` for a custom primary subscriber. |
+| `ui.object_picker` | `"auto"` | Uses the dedicated Snacks picker when available and otherwise `vim.ui.select`. Set `"select"`, `"snacks"`, or `function(context, callback)` to choose explicitly. |
 | `ui.winbar` | `true` | Enables the default winbar. Use `false` or a table with `layout` and `alignment` to customize it. |
 | `ui.winbar.layout` | `"split"` | With the object form, uses `"split"` or `"compact"` content. |
 | `ui.winbar.alignment` | `"right"` | With the compact layout, aligns content `"left"`, `"center"`, or `"right"`. |
@@ -138,6 +140,33 @@ local unsubscribe = require("sqlserver").subscribe_activity(function(workspace, 
 end)
 
 unsubscribe()
+```
+
+Object selection defaults to `"auto"`. It uses sqlserver.nvim's richer Snacks
+layout when `snacks.nvim` is available and otherwise delegates to
+`vim.ui.select`. The provider is resolved once during setup, so it remains
+stable for the Neovim session. To choose explicitly:
+
+```lua
+ui = {
+  object_picker = "snacks",
+}
+```
+
+Use `"select"` to always delegate to `vim.ui.select`, including its globally
+configured provider.
+
+A custom picker receives a stable context and must call its callback with one
+of the provided items, or `nil` when cancelled:
+
+```lua
+ui = {
+  object_picker = function(context, callback)
+    -- context.title
+    -- context.items: id, label, path, icon, and object
+    callback(context.items[1]) -- or callback(nil)
+  end,
+}
 ```
 
 ## SQL Tools Service

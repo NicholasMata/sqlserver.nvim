@@ -15,6 +15,8 @@ local modules = {
   "public_api_spec",
   "query_lifecycle_spec",
   "connection_lifecycle_spec",
+  "object_lifecycle_spec",
+  "object_picker_spec",
   "activity_ui_spec",
   "generated_buffer_spec",
   "query_result_renderer_spec",

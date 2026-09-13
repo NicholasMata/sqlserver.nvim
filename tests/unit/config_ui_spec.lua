@@ -18,4 +18,36 @@ T["UI options should normalize winbar configuration"] = require("tests.helpers")
   assert(not ok and err:find("split", 1, true))
 end)
 
+T["UI options should normalize object picker providers"] = function()
+  local previous_loaded = package.loaded.snacks
+  local previous_preload = package.preload.snacks
+  package.loaded.snacks = nil
+  package.preload.snacks = function()
+    return { picker = {} }
+  end
+  assert(
+    ui_options.normalize_object_picker("auto") == require("sqlserver.objects.ui.snacks").select,
+    "Auto should prefer the dedicated Snacks adapter"
+  )
+  package.loaded.snacks = nil
+  package.preload.snacks = function()
+    error("unavailable")
+  end
+  assert(
+    ui_options.normalize_object_picker("auto") == require("sqlserver.objects.ui.select").select,
+    "Auto should fall back to vim.ui.select"
+  )
+  package.loaded.snacks = previous_loaded
+  package.preload.snacks = previous_preload
+
+  assert(type(ui_options.normalize_object_picker("select")) == "function")
+  assert(type(ui_options.normalize_object_picker("snacks")) == "function")
+
+  local custom = function() end
+  assert(ui_options.normalize_object_picker(custom) == custom)
+
+  local ok, err = pcall(ui_options.normalize_object_picker, "telescope")
+  assert(not ok and err:find("'auto'", 1, true))
+end
+
 return T
