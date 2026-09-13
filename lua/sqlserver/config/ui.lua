@@ -23,4 +23,23 @@ function M.normalize_winbar(value)
   return winbar
 end
 
+---@param value "auto"|"select"|"snacks"|function
+---@return function
+function M.normalize_object_picker(value)
+  if type(value) == "function" then
+    return value
+  end
+  if value == "select" then
+    return require("sqlserver.objects.ui.select").select
+  end
+  if value == "auto" then
+    local has_snacks = pcall(require, "snacks")
+    return has_snacks and require("sqlserver.objects.ui.snacks").select or require("sqlserver.objects.ui.select").select
+  end
+  if value == "snacks" then
+    return require("sqlserver.objects.ui.snacks").select
+  end
+  error("ui.object_picker must be 'auto', 'select', 'snacks', or a function", 0)
+end
+
 return M

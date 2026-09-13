@@ -111,6 +111,17 @@ services do not call winbar, progress, notification, or window APIs directly.
 Subscribers must be independently replaceable and a failing subscriber must
 not interrupt the underlying connection or query operation.
 
+Every asynchronous workflow uses the same operation model. An operation has a
+stable identifier, kind, phase, status, source buffer, timestamps, details, and
+an optional structured error. Only valid state transitions are accepted, and
+terminal operations ignore late callbacks. Workspace disposal cancels every
+active operation before releasing backend resources.
+
+Interactive prompts are not operations. Waiting for a connection profile,
+filename, overwrite confirmation, or object selection must not display an
+elapsed timer. The operation begins when service work starts and remains active
+through result presentation when presentation is part of the requested action.
+
 ## Models
 
 Introduce plugin-owned models at backend boundaries. In particular, query
@@ -140,6 +151,14 @@ Text file exports remain SQL Tools Service serializations. The interactive UI
 loads CSV, JSON, and XML through temporary files into ordinary modified Neovim
 buffers, while the public API and XLSX workflow write explicit paths. Temporary
 files are an adapter constraint and do not become user-facing result state.
+Export operations finish only after serialization and any requested buffer
+presentation succeed. Plugin-owned temporary files are removed on success,
+failure, and cancellation.
+
+Generated query, definition, result, and text-export buffers are transactional
+presentation state. They are prepared while hidden, committed to a window only
+when complete, and deleted when preparation fails. This prevents asynchronous
+backend timing from exposing empty or partially initialized buffers.
 
 Rich clipboard export is a presentation concern rather than a SQL Tools Service
 file export. The result layer creates semantic HTML from the complete normalized
