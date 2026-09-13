@@ -143,22 +143,24 @@ local function execution_request(opts)
   return query_selection.statement(opts.bufnr)
 end
 
----@param opts? { bufnr?: integer, scope?: "statement"|"selection"|"buffer", text?: string, request?: SqlServerQueryRequest }
+---@param opts? { bufnr?: integer, scope?: "statement"|"selection"|"buffer", text?: string, request?: SqlServerQueryRequest, _present?: fun(execution: table): boolean }
 ---@param callback fun(result?: table, error?: table)
 function M.execute(opts, callback)
   opts = opts or {}
   run("query_failed", callback, function()
     local workspace = get_workspace(opts.bufnr)
-    local raw = workspace.execute_async(execution_request(opts))
+    local raw, lifecycle = workspace.execute_async(execution_request(opts), { defer_completion = true })
     if not raw then
       return { cancelled = true, result_sets = {} }
     end
+    lifecycle.update("loading_results", "Loading query results")
     local configured = require_config()
     local query_id = raw._sqlserver_query_id
     local collected_ok, collected =
       pcall(result_sets.collect_async, raw, configured.results.max_rows, workspace.fetch_result_rows_async)
     if not collected_ok then
       pcall(workspace.dispose_query_async, query_id)
+      lifecycle.fail("Loading query results failed", collected)
       error(collected, 0)
     end
     for _, result_set in ipairs(collected) do
@@ -177,9 +179,24 @@ function M.execute(opts, callback)
         return workspace.release_query(query_id)
       end,
     }
+    if opts._present then
+      if not lifecycle.update("rendering_results", "Rendering query results") then
+        lifecycle.complete()
+        return { cancelled = true, result_sets = {} }
+      end
+      local presented, presentation_error = pcall(opts._present, execution)
+      if not presented then
+        execution.dispose()
+        lifecycle.fail("Rendering query results failed", presentation_error)
+        error(presentation_error, 0)
+      end
+    end
+
+    if not lifecycle.complete() then
+      return { cancelled = true, result_sets = {} }
+    end
     if #collected == 0 then
-      released = true
-      pcall(workspace.dispose_query_async, query_id)
+      execution.dispose()
     end
     return execution
   end)

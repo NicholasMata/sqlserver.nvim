@@ -960,12 +960,15 @@ local command_handlers = {
         connect_to_default(workspace, plugin_opts)
       end
       clear_message_buffer()
-      local execution = await_public(function(callback)
-        public_api.execute({ bufnr = workspace.bufnr, request = request }, callback)
+      await_public(function(callback)
+        public_api.execute({
+          bufnr = workspace.bufnr,
+          request = request,
+          _present = function(execution)
+            return query_results.show(execution.result_sets, plugin_opts, workspace.bufnr, execution.dispose)
+          end,
+        }, callback)
       end)
-      if not execution.cancelled then
-        query_results.show(execution.result_sets, plugin_opts, workspace.bufnr, execution.dispose)
-      end
     end))
   end,
 
@@ -981,12 +984,15 @@ local command_handlers = {
         connect_to_default(workspace, plugin_opts)
       end
       clear_message_buffer()
-      local execution = await_public(function(callback)
-        public_api.execute({ bufnr = workspace.bufnr, request = request }, callback)
+      await_public(function(callback)
+        public_api.execute({
+          bufnr = workspace.bufnr,
+          request = request,
+          _present = function(execution)
+            return query_results.show(execution.result_sets, plugin_opts, workspace.bufnr, execution.dispose)
+          end,
+        }, callback)
       end)
-      if not execution.cancelled then
-        query_results.show(execution.result_sets, plugin_opts, workspace.bufnr, execution.dispose)
-      end
     end))
   end,
 
@@ -1147,10 +1153,16 @@ local command_handlers = {
       workspace = workspace_registry.get(buf)
       if plugin_opts.execute_generated_select_statements and item.execute_immediately then
         clear_message_buffer()
-        local execution = await_public(function(api_callback)
-          public_api.execute({ bufnr = workspace.bufnr, text = item.script, scope = "buffer" }, api_callback)
+        await_public(function(api_callback)
+          public_api.execute({
+            bufnr = workspace.bufnr,
+            text = item.script,
+            scope = "buffer",
+            _present = function(execution)
+              return query_results.show(execution.result_sets, plugin_opts, workspace.bufnr, execution.dispose)
+            end,
+          }, api_callback)
         end)
-        query_results.show(execution.result_sets, plugin_opts, workspace.bufnr, execution.dispose)
       end
       if callback then
         callback()
