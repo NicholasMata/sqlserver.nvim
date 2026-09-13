@@ -3,6 +3,7 @@ local query_summary = require("sqlserver.queries.summary")
 local operations = require("sqlserver.workspace.operations")
 
 M.states = {
+  starting = "starting SQL Tools Service",
   disconnected = "disconnected",
   cancelling = "cancelling a query",
   connecting = "connecting",
@@ -14,10 +15,10 @@ M.states = {
 ---@field bufnr integer
 ---@field owner_uri string
 
----@param opts { bufnr: integer, backend: table, objects: table, activity_stream?: SqlServerActivityStream }
+---@param opts { bufnr: integer, backend: table, objects: table, activity_stream?: SqlServerActivityStream, service_pending?: boolean }
 ---@return SqlServerWorkspace
 function M.create(opts)
-  local state = M.states.disconnected
+  local state = opts.service_pending and M.states.starting or M.states.disconnected
   local connect_params
   local last_connect_params
   local backend = opts.backend
@@ -114,6 +115,55 @@ function M.create(opts)
     owner_uri = backend.owner_uri,
   }
 
+  local service_operation_id = opts.service_pending
+      and begin_operation("service", "SQL Tools Service", "Starting SQL Tools Service")
+    or nil
+
+  function workspace.service_ready()
+    if not service_operation_id then
+      return false
+    end
+    local operation = operation_manager.operation(service_operation_id)
+    service_operation_id = nil
+    set_state(M.states.disconnected)
+    return operation and operation.succeed({ phase = "ready", message = "SQL Tools Service ready" }) or false
+  end
+
+  function workspace.service_failed(message)
+    if not service_operation_id then
+      return false
+    end
+    local operation = operation_manager.operation(service_operation_id)
+    service_operation_id = nil
+    set_state(M.states.disconnected)
+    return operation
+        and operation.fail(
+          { code = "service_startup_failed", message = message },
+          { phase = "failed", message = message }
+        )
+      or false
+  end
+
+  function workspace.service_stopped(message)
+    if disposed then
+      return false
+    end
+    operation_manager.cancel_all({
+      phase = "cancelled",
+      message = "Operation cancelled because SQL Tools Service stopped",
+    })
+    connect_params = nil
+    set_state(M.states.disconnected)
+    local operation = operation_manager.create_operation({
+      kind = "service",
+      title = "SQL Tools Service",
+      message = message,
+      phase = "failed",
+      source_bufnr = opts.bufnr,
+    })
+    return operation.fail({ code = "service_stopped", message = message })
+  end
+
   function workspace.get_state()
     return state
   end
@@ -143,7 +193,18 @@ function M.create(opts)
     return connect_params and connect_params.connection and vim.deepcopy(connect_params.connection.options) or nil
   end
 
-  function workspace.connect_async(params)
+  local function complete_connection(operation_id)
+    if disposed then
+      return false
+    end
+    local operation = operation_manager.operation(operation_id)
+    set_state(M.states.connected)
+    return operation and operation.succeed({ phase = "ready", message = "Connected" }) or false
+  end
+
+  ---@param params table
+  ---@param execution_opts? { defer_completion?: boolean }
+  function workspace.connect_async(params, execution_opts)
     if state ~= M.states.disconnected then
       error("You are currently " .. state, 0)
     end
@@ -153,7 +214,15 @@ function M.create(opts)
     local operation_id = begin_operation("connection", "SQL Server connection", "Connecting")
     set_state(M.states.connecting)
     local ok, result = pcall(backend.connect_async, params)
+    if disposed then
+      return nil
+    end
+    if state ~= M.states.connecting then
+      pcall(backend.disconnect_async)
+      return nil
+    end
     if not ok then
+      pcall(backend.disconnect_async)
       connect_params = nil
       set_state(M.states.disconnected)
       if type(result) == "table" and result.diagnostic then
@@ -172,22 +241,64 @@ function M.create(opts)
       connect_params.connection.options.database = database
       connect_params.connection.options.DatabaseDisplayName = database
     end
-    set_state(M.states.connected)
-    finish_operation(operation_id, "success", "Connected")
+    local finished = false
+    local lifecycle = {}
+
+    function lifecycle.update(phase, message, details)
+      if finished or disposed or state ~= M.states.connecting then
+        return false
+      end
+      local operation = operation_manager.operation(operation_id)
+      return operation and operation.update({ phase = phase, message = message, details = details }) or false
+    end
+
+    function lifecycle.complete()
+      if finished then
+        return false
+      end
+      finished = true
+      return complete_connection(operation_id)
+    end
+
+    function lifecycle.fail(message, err)
+      if finished or disposed then
+        return false
+      end
+      finished = true
+      pcall(backend.disconnect_async)
+      connect_params = nil
+      set_state(M.states.disconnected)
+      local operation = operation_manager.operation(operation_id)
+      return operation
+          and operation.fail({ code = "connection_failed", message = message }, {
+            phase = "failed",
+            message = message,
+            details = {
+              error = type(err) == "table" and vim.deepcopy(err) or { message = tostring(err) },
+            },
+          })
+        or false
+    end
+
+    if execution_opts and execution_opts.defer_completion then
+      return result, lifecycle
+    end
+    lifecycle.complete()
+    return result
   end
 
   function workspace.can_reconnect()
     return last_connect_params ~= nil
   end
 
-  function workspace.reconnect_async()
+  function workspace.reconnect_async(execution_opts)
     if state ~= M.states.disconnected then
       error("You are currently " .. state, 0)
     end
     if not last_connect_params then
       error("No previous SQL Server connection is available", 0)
     end
-    return workspace.connect_async(vim.deepcopy(last_connect_params))
+    return workspace.connect_async(vim.deepcopy(last_connect_params), execution_opts)
   end
 
   function workspace.disconnect_async()
@@ -235,10 +346,10 @@ function M.create(opts)
     if state == M.states.executing then
       pcall(backend.cancel_async)
     end
-    if backend.dispose_query_async then
+    if state ~= M.states.starting and backend.dispose_query_async then
       pcall(backend.dispose_query_async)
     end
-    if state ~= M.states.disconnected then
+    if state ~= M.states.disconnected and state ~= M.states.starting then
       pcall(backend.disconnect_async)
     end
     operation_manager.dispose({ phase = "disposed", message = "Operation cancelled" })
@@ -392,31 +503,40 @@ function M.create(opts)
         },
       },
     })
-    objects.initialise_cache_async(backend.client, connect_params.connection.options)
   end
 
   function workspace.list_databases_async()
     return backend.list_databases_async()
   end
 
-  function workspace.initialise_objects_async(force)
+  function workspace.initialise_objects_async(force, refresh_opts)
     assert(connect_params, "Connect before loading database objects")
     if objects.is_refreshing(connect_params.connection.options) and not force then
       return
     end
-    local operation_id = begin_operation("metadata", "SQL Server metadata", "Refreshing database objects")
+    refresh_opts = refresh_opts or {}
+    local operation_id
+    if not refresh_opts.silent then
+      operation_id = begin_operation("metadata", "SQL Server metadata", "Refreshing database objects")
+    end
     local ok, result = pcall(objects.initialise_cache_async, backend.client, connect_params.connection.options, force)
     if not ok then
-      finish_operation(operation_id, "error", "Metadata refresh failed")
+      if operation_id then
+        finish_operation(operation_id, "error", "Metadata refresh failed")
+      end
       error(result, 0)
     end
     if result and result.cancelled then
-      finish_operation(operation_id, "cancelled", "Database object refresh cancelled")
+      if operation_id then
+        finish_operation(operation_id, "cancelled", "Database object refresh cancelled")
+      end
       return result
     end
     local message = result and result.count and string.format("Database objects refreshed (%d objects)", result.count)
       or "Database objects refreshed"
-    finish_operation(operation_id, "success", message)
+    if operation_id then
+      finish_operation(operation_id, "success", message)
+    end
     return result
   end
 
