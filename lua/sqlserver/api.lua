@@ -285,7 +285,7 @@ local function validate_result_selection(selection)
   end
 end
 
----@param opts { result_set?: SqlServerResultSet, bufnr?: integer, path: string, format?: string, selection?: SqlServerResultSelection }
+---@param opts { result_set?: SqlServerResultSet, bufnr?: integer, path: string, format?: string, selection?: SqlServerResultSelection, _present?: fun(path: string, format: string): any }
 ---@param callback fun(result?: table, error?: table)
 function M.export_results(opts, callback)
   opts = opts or {}
@@ -308,10 +308,30 @@ function M.export_results(opts, callback)
     if not workspace then
       error(api_error("result_unavailable", "The query workspace is no longer available for export"), 0)
     end
-    workspace.export_result_async(result_set.locator, opts.path, format, {
+    local _, lifecycle = workspace.export_result_async(result_set.locator, opts.path, format, {
       timeout = require_config().timeouts.export,
       selection = opts.selection,
+      defer_completion = opts._present ~= nil,
     })
+    if lifecycle == false then
+      error(api_error("export_cancelled", "Query result export was cancelled"), 0)
+    end
+    if lifecycle then
+      if not lifecycle.update("opening_buffer", "Opening export buffer") then
+        error(api_error("export_cancelled", "Query result export was cancelled"), 0)
+      end
+      local presented, presentation_result = pcall(opts._present, opts.path, format)
+      if not presented then
+        lifecycle.fail("Opening export buffer failed", presentation_result)
+        error(presentation_result, 0)
+      elseif presentation_result == false then
+        lifecycle.cancel("Export cancelled")
+        error(api_error("export_cancelled", "Query result export was cancelled"), 0)
+      end
+      if not lifecycle.complete() then
+        error(api_error("export_cancelled", "Query result export was cancelled"), 0)
+      end
+    end
     return { path = opts.path, format = format, selection = vim.deepcopy(opts.selection) }
   end)
 end

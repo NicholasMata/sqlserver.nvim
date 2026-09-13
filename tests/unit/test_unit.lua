@@ -26,6 +26,7 @@ local modules = {
   "result_html_spec",
   "clipboard_spec",
   "result_export_view_spec",
+  "export_lifecycle_spec",
   "result_session_spec",
   "result_winbar_spec",
   "result_sticky_header_spec",
