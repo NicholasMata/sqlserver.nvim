@@ -24,8 +24,9 @@ execution while keeping protocol, workspace, result, and UI concerns separate.
 - Connect query buffers to SQL Server and Azure SQL profiles.
 - Complete, diagnose, format, hover, navigate, and inspect T-SQL signatures
   through Neovim's built-in LSP support and SQL Tools Service.
-- Search and script tables, views, procedures, and functions in the connected
-  database.
+- Search, browse, and script tables, views, procedures, and functions in the
+  connected database. The hierarchical Object Explorer is available when
+  `snacks.nvim` is installed with its picker enabled.
 - Execute the statement under the cursor, a visual selection, or the complete
   buffer.
 - Cancel active queries and inspect persistent workspace activity.
@@ -57,6 +58,7 @@ Requires Neovim 0.11.7 or newer. With [lazy.nvim](https://github.com/folke/lazy.
 The tested SQL Tools Service release is pinned and installed automatically on
 first setup unless `tools_file` points to an existing executable. Override
 `tools_version` only when intentionally testing another upstream release.
+`snacks.nvim` is optional; only `:SQLServer ObjectExplorer` requires it.
 Create or edit connection profiles with:
 
 ```vim

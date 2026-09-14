@@ -42,4 +42,13 @@ function M.normalize_object_picker(value)
   error("ui.object_picker must be 'auto', 'select', 'snacks', or a function", 0)
 end
 
+---@param value table
+---@return table
+function M.normalize_object_explorer(value)
+  if type(value) ~= "table" then
+    error("ui.object_explorer must be a table of Snacks picker options", 0)
+  end
+  return vim.deepcopy(value)
+end
+
 return M

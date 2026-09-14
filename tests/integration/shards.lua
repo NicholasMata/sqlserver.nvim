@@ -33,6 +33,7 @@ M.connected = {
     "dbo_completion_spec",
     "switch_database_spec",
     "language_intelligence_spec",
+    "object_explorer_integration_spec",
     "finder_spec",
     "object_scripting_spec",
     "object_refresh_spec",

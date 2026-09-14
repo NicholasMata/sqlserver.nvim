@@ -12,12 +12,23 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   connections, queries, metadata, object scripting, and result exports.
 - Add configurable object selection with automatic Snacks integration,
   `vim.ui.select`, and custom picker providers.
+- Add an optional Snacks-backed Object Explorer that preserves SQL Tools
+  Service folder paths and lazily loads object details. Search includes
+  collapsed branches and retains parent context, with actions to expand or
+  collapse the loaded tree. Server-backed expansion uses the shared workspace
+  operation lifecycle. Press `K` for contextual query, definition, copy-name,
+  and detail-refresh actions while `<CR>` retains its default behavior.
 
 ### Changed
 
 - Keep connection status active until initial database metadata is ready, and
   show distinct startup, result-loading, rendering, scripting, and export
   phases through the winbar, activity stream, and native progress messages.
+- Keep Object Explorer visible while object scripts are generated, then present
+  fully populated query or definition buffers in the source workspace window.
+- Treat visible and hidden definition buffers consistently by offering to use
+  the existing buffer or open a numbered copy, while regenerating deleted
+  buffers without a collision prompt.
 - Prepare generated SQL, query-result, and text-export buffers outside the
   current window and display them only after their contents are complete.
 - Continue serving the previous object cache while an explicit metadata

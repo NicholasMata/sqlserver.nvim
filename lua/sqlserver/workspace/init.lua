@@ -634,6 +634,32 @@ function M.create(opts)
     return objects.list(connect_params.connection.options, filters)
   end
 
+  function workspace.list_object_children_async(object)
+    assert(connect_params, "Connect before expanding a database object")
+    local operation_id = begin_operation(
+      "metadata",
+      "SQL Server Object Explorer",
+      "Loading database object details",
+      "loading_object_details"
+    )
+    local loaded, result =
+      pcall(objects.list_children_async, backend.client, connect_params.connection.options, object.id)
+    if disposed then
+      return nil
+    end
+    if not loaded then
+      finish_operation(operation_id, "error", "Database object details failed", {
+        object_id = object.id,
+      })
+      error(result, 0)
+    end
+    finish_operation(operation_id, "success", "Database object details loaded", {
+      object_id = object.id,
+      node_count = #result,
+    })
+    return result
+  end
+
   function workspace.script_object_async(opts)
     assert(connect_params, "Connect before scripting a database object")
     local operation_id = begin_operation("object", "SQL Server object", "Generating object script", "generating_script")

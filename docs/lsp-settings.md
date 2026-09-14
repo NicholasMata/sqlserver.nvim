@@ -129,8 +129,7 @@ return {
   alignColumnDefinitionsInColumns = false,
  },
 
- --- NOTE: This plugin has no object explorer yet so the
- --- following options will have no effect!
+ --- SQL Tools Service settings used while loading Object Explorer nodes.
  objectExplorer = {
   --- Number of seconds to wait before fail create session request with timeout error
   createSessionTimeout = 45,
