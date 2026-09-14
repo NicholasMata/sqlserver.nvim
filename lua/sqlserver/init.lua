@@ -7,6 +7,7 @@ local sql_keymaps = require("sqlserver.ui.keymaps")
 local commands = require("sqlserver.ui.commands")
 local default_opts = require("sqlserver.config.defaults")
 local finder = require("sqlserver.objects.ui.picker")
+local object_explorer = require("sqlserver.objects.ui.explorer")
 local sql_tools_service = require("sqlserver.adapters.sql_tools_service.client")
 local query_backend = require("sqlserver.adapters.sql_tools_service.query")
 local backend_proxy = require("sqlserver.adapters.sql_tools_service.backend_proxy")
@@ -233,6 +234,7 @@ local function set_auto_commands(opts)
   vim.api.nvim_create_autocmd("BufDelete", {
     group = "AutoNameSQL",
     callback = function(args)
+      object_explorer.close(args.buf)
       local workspace = workspace_registry.detach(args.buf)
       pending_backends[args.buf] = nil
       workspace_clients[args.buf] = nil
@@ -386,6 +388,7 @@ local function setup_async(opts)
   end
   opts.timeouts = timeout_options.normalize(opts.timeouts)
   opts.ui.object_picker = ui_options.normalize_object_picker(opts.ui.object_picker)
+  opts.ui.object_explorer = ui_options.normalize_object_explorer(opts.ui.object_explorer)
   finder.setup(opts.timeouts, opts.ui.object_picker)
   query_results.setup(opts.results)
   opts.ui.winbar = ui_options.normalize_winbar(opts.ui.winbar)
@@ -517,6 +520,7 @@ local function switch_database_async(buf)
 
   local db = utils.ui_select_async(workspace.list_databases_async(), { prompt = "Choose database" })
   utils.safe_assert(db, "No database chosen")
+  object_explorer.close(buf)
 
   -- get the connect params first, because they get set
   -- to nil when we disconnect
@@ -601,9 +605,19 @@ local function sanitized_definition_name(object)
 end
 
 local function buffer_named(name)
-  return vim.iter(vim.api.nvim_list_bufs()):find(function(bufnr)
-    return vim.api.nvim_buf_is_valid(bufnr) and vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t") == name
-  end)
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_valid(bufnr) and vim.fn.fnamemodify(vim.api.nvim_buf_get_name(bufnr), ":t") == name then
+      if vim.api.nvim_buf_is_loaded(bufnr) then
+        return bufnr
+      end
+
+      -- :bdelete and :bunload can leave a valid buffer handle and its name
+      -- behind. It is no longer reusable, and retaining the name would also
+      -- prevent the replacement buffer from claiming it.
+      pcall(vim.api.nvim_buf_delete, bufnr, { force = true })
+    end
+  end
+  return nil
 end
 
 local function focus_buffer(bufnr)
@@ -631,10 +645,10 @@ local function open_object_definition_async(source_workspace, item)
   local name = sanitized_definition_name(item.object)
   local existing = buffer_named(name)
   if existing then
-    local choice = utils.ui_select_async({ "Focus open buffer", "Open another buffer" }, {
-      prompt = name .. " is already open",
+    local choice = utils.ui_select_async({ "Use existing buffer", "Open another buffer" }, {
+      prompt = name .. " already exists",
     })
-    if choice == "Focus open buffer" then
+    if choice == "Use existing buffer" then
       focus_buffer(existing)
       return existing
     elseif choice ~= "Open another buffer" then
@@ -663,6 +677,7 @@ local function open_object_definition_async(source_workspace, item)
     transaction.rollback()
     error(prepare_error, 0)
   end
+  focus_buffer(source_workspace.bufnr)
   transaction.commit()
   return transaction.bufnr
 end
@@ -707,13 +722,18 @@ end
 
 --- If the current buffer is empty, put the query into this buffer. Otherwise,
 --- Open a new buffer with the same connection and put the query there
-local function insert_query_into_buffer(query)
-  if vim.trim(table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false))) == "" then
-    vim.api.nvim_buf_set_lines(0, 0, 0, false, vim.split(query, "\n"))
-    return 0
+local function insert_query_into_buffer(query, source_workspace)
+  local source_bufnr = source_workspace and source_workspace.bufnr or vim.api.nvim_get_current_buf()
+  if
+    vim.api.nvim_buf_is_valid(source_bufnr)
+    and vim.trim(table.concat(vim.api.nvim_buf_get_lines(source_bufnr, 0, -1, false))) == ""
+  then
+    focus_buffer(source_bufnr)
+    vim.api.nvim_buf_set_lines(source_bufnr, 0, 0, false, vim.split(query, "\n"))
+    return source_bufnr
   end
 
-  local workspace = workspace_registry.get()
+  local workspace = source_workspace or workspace_registry.get()
   if not workspace then
     error("Connect to a database first", 0)
   end
@@ -729,8 +749,28 @@ local function insert_query_into_buffer(query)
     transaction.rollback()
     error(connection_error, 0)
   end
+  focus_buffer(source_workspace.bufnr)
   transaction.commit()
   return transaction.bufnr
+end
+
+local function open_object_query_async(source_workspace, item)
+  local buf = insert_query_into_buffer(item.script, source_workspace)
+  local query_workspace = workspace_registry.get(buf)
+  if plugin_opts.execute_generated_select_statements and item.execute_immediately then
+    clear_message_buffer()
+    await_public(function(api_callback)
+      public_api.execute({
+        bufnr = query_workspace.bufnr,
+        text = item.script,
+        scope = "buffer",
+        _present = function(execution)
+          return query_results.show(execution.result_sets, plugin_opts, query_workspace.bufnr, execution.dispose)
+        end,
+      }, api_callback)
+    end)
+  end
+  return buf
 end
 
 local function backup_database_async(workspace)
@@ -1043,6 +1083,7 @@ local command_handlers = {
       await_public(function(callback)
         public_api.disconnect(workspace.bufnr, callback)
       end)
+      object_explorer.close(workspace.bufnr)
       clean_cache()
     end))
   end,
@@ -1228,6 +1269,85 @@ local command_handlers = {
     end
   end,
 
+  object_explorer = function()
+    local workspace = workspace_registry.get()
+    if not workspace then
+      utils.log_error("No SQL Server workspace is attached to this buffer")
+      return
+    end
+    if workspace.get_state() ~= workspace_module.states.connected then
+      utils.log_error("You are currently " .. workspace.get_state())
+      return
+    end
+    if workspace.is_refreshing() and not workspace.has_object_cache() then
+      workspace.record_message("Database objects are still refreshing", false)
+      return
+    end
+
+    local connection, connection_error = public_api.current_connection(workspace.bufnr)
+    if connection_error then
+      utils.log_error(connection_error.message)
+      return
+    end
+    local picker, picker_error = object_explorer.open({
+      bufnr = workspace.bufnr,
+      connection = connection,
+      objects = workspace.list_objects(),
+      picker = plugin_opts.ui.object_explorer,
+      on_copy = function(text)
+        vim.fn.setreg("+", text, "v")
+      end,
+      on_error = utils.log_error,
+      on_refresh = function(callback)
+        public_api.refresh_objects(workspace.bufnr, function(_, err)
+          if err then
+            callback(nil, err)
+            return
+          end
+          callback(workspace.list_objects())
+        end)
+      end,
+      on_expand = function(object, callback)
+        utils.try_resume(coroutine.create(function()
+          local ok, children = pcall(workspace.list_object_children_async, object)
+          if not ok then
+            callback(nil, { message = tostring(children) })
+            return
+          end
+          callback(children)
+        end))
+      end,
+      on_query = function(object)
+        public_api.script_object({ bufnr = workspace.bufnr, object = object, intent = "query" }, function(item, err)
+          if err then
+            utils.log_error(err.message)
+            return
+          end
+          utils.try_resume(coroutine.create(function()
+            open_object_query_async(workspace, item)
+          end))
+        end)
+      end,
+      on_definition = function(object)
+        public_api.script_object(
+          { bufnr = workspace.bufnr, object = object, intent = "definition" },
+          function(item, err)
+            if err then
+              utils.log_error(err.message)
+              return
+            end
+            utils.try_resume(coroutine.create(function()
+              open_object_definition_async(workspace, item)
+            end))
+          end
+        )
+      end,
+    })
+    if not picker then
+      utils.log_error(picker_error)
+    end
+  end,
+
   find_object = function(callback)
     local workspace = workspace_registry.get()
     if not workspace then
@@ -1249,21 +1369,7 @@ local command_handlers = {
       if not item then
         return
       end
-      local buf = insert_query_into_buffer(item.script)
-      workspace = workspace_registry.get(buf)
-      if plugin_opts.execute_generated_select_statements and item.execute_immediately then
-        clear_message_buffer()
-        await_public(function(api_callback)
-          public_api.execute({
-            bufnr = workspace.bufnr,
-            text = item.script,
-            scope = "buffer",
-            _present = function(execution)
-              return query_results.show(execution.result_sets, plugin_opts, workspace.bufnr, execution.dispose)
-            end,
-          }, api_callback)
-        end)
-      end
+      open_object_query_async(workspace, item)
       if callback then
         callback()
       end

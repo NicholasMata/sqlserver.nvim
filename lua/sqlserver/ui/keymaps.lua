@@ -63,6 +63,12 @@ return {
         desc = "Object Definition",
         icon = { icon = "󰈙", color = "blue" },
       },
+      object_explorer = {
+        "b",
+        M.object_explorer,
+        desc = "Object Explorer",
+        icon = { icon = "󰙅", color = "blue" },
+      },
       show_results = {
         "v",
         M.show_results,
@@ -120,6 +126,7 @@ return {
               },
               keymaps.find_object,
               keymaps.object_definition,
+              keymaps.object_explorer,
             }
             if query_results.has_results(workspace.bufnr) then
               table.insert(items, keymaps.show_results)

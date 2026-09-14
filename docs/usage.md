@@ -42,6 +42,7 @@ executions is the query buffer's result history.
 | Normal | `<keymap_prefix>v` | `ShowResults` | Reopen the active retained execution |
 | Normal | `<keymap_prefix>f` | `Find` | Build a query for a selected database object |
 | Normal | `<keymap_prefix>o` | `ObjectDefinition` | Open a selected database object's definition |
+| Normal | `<keymap_prefix>b` | `ObjectExplorer` | Browse database objects in a hierarchical Snacks sidebar |
 | Normal | `<keymap_prefix>r` | `RefreshCache` | Refresh object and IntelliSense metadata |
 | Normal | `<keymap_prefix>a` | `Activity` | Toggle workspace activity |
 
@@ -198,9 +199,62 @@ Generated table and view queries execute immediately by default. Procedure
 calls are inserted but never executed automatically because they may have side
 effects. Definitions use `CREATE` scripting and open in dedicated editable SQL
 buffers named `<schema>.<object>.sql`. If that name is already open, choose to
-focus it or create a numbered buffer such as `dbo.Person (2).sql`.
+use the existing visible or hidden buffer, or create a numbered buffer such as
+`dbo.Person (2).sql`. A deleted buffer is generated again without a collision
+prompt.
 Individual-node refresh and generic `ALTER`/`DROP` actions are outside the 1.0
 scope.
+
+When `snacks.nvim` is installed with its picker enabled,
+`:SQLServer ObjectExplorer` opens a persistent sidebar for the current SQL
+buffer's connection. It preserves SQL Tools Service paths such as
+`Programmability > Stored Procedures` instead of flattening or regrouping
+them. The rest of sqlserver.nvim does not require Snacks.
+
+| Vim Mode | Mapping | Command | Description |
+| --- | --- | --- | --- |
+| Normal | `<CR>` | Snacks `confirm` | Build a runnable query for an object, or toggle a structural node |
+| Normal | `K` | `object_actions` | Open contextual actions for the selected object |
+| Normal | `l` | `object_toggle` | Expand or collapse a node, lazily loading table details |
+| Normal | `h` | `object_collapse` | Collapse the current node or its parent |
+| Normal | `L` | `object_expand_all` | Expand the complete tree, loading object details as needed |
+| Normal | `H` | `object_collapse_all` | Return to the compact server and database outline |
+| Normal | `d` | `object_definition` | Open the selected object's editable definition |
+| Normal | `r` | `object_refresh` | Refresh the complete metadata snapshot and redraw the tree |
+| Normal | `q` | Snacks `cancel` | Close the Object Explorer |
+
+Typing in the picker searches every loaded node, including nodes hidden below
+collapsed branches, and retains each match's parents for context. Tables load
+their SQL Tools Service children, such as Columns, Keys, and Indexes, only when
+expanded with `l` or as `L` traverses the complete tree.
+Each server-backed expansion participates in the workspace activity lifecycle,
+so slow loads, failures, and workspace disposal are reflected consistently with
+other asynchronous plugin work.
+
+### Supported Object Explorer scope
+
+The explorer deliberately covers the plugin's query and object-scripting
+workflow rather than SQL Server administration. Its selectable objects are
+tables, views, stored procedures, scalar-valued functions, and table-valued
+functions. Their folder placement and ordering come from SQL Tools Service.
+
+Expandable objects display every child returned by SQL Tools Service. With the
+pinned service, tables can expose Columns, Keys, Constraints, Indexes,
+Statistics, and Triggers. The service currently returns empty child collections
+when views, procedures, and functions are expanded, which the explorer handles
+as valid empty nodes. An unfamiliar child type from a future service version is
+still shown with a generic icon instead of being discarded.
+
+Server administration branches such as Security, Storage, Service Broker, and
+SQL Server Agent are outside the current Object Explorer scope.
+
+### Object actions
+
+Press `K` on an object to open a compact Snacks action menu beside the current
+tree row. Tables and views offer Select rows; procedures offer Create execution
+script; and functions offer Create query script. Every supported object also
+offers Show definition, Copy name, Copy qualified name, and Refresh details.
+`<CR>` remains the fast default query or execution-script action.
 
 ## Command reference
 
@@ -218,6 +272,7 @@ scope.
 | `SwitchDatabase` | Change database on the current server |
 | `Find` | Build a runnable query for a database object |
 | `ObjectDefinition` | Script a database object's definition |
+| `ObjectExplorer` | Browse the current database in a hierarchical Snacks sidebar |
 | `RefreshCache` | Refresh metadata and IntelliSense caches |
 | `EditConnections` | Edit connection profiles |
 | `ExportQueryResults` | Export the current result set |
