@@ -29,6 +29,7 @@ return {
   ui = {
     presenter = "default",
     object_picker = "auto",
+    object_explorer = {},
     winbar = true,
     native_progress = true,
     height = 12,

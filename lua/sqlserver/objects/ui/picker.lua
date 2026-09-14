@@ -8,14 +8,15 @@ local object_selector = require("sqlserver.objects.ui.select").select
 ---@param client vim.lsp.Client
 ---@param method string
 ---@param timeout integer|false
+---@param session_id? string
 ---@return any result
 ---@return lsp.ResponseError? error
-local wait_for_notification_async = function(client, method, timeout)
+local wait_for_notification_async = function(client, method, timeout, session_id)
   local this = coroutine.running()
   local resumed = false
   local handler
   handler = function(err, result, _)
-    if not resumed then
+    if not resumed and (not session_id or not result or not result.sessionId or result.sessionId == session_id) then
       resumed = true
       utils.unregister_lsp_handler(client, method, handler)
       utils.try_resume(this, result, err)
@@ -73,6 +74,63 @@ local get_session_async = function(client, connection_options)
     error("SQL Tools Service returned an invalid object explorer session", 0)
   end
   return response
+end
+
+local function expand_once_async(client, session_id, node_path)
+  local _, request_error = utils.lsp_request_async(client, "objectexplorer/expand", {
+    sessionId = session_id,
+    nodePath = node_path,
+  })
+  if request_error then
+    return nil, request_error
+  end
+  return wait_for_notification_async(client, "objectexplorer/expandCompleted", object_explorer_timeout, session_id)
+end
+
+local function list_children_async(client, connection_options, target_path)
+  utils.wait_for_schedule_async()
+  local session = get_session_async(client, connection_options)
+  local session_id = session.sessionId
+  local current_path = session.rootNode.nodePath
+  local children
+  local ok, failure = pcall(function()
+    while true do
+      local result, expand_error = expand_once_async(client, session_id, current_path)
+      if expand_error then
+        error(expand_error.message or tostring(expand_error), 0)
+      end
+      if not (result and type(result.nodes) == "table") then
+        error("SQL Tools Service returned an invalid object expansion", 0)
+      end
+      if current_path == target_path then
+        children = result.nodes
+        return
+      end
+      local next_node = vim.iter(result.nodes):find(function(candidate)
+        return type(candidate.nodePath) == "string"
+          and (candidate.nodePath == target_path or vim.startswith(target_path, candidate.nodePath .. "/"))
+      end)
+      if not next_node then
+        error("SQL Tools Service could not locate the selected object", 0)
+      end
+      current_path = next_node.nodePath
+    end
+  end)
+  client:request("objectexplorer/closesession", { sessionId = session_id }, function() end)
+  if not ok then
+    error(failure, 0)
+  end
+  return vim
+    .iter(children)
+    :map(function(child)
+      return {
+        id = child.nodePath,
+        label = child.label,
+        type = child.objectType or child.nodeType,
+        expandable = child.isLeaf == false,
+      }
+    end)
+    :totable()
 end
 
 --[[
@@ -139,7 +197,7 @@ local get_object_cache_async = function(lsp_client, connection_options, cancella
       return
     end
     finished = true
-    lsp_client:request("objectExplorer/closeSession", {
+    lsp_client:request("objectexplorer/closesession", {
       sessionId = session_id,
     }, function(close_err, result, _, _)
       session_id = nil
@@ -174,6 +232,9 @@ local get_object_cache_async = function(lsp_client, connection_options, cancella
 
   expand_complete = function(notification_err, expand_result, _)
     if finished then
+      return
+    end
+    if expand_result and expand_result.sessionId and expand_result.sessionId ~= session_id then
       return
     end
     if notification_err then
@@ -251,6 +312,7 @@ local function public_object(item)
     schema = metadata.schema,
     type = item.objectType or item.nodeType,
     path = item.picker_path,
+    expandable = item.isLeaf == false,
   }
 end
 
@@ -342,6 +404,12 @@ local initialise_cache_async = function(lsp_client, connection_options, force)
   -- cancel any currently running
   if global_cache[key].cancellation_token then
     global_cache[key].cancellation_token.cancel = true
+  end
+  while global_cache[key] and is_refreshing(key) do
+    utils.defer_async(10)
+  end
+  if not global_cache[key] then
+    global_cache[key] = {}
   end
   local cancellation_token = { cancel = false }
   global_cache[key].cancellation_token = cancellation_token
@@ -497,4 +565,5 @@ return {
   generate_script_async = generate_script_async,
   list = list_objects,
   script_async = script_object_async,
+  list_children_async = list_children_async,
 }

@@ -35,6 +35,8 @@ T["Snacks object picker completes through its close hook"] = function()
   snacks_picker.select({ title = "Objects", items = { item } }, function(value)
     selected = value
   end)
+  local action_format = opts.format({ label = "Show definition" })
+  assert(action_format[1][1] == "" and action_format[5][1] == "")
   local fake_picker = {
     close = function()
       opts.on_close()

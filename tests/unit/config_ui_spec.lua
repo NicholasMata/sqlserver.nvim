@@ -50,4 +50,15 @@ T["UI options should normalize object picker providers"] = function()
   assert(not ok and err:find("'auto'", 1, true))
 end
 
+T["UI options should normalize Object Explorer options"] = function()
+  local options = { layout = { preset = "right" } }
+  local normalized = ui_options.normalize_object_explorer(options)
+  assert(vim.deep_equal(normalized, options))
+  assert(normalized ~= options and normalized.layout ~= options.layout)
+
+  local ok, err = pcall(ui_options.normalize_object_explorer, true)
+  assert(not ok)
+  assert(tostring(err):find("ui.object_explorer must be a table", 1, true))
+end
+
 return T

@@ -96,4 +96,74 @@ T["Object scripting failures terminate their operation"] = function()
   workspace.dispose_async()
 end
 
+T["Object Explorer child loading uses the shared operation lifecycle"] = function()
+  local expected = { { id = "column-1", name = "ID" } }
+  local workspace, events = create_workspace({
+    list_children_async = function(client, connection, object_id)
+      assert(type(client) == "table")
+      assert(connection.database == "ApplicationDb")
+      assert(object_id == "table-1")
+      return expected
+    end,
+    is_refreshing = function()
+      return false
+    end,
+  })
+
+  assert(workspace.list_object_children_async({ id = "table-1" }) == expected)
+  assert(workspace.get_active_operation() == nil)
+  assert(events[#events].kind == "metadata")
+  assert(events[#events].title == "SQL Server Object Explorer")
+  assert(events[#events].phase == "loading_object_details")
+  assert(events[#events].status == "success")
+  assert(events[#events].message == "Database object details loaded")
+  assert(events[#events].object_id == "table-1")
+  assert(events[#events].node_count == 1)
+  workspace.dispose_async()
+end
+
+T["Object Explorer child loading failures terminate their operation"] = function()
+  local workspace, events = create_workspace({
+    list_children_async = function()
+      error("object expansion unavailable", 0)
+    end,
+    is_refreshing = function()
+      return false
+    end,
+  })
+
+  local ok, err = pcall(workspace.list_object_children_async, { id = "table-1" })
+  assert(not ok and err == "object expansion unavailable")
+  assert(workspace.get_active_operation() == nil)
+  assert(events[#events].kind == "metadata")
+  assert(events[#events].title == "SQL Server Object Explorer")
+  assert(events[#events].status == "error")
+  assert(events[#events].message == "Database object details failed")
+  assert(events[#events].object_id == "table-1")
+  workspace.dispose_async()
+end
+
+T["Workspace disposal cancels an active Object Explorer load"] = require("tests.helpers").async(function()
+  local loading_coroutine
+  local workspace, events = create_workspace({
+    list_children_async = function()
+      loading_coroutine = coroutine.running()
+      return coroutine.yield()
+    end,
+    is_refreshing = function()
+      return false
+    end,
+  })
+  local workflow = coroutine.create(function()
+    workspace.list_object_children_async({ id = "table-1" })
+  end)
+
+  assert(coroutine.resume(workflow))
+  assert(workspace.get_active_operation().title == "SQL Server Object Explorer")
+  workspace.dispose_async()
+  assert(events[#events].status == "cancelled")
+  assert(events[#events].phase == "disposed")
+  assert(coroutine.resume(loading_coroutine, {}))
+end)
+
 return T
