@@ -37,6 +37,7 @@ M.connected = {
     "object_scripting_spec",
     "object_refresh_spec",
     "use_query_spec",
+    "object_picker_snacks_integration_spec",
   },
 }
 
