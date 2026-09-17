@@ -8,6 +8,9 @@ function M.select(context, callback)
 
   local selected
   local completed = false
+  for _, item in ipairs(context.items) do
+    item.text = item.text or string.format("%s %s", item.label or "", item.path or "")
+  end
   local function complete()
     if completed then
       return

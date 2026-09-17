@@ -5,6 +5,8 @@ COMPOSE := docker compose -f tests/integration/compose.yaml
 TEST_ROOT := $(CURDIR)/.tests
 MINI_NVIM_DIR := $(TEST_ROOT)/deps/mini.nvim
 MINI_NVIM_COMMIT := 1345d191bb3da9c7b0e977f4387c5761f9bff68d
+SNACKS_NVIM_DIR := $(TEST_ROOT)/deps/snacks.nvim
+SNACKS_NVIM_COMMIT := 882c996cf28183f4d63640de0b4c02ec886d01f2
 LUACOV_DIR := $(TEST_ROOT)/deps/luacov
 LUACOV_COMMIT := b1f9eae400da976b93edb7f94cf5d05f538a0655
 COVERAGE_DIR := $(CURDIR)/coverage
@@ -22,7 +24,7 @@ export SQLSERVER_PORT ?= 1433
 .NOTPARALLEL: test-all test-integration-local coverage coverage-unit coverage-platform coverage-integration
 
 .PHONY: format format-check lint lint-doc-filenames
-.PHONY: test test-deps test-unit test-platform test-integration test-integration-shard test-integration-local test-all assert-no-process-leaks
+.PHONY: test test-deps test-snacks-deps test-unit test-platform test-integration test-integration-shard test-integration-local test-all assert-no-process-leaks
 .PHONY: test-env-up test-env-seed test-env-reset test-env-down
 .PHONY: coverage coverage-clean coverage-deps coverage-unit coverage-platform coverage-integration coverage-report
 .PHONY: coverage-run-unit coverage-run-platform coverage-run-integration coverage-run-integration-shard
@@ -48,6 +50,13 @@ test-deps:
 	}
 	@git -C "$(MINI_NVIM_DIR)" checkout --quiet "$(MINI_NVIM_COMMIT)"
 
+test-snacks-deps:
+	@test -f "$(SNACKS_NVIM_DIR)/lua/snacks/init.lua" || { \
+		mkdir -p "$(TEST_ROOT)/deps"; \
+		git clone --filter=blob:none https://github.com/folke/snacks.nvim.git "$(SNACKS_NVIM_DIR)"; \
+	}
+	@git -C "$(SNACKS_NVIM_DIR)" checkout --quiet "$(SNACKS_NVIM_COMMIT)"
+
 coverage-deps: test-deps
 	@test -f "$(LUACOV_DIR)/src/luacov.lua" || { \
 		mkdir -p "$(TEST_ROOT)/deps"; \
@@ -63,12 +72,12 @@ test-platform: test-deps
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=platform \
 		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
 
-test-integration: test-deps
+test-integration: test-deps test-snacks-deps
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=integration \
 		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
 	$(MAKE) assert-no-process-leaks
 
-test-integration-shard: test-deps
+test-integration-shard: test-deps $(if $(filter objects,$(SHARD)),test-snacks-deps)
 	@test -n "$(SHARD)" || { printf 'SHARD is required (core or objects)\n' >&2; exit 1; }
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=integration SQLSERVER_INTEGRATION_SHARD=$(SHARD) \
 		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
@@ -92,13 +101,13 @@ coverage-run-platform: coverage-deps
 		LUACOV_CONFIG=$(CURDIR)/.luacov \
 		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
 
-coverage-run-integration: coverage-deps
+coverage-run-integration: coverage-deps test-snacks-deps
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=integration SQLSERVER_COVERAGE=1 \
 		LUACOV_CONFIG=$(CURDIR)/.luacov \
 		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
 	$(MAKE) assert-no-process-leaks
 
-coverage-run-integration-shard: coverage-deps
+coverage-run-integration-shard: coverage-deps $(if $(filter objects,$(SHARD)),test-snacks-deps)
 	@test -n "$(SHARD)" || { printf 'SHARD is required (core or objects)\n' >&2; exit 1; }
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=integration SQLSERVER_INTEGRATION_SHARD=$(SHARD) SQLSERVER_COVERAGE=1 \
 		LUACOV_CONFIG=$(CURDIR)/.luacov \
