@@ -1279,73 +1279,84 @@ local command_handlers = {
       utils.log_error("You are currently " .. workspace.get_state())
       return
     end
-    if workspace.is_refreshing() and not workspace.has_object_cache() then
-      workspace.record_message("Database objects are still refreshing", false)
+    if object_explorer.focus(workspace.bufnr) then
       return
     end
-
-    local connection, connection_error = public_api.current_connection(workspace.bufnr)
-    if connection_error then
-      utils.log_error(connection_error.message)
-      return
-    end
-    local picker, picker_error = object_explorer.open({
-      bufnr = workspace.bufnr,
-      connection = connection,
-      objects = workspace.list_objects(),
-      picker = plugin_opts.ui.object_explorer,
-      on_copy = function(text)
-        vim.fn.setreg("+", text, "v")
-      end,
-      on_error = utils.log_error,
-      on_refresh = function(callback)
-        public_api.refresh_objects(workspace.bufnr, function(_, err)
-          if err then
-            callback(nil, err)
-            return
-          end
-          callback(workspace.list_objects())
-        end)
-      end,
-      on_expand = function(object, callback)
-        utils.try_resume(coroutine.create(function()
-          local ok, children = pcall(workspace.list_object_children_async, object)
-          if not ok then
-            callback(nil, { message = tostring(children) })
-            return
-          end
-          callback(children)
-        end))
-      end,
-      on_query = function(object)
-        public_api.script_object({ bufnr = workspace.bufnr, object = object, intent = "query" }, function(item, err)
-          if err then
-            utils.log_error(err.message)
-            return
-          end
+    utils.try_resume(coroutine.create(function()
+      local opened, session, root = pcall(workspace.open_object_explorer_async)
+      if not opened then
+        utils.log_error(tostring(session))
+        return
+      end
+      if not session then
+        return
+      end
+      local picker, picker_error = object_explorer.open({
+        bufnr = workspace.bufnr,
+        root = root,
+        picker = plugin_opts.ui.object_explorer,
+        is_active = function()
+          return workspace_registry.get(workspace.bufnr) == workspace
+            and workspace.get_state() == workspace_module.states.connected
+        end,
+        on_close = function()
+          workspace.close_object_explorer_session(session)
+        end,
+        on_copy = function(text)
+          vim.fn.setreg("+", text, "v")
+        end,
+        on_error = utils.log_error,
+        on_expand = function(node, force, callback)
           utils.try_resume(coroutine.create(function()
-            open_object_query_async(workspace, item)
+            local ok, children = pcall(
+              workspace.expand_object_explorer_async,
+              session,
+              node.nodePath,
+              force,
+              node.label,
+              table.concat(node.path_labels or { node.label }, " › ")
+            )
+            if ok then
+              callback(children)
+            else
+              callback(nil, {
+                message = type(children) == "table" and (children.message or vim.inspect(children))
+                  or tostring(children),
+              })
+            end
           end))
-        end)
-      end,
-      on_definition = function(object)
-        public_api.script_object(
-          { bufnr = workspace.bufnr, object = object, intent = "definition" },
-          function(item, err)
+        end,
+        on_query = function(object)
+          public_api.script_object({ bufnr = workspace.bufnr, object = object, intent = "query" }, function(item, err)
             if err then
               utils.log_error(err.message)
               return
             end
             utils.try_resume(coroutine.create(function()
-              open_object_definition_async(workspace, item)
+              open_object_query_async(workspace, item)
             end))
-          end
-        )
-      end,
-    })
-    if not picker then
-      utils.log_error(picker_error)
-    end
+          end)
+        end,
+        on_definition = function(object)
+          public_api.script_object(
+            { bufnr = workspace.bufnr, object = object, intent = "definition" },
+            function(item, err)
+              if err then
+                utils.log_error(err.message)
+                return
+              end
+              utils.try_resume(coroutine.create(function()
+                open_object_definition_async(workspace, item)
+              end))
+            end
+          )
+        end,
+      })
+      if not picker then
+        workspace.close_object_explorer_session(session)
+        utils.log_error(picker_error)
+      end
+    end))
   end,
 
   find_object = function(callback)

@@ -1,775 +1,346 @@
 local explorer = require("sqlserver.objects.ui.explorer")
+local model = require("sqlserver.objects.explorer")
 
 local T = MiniTest.new_set()
 
 local function with_snacks(fake, callback)
-  local previous_loaded = package.loaded.snacks
-  local previous_preload = package.preload.snacks
-  package.loaded.snacks = fake
-  package.preload.snacks = nil
+  local loaded, preload = package.loaded.snacks, package.preload.snacks
+  package.loaded.snacks, package.preload.snacks = fake, nil
   local ok, err = pcall(callback)
-  package.loaded.snacks = previous_loaded
-  package.preload.snacks = previous_preload
+  package.loaded.snacks, package.preload.snacks = loaded, preload
   assert(ok, err)
 end
 
-T["Object explorer reports unavailable Snacks without affecting setup"] = function()
-  local previous_loaded = package.loaded.snacks
-  local previous_preload = package.preload.snacks
+local function service_node(path, label, object_type, leaf, metadata)
+  return model.from_service({
+    nodePath = path,
+    parentNodePath = path:match("(.+)/[^/]+$"),
+    label = label,
+    objectType = object_type,
+    isLeaf = leaf,
+    metadata = metadata,
+  })
+end
+
+local function fake_snacks(callback)
+  local options
+  local picker = {
+    closed = false,
+    matcher = { opts = {} },
+    refresh_count = 0,
+    refresh = function(self)
+      self.refresh_count = self.refresh_count + 1
+    end,
+    focus = function() end,
+    close = function(self)
+      self.closed = true
+      if options.on_close then
+        options.on_close(self)
+      end
+    end,
+  }
+  with_snacks({
+    picker = {
+      format = {
+        tree = function()
+          return {}
+        end,
+      },
+      select = function(_, _, done)
+        done(nil)
+      end,
+      pick = function(opts)
+        options = opts
+        picker.matcher.opts = opts.matcher
+        return picker
+      end,
+    },
+  }, function()
+    callback(picker, function()
+      return options
+    end)
+  end)
+end
+
+T["Object Explorer reports unavailable Snacks"] = function()
+  local loaded, preload = package.loaded.snacks, package.preload.snacks
   package.loaded.snacks = nil
   package.preload.snacks = function()
     error("missing")
   end
-  local picker, err = explorer.open({ connection = {}, objects = {} })
-  package.loaded.snacks = previous_loaded
-  package.preload.snacks = previous_preload
+  local picker, err = explorer.open({ root = service_node("database", "TestDb", "Database", false) })
+  package.loaded.snacks, package.preload.snacks = loaded, preload
   assert(picker == nil)
   assert(err == "Object Explorer requires snacks.nvim with its picker enabled")
 end
 
-T["Object explorer rejects Snacks without its picker"] = function()
-  with_snacks({}, function()
-    local picker, err = explorer.open({ connection = {}, objects = {} })
-    assert(picker == nil)
-    assert(err == "Object Explorer requires snacks.nvim with its picker enabled")
+T["Object Explorer renders the service root without synthetic nodes"] = function()
+  fake_snacks(function(picker, get_options)
+    local root = service_node("server", "localhost", "Server", false)
+    local opened = explorer.open({ root = root })
+    assert(opened == picker)
+    local items = get_options().finder()
+    assert(#items == 1)
+    assert(items[1].node == root and items[1].id == "server" and items[1].label == "localhost")
   end)
 end
 
-T["Object explorer expands nodes and dispatches object actions"] = function()
-  local picker_options
-  local find_count = 0
-  local filter_empty = true
-  local picker = {
-    main = nil,
-    filter = function()
-      return {
-        is_empty = function()
-          return filter_empty
-        end,
-      }
-    end,
-    find = function()
-      find_count = find_count + 1
-    end,
-    norm = function(_, callback)
-      callback()
-    end,
-  }
-  local queried
-  local defined
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return {}
-        end,
+T["Object Explorer expands and collapses real service nodes"] = function()
+  fake_snacks(function(picker, get_options)
+    local root = service_node("database", "TestDb", "Database", false)
+    root.expanded = true
+    model.set_service_children(root, {
+      { nodePath = "database/Tables", label = "Tables", objectType = "Folder", isLeaf = false },
+    })
+    root.children[1].expanded = true
+    model.set_service_children(root.children[1], {
+      {
+        nodePath = "database/Tables/dbo.Person",
+        label = "Person",
+        objectType = "Table",
+        isLeaf = false,
+        metadata = { name = "Person", schema = "dbo", metadataTypeName = "Table" },
       },
-      pick = function(options)
-        picker_options = options
-        picker.matcher = { opts = options.matcher }
-        return picker
+    })
+    explorer.open({ root = root })
+    local options = get_options()
+    assert(#options.finder() == 3)
+
+    local tables = options.finder()[2]
+    options.actions.object_collapse(picker, tables)
+    assert(#options.finder() == 2)
+    tables = options.finder()[2]
+    options.actions.object_collapse(picker, tables)
+    assert(#options.finder() == 2)
+    options.actions.object_toggle(picker, tables)
+    assert(#options.finder() == 3)
+  end)
+end
+
+T["Object Explorer search renders only matches and their ancestors"] = function()
+  fake_snacks(function(picker, get_options)
+    local root = service_node("database", "TestDb", "Database", false)
+    root.expanded = true
+    model.set_service_children(root, {
+      { nodePath = "database/Tables", label = "Tables", objectType = "Folder", isLeaf = false },
+      { nodePath = "database/Views", label = "Views", objectType = "Folder", isLeaf = false },
+      { nodePath = "database/Procedures", label = "Stored Procedures", objectType = "Folder", isLeaf = false },
+    })
+    model.set_service_children(root.children[1], {
+      {
+        nodePath = "database/Tables/dbo.Person",
+        label = "dbo.Person",
+        objectType = "Table",
+        isLeaf = false,
+        metadata = { name = "Person", schema = "dbo", metadataTypeName = "Table" },
+      },
+    })
+    model.set_service_children(root.children[2], {
+      {
+        nodePath = "database/Views/dbo.Cars",
+        label = "dbo.Cars",
+        objectType = "View",
+        isLeaf = true,
+        metadata = { name = "Cars", schema = "dbo", metadataTypeName = "View" },
+      },
+    })
+    explorer.open({ root = root })
+    local options = get_options()
+
+    assert(options.filter.transform(picker, { pattern = "Person" }))
+    local found = options.finder()
+    assert(#found == 4 and found[1].search_all and found[1].label == "Search all objects…")
+    assert(found[2].label == "TestDb" and found[3].label == "Tables" and found[4].label == "dbo.Person")
+
+    assert(options.filter.transform(picker, { pattern = "Nothing" }))
+    local empty = options.finder()
+    assert(#empty == 2 and empty[1].search_all and empty[1].label == "Search all objects…")
+    assert(empty[2].placeholder and empty[2].label == "No matching loaded objects")
+    assert(options.format(empty[2], picker)[1][1] == "No matching loaded objects")
+    assert(options.actions.object_toggle(picker, empty[2]) == nil)
+    options.actions.object_collapse(picker, empty[2])
+    options.actions.object_actions(picker, empty[2])
+
+    assert(options.filter.transform(picker, { pattern = "" }))
+    assert(#options.finder() == 4)
+  end)
+end
+
+T["Object Explorer searches all nodes with progress cancellation and caching"] = function()
+  fake_snacks(function(picker, get_options)
+    local requests, completions = {}, {}
+    local root = service_node("database", "TestDb", "Database", false)
+    root.expanded = true
+    model.set_service_children(root, {
+      { nodePath = "database/Tables", label = "Tables", objectType = "Folder", isLeaf = false },
+      { nodePath = "database/Views", label = "Views", objectType = "Folder", isLeaf = false },
+    })
+    explorer.open({
+      root = root,
+      on_expand = function(node, _, done)
+        requests[#requests + 1] = node.nodePath
+        completions[node.nodePath] = done
       end,
-    },
-  }, function()
-    local opened, err = explorer.open({
-      connection = { server = "localhost", database = "TestDb" },
-      objects = { { id = "person", name = "Person", schema = "dbo", type = "Table", path = "Tables/" } },
-      on_query = function(object)
-        queried = object
-      end,
-      on_definition = function(object)
-        defined = object
-      end,
-      on_refresh = function() end,
       on_error = error,
     })
-    assert(opened == picker and err == nil)
+    local options = get_options()
+    options.filter.transform(picker, { pattern = "Missing" })
+    local search_all = options.finder()[1]
+    options.confirm(picker, search_all)
+    assert(vim.deep_equal(requests, { "database/Tables" }))
+    local loading = options.finder()
+    assert(loading[1].search_loading and loading[1].label:find("press c to cancel", 1, true))
 
-    local items = picker_options.finder()
-    assert(#items == 3)
-    assert(items[1].label == "localhost" and items[2].label == "TestDb")
-    assert(items[3].label == "Tables")
+    assert(options.actions.object_cancel_search(picker))
+    assert(options.finder()[1].label == "Cancelling object search…")
+    completions["database/Tables"]({
+      { nodePath = "database/Tables/dbo.Person", label = "dbo.Person", objectType = "Table", isLeaf = true },
+      { nodePath = "database/Tables/dbo.Person", label = "dbo.Person", objectType = "Table", isLeaf = true },
+    })
+    assert(root.children[1].loaded and #root.children[1].children == 1 and not root.children[2].loaded)
 
-    filter_empty = false
-    assert(picker_options.filter.transform(picker, picker:filter()))
-    assert(#picker_options.finder() == 4)
-    filter_empty = true
-    assert(picker_options.filter.transform(picker, picker:filter()))
-
-    picker_options.confirm(picker, items[3])
-    items = picker_options.finder()
-    assert(items[4].label == "Person")
-
-    picker_options.confirm(picker, items[4])
-    picker_options.actions.object_definition(picker, items[4])
+    search_all = options.finder()[1]
+    options.confirm(picker, search_all)
+    assert(vim.deep_equal(requests, { "database/Tables", "database/Views" }))
+    local refreshes_before_views = picker.refresh_count
+    completions["database/Views"]({
+      { nodePath = "database/Views/dbo.Cars", label = "dbo.Cars", objectType = "View", isLeaf = false },
+    })
+    completions["database/Views/dbo.Cars"]({})
     assert(vim.wait(1000, function()
-      return queried ~= nil and defined ~= nil
+      return picker.refresh_count == refreshes_before_views + 1
     end))
-    assert(queried.id == "person" and defined.id == "person")
-    assert(find_count == 1)
+    local complete = options.finder()
+    assert(#complete == 1 and complete[1].label == "No matching objects")
+    assert(not options.actions.object_cancel_search(picker))
   end)
 end
 
-T["Object explorer redraws through cursor-preserving refresh"] = function()
-  local picker_options
-  local refresh_count = 0
-  local cursor = 5
-  local picker = {
-    refresh = function()
-      assert(cursor == 5)
-      refresh_count = refresh_count + 1
-    end,
-    find = function()
-      error("Tree redraw bypassed cursor-preserving refresh")
-    end,
-    norm = function(_, callback)
-      callback()
-    end,
-  }
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return {}
-        end,
-      },
-      pick = function(options)
-        picker_options = options
-        picker.matcher = { opts = options.matcher }
-        return picker
-      end,
-    },
-  }, function()
+T["Object Explorer loads children by their service node path"] = function()
+  fake_snacks(function(_, get_options)
+    local requested
+    local root = service_node("database", "TestDb", "Database", false)
+    root.expanded = true
     explorer.open({
-      connection = { server = "localhost", database = "TestDb" },
-      objects = { { id = "person", name = "Person", schema = "dbo", type = "Table", path = "Tables/" } },
-      on_query = function() end,
-      on_definition = function() end,
-      on_refresh = function() end,
-      on_expand = function(_, callback)
-        callback({})
+      root = root,
+      on_expand = function(node, force, done)
+        requested = { path = node.nodePath, force = force }
+        done({ { nodePath = "database/Tables", label = "Tables", objectType = "Folder", isLeaf = false } })
       end,
       on_error = error,
     })
-    local function press(key)
-      local action = picker_options.win.list.keys[key]
-      picker_options.actions[action](picker)
-    end
-    press("L")
-    assert(#picker_options.finder() == 4)
-    press("H")
-    assert(#picker_options.finder() == 3)
-    assert(refresh_count == 3)
-    assert(picker_options.matcher.keep_parents == false)
-    assert(picker_options.win.list.keys.L == "object_expand_all")
-    assert(picker_options.win.list.keys.H == "object_collapse_all")
-    assert(picker_options.win.list.keys.E == nil and picker_options.win.list.keys.C == nil)
+    local options = get_options()
+    options.actions.object_toggle(nil, options.finder()[1])
+    assert(vim.deep_equal(requested, { path = "database", force = false }))
+    assert(options.finder()[2].id == "database/Tables")
   end)
 end
 
-T["Object explorer retains parents only while searching"] = function()
-  local picker_options
-  local filter_empty = true
-  local picker = {
-    matcher = { opts = {} },
-    filter = function()
-      return {
-        is_empty = function()
-          return filter_empty
-        end,
-      }
-    end,
-  }
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return {}
-        end,
-      },
-      pick = function(options)
-        picker_options = options
-        picker.matcher.opts = options.matcher
-        return picker
-      end,
-    },
-  }, function()
-    explorer.open({ connection = {}, objects = {} })
-    assert(not picker.matcher.opts.keep_parents)
-    filter_empty = false
-    assert(picker_options.filter.transform(picker, picker:filter()))
-    assert(picker.matcher.opts.keep_parents)
-    filter_empty = true
-    assert(picker_options.filter.transform(picker, picker:filter()))
-    assert(not picker.matcher.opts.keep_parents)
-  end)
-end
-
-T["Object explorer search retains tree order with ancestors"] = function()
-  local picker_options
-  local picker = { matcher = { opts = {} } }
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return {}
-        end,
-      },
-      pick = function(options)
-        picker_options = options
-        picker.matcher.opts = options.matcher
-        return picker
-      end,
-    },
-  }, function()
-    explorer.open({
-      connection = { server = "localhost", database = "TestDb" },
-      objects = {
-        { id = "person", name = "Person", schema = "dbo", type = "Table", path = "Tables/" },
-        { id = "person-view", name = "PersonView", schema = "dbo", type = "View", path = "Views/" },
-      },
+T["Object Explorer removes disclosure from a loaded empty node"] = function()
+  fake_snacks(function(_, get_options)
+    local root = service_node("database", "TestDb", "Database", false)
+    root.expanded = true
+    model.set_service_children(root, {
+      { nodePath = "database/Empty", label = "Empty", objectType = "Folder", isLeaf = false },
     })
-    picker_options.filter.transform(picker, {
-      is_empty = function()
-        return false
-      end,
-    })
-
-    local included = {}
-    for _, item in ipairs(picker_options.finder()) do
-      if item.label:find("Person", 1, true) then
-        local current = item
-        while current do
-          included[current.id] = current
-          current = current.parent
-        end
-      end
-    end
-    local visible = vim.tbl_values(included)
-    table.sort(visible, function(left, right)
-      return left.sort < right.sort
-    end)
-    assert(vim.deep_equal(
-      vim.tbl_map(function(item)
-        return item.label
-      end, visible),
-      { "localhost", "TestDb", "Tables", "Person", "Views", "PersonView" }
-    ))
-    assert(vim.deep_equal(picker_options.sort.fields, { "sort" }))
-  end)
-end
-
-T["Object explorer tree mappings work after searching"] = function()
-  local picker_options
-  local cleared_search = 0
-  local focused_list = 0
-  local picker = {
-    matcher = { opts = {} },
-    input = {
-      set = function(_, pattern, search)
-        assert(pattern == "" and search == "")
-        cleared_search = cleared_search + 1
-      end,
-    },
-    focus = function(_, target)
-      assert(target == "list")
-      focused_list = focused_list + 1
-    end,
-    refresh = function() end,
-    norm = function(_, callback)
-      callback()
-    end,
-  }
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return {}
-        end,
-      },
-      pick = function(options)
-        picker_options = options
-        picker.matcher.opts = options.matcher
-        return picker
-      end,
-    },
-  }, function()
     explorer.open({
-      connection = { server = "localhost", database = "TestDb" },
-      objects = { { id = "person", name = "Person", schema = "dbo", type = "Table", path = "Tables/" } },
-      on_expand = function(_, callback)
-        callback({})
-      end,
-    })
-    local tables = picker_options.finder()[3]
-    local function press(key, item)
-      local action = picker_options.win.list.keys[key]
-      assert(type(action) == "string")
-      picker_options.actions[action](picker, item)
-    end
-
-    assert(picker_options.filter.transform(picker, {
-      is_empty = function()
-        return false
-      end,
-    }))
-    press("l", tables)
-    assert(#picker_options.finder() == 4)
-    assert(cleared_search == 1 and focused_list == 1)
-    assert(picker_options.filter.transform(picker, {
-      is_empty = function()
-        return false
-      end,
-    }))
-    press("h", tables)
-    assert(#picker_options.finder() == 3)
-    assert(cleared_search == 2 and focused_list == 2)
-
-    assert(picker_options.filter.transform(picker, {
-      is_empty = function()
-        return false
-      end,
-    }))
-    press("L")
-    assert(#picker_options.finder() == 4)
-    assert(cleared_search == 3 and focused_list == 3)
-
-    assert(picker_options.filter.transform(picker, {
-      is_empty = function()
-        return false
-      end,
-    }))
-    press("H")
-    assert(#picker_options.finder() == 3)
-    assert(cleared_search == 4 and focused_list == 4)
-  end)
-end
-
-T["Object explorer focuses an existing workspace picker"] = function()
-  local pick_count = 0
-  local focus_count = 0
-  local picker = {
-    closed = false,
-    close = function(self)
-      self.closed = true
-    end,
-    focus = function(_, target)
-      assert(target == "list")
-      focus_count = focus_count + 1
-    end,
-  }
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return {}
-        end,
-      },
-      pick = function()
-        pick_count = pick_count + 1
-        return picker
-      end,
-    },
-  }, function()
-    local context = {
-      bufnr = 8123,
-      connection = {},
-      objects = {},
-      on_query = function() end,
-      on_definition = function() end,
-      on_refresh = function() end,
-      on_error = error,
-    }
-    explorer.open(context)
-    explorer.open(context)
-    assert(pick_count == 1 and focus_count == 1)
-    assert(explorer.close(context.bufnr))
-  end)
-end
-
-T["Object explorer refreshes its tree and accepts picker layout overrides"] = function()
-  local picker_options
-  local picker = {
-    filter = function()
-      return {
-        is_empty = function()
-          return true
-        end,
-      }
-    end,
-    find = function() end,
-    norm = function(_, callback)
-      callback()
-    end,
-  }
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return {}
-        end,
-      },
-      pick = function(options)
-        picker_options = options
-        return picker
-      end,
-    },
-  }, function()
-    explorer.open({
-      connection = { server = "localhost", database = "TestDb" },
-      objects = {},
-      picker = { layout = { preset = "right" } },
-      on_query = function() end,
-      on_definition = function() end,
-      on_refresh = function(callback)
-        callback({ { id = "person", name = "Person", schema = "dbo", type = "Table", path = "Tables/" } })
+      root = root,
+      on_expand = function(_, _, done)
+        done({})
       end,
       on_error = error,
     })
-    assert(picker_options.layout.preset == "right")
-    picker_options.actions.object_refresh(picker)
-    local items = picker_options.finder()
-    assert(items[1].label == "localhost")
-    assert(items[3].label == "Tables")
+    local options = get_options()
+    local empty = options.finder()[2]
+    assert(empty.node.isLeaf == false and not empty.node.loaded)
+    options.actions.object_toggle(nil, empty)
+    empty = options.finder()[2]
+    assert(empty.node.loaded and #empty.node.children == 0)
+    assert(options.actions.object_toggle(nil, empty) == nil)
+    local formatted = options.format(empty, {})
+    assert(formatted[1][1] == "  ")
   end)
 end
 
-T["Object explorer search includes every loaded detail type with ancestors"] = function()
-  local picker_options
-  local picker = {
-    closed = false,
-    matcher = { opts = {} },
-    refresh = function() end,
-    focus = function() end,
-    input = { set = function() end },
-  }
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return {}
-        end,
-      },
-      pick = function(options)
-        picker_options = options
-        picker.matcher.opts = options.matcher
-        return picker
-      end,
-    },
-  }, function()
+T["Object Explorer expands and collapses all lazy service nodes"] = function()
+  fake_snacks(function(picker, get_options)
+    local root = service_node("database", "TestDb", "Database", false)
+    root.expanded = true
+    model.set_service_children(root, {
+      { nodePath = "database/Tables", label = "Tables", objectType = "Tables", isLeaf = false },
+    })
+    local requested = {}
     explorer.open({
-      connection = { server = "localhost", database = "TestDb" },
-      objects = { { id = "person", name = "Person", type = "Table", path = "Tables/" } },
-      on_expand = function(object, callback)
-        if object.id == "person" then
-          callback({
-            { id = "columns", label = "Columns", type = "Folder", expandable = true },
-            { id = "keys", label = "Keys", type = "Folder", expandable = true },
-            { id = "constraints", label = "Constraints", type = "Folder", expandable = true },
-            { id = "indexes", label = "Indexes", type = "Folder", expandable = true },
-            { id = "statistics", label = "Statistics", type = "Folder", expandable = true },
-            { id = "triggers", label = "Triggers", type = "Folder", expandable = true },
-            { id = "future", label = "Future Detail", type = "FutureNode" },
+      root = root,
+      on_expand = function(node, _, done)
+        requested[#requested + 1] = node.nodePath
+        if node.label == "Tables" then
+          done({
+            { nodePath = node.nodePath .. "/dbo.Person", label = "dbo.Person", objectType = "Table", isLeaf = false },
           })
         else
-          callback({})
+          done({})
         end
       end,
       on_error = error,
     })
-    picker_options.actions.object_expand_all(picker)
-    picker_options.filter.transform(picker, {
-      is_empty = function()
-        return false
-      end,
-    })
+    local options = get_options()
+    options.actions.object_expand_all(picker)
+    assert(vim.deep_equal(requested, { "database/Tables", "database/Tables/dbo.Person" }))
+    assert(#options.finder() == 3)
 
-    local labels = vim.tbl_map(function(item)
-      return item.label
-    end, picker_options.finder())
-    for _, label in ipairs({
-      "localhost",
-      "TestDb",
-      "Tables",
-      "Person",
-      "Columns",
-      "Keys",
-      "Constraints",
-      "Indexes",
-      "Statistics",
-      "Triggers",
-      "Future Detail",
-    }) do
-      assert(vim.tbl_contains(labels, label), "Missing loaded search item: " .. label)
-    end
+    options.actions.object_collapse_all(picker)
+    local collapsed = options.finder()
+    assert(#collapsed == 2 and collapsed[1].label == "TestDb" and collapsed[2].label == "Tables")
   end)
 end
 
-T["Object explorer expand all continues after a child load failure"] = function()
-  local picker_options
-  local errors = {}
-  local loaded = {}
-  local picker = {
-    closed = false,
-    matcher = { opts = {} },
-    refresh = function() end,
-    focus = function() end,
-    input = { set = function() end },
-  }
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return {}
-        end,
-      },
-      pick = function(options)
-        picker_options = options
-        picker.matcher.opts = options.matcher
-        return picker
-      end,
-    },
-  }, function()
-    explorer.open({
-      connection = { server = "localhost", database = "TestDb" },
-      objects = {
-        { id = "broken", name = "Broken", type = "Table", path = "Tables/" },
-        { id = "healthy", name = "Healthy", type = "Table", path = "Tables/" },
-      },
-      on_expand = function(object, callback)
-        loaded[#loaded + 1] = object.id
-        if object.id == "broken" then
-          callback(nil, { message = "permission denied" })
-        else
-          callback({ { id = "healthy/Columns", label = "Columns", type = "Folder" } })
-        end
-      end,
-      on_error = function(message)
-        errors[#errors + 1] = message
-      end,
+T["Object Explorer suppresses duplicate loads and preserves collapse while loading"] = function()
+  fake_snacks(function(picker, get_options)
+    local root = service_node("database", "TestDb", "Database", false)
+    root.expanded = true
+    model.set_service_children(root, {
+      { nodePath = "database/Tables", label = "Tables", objectType = "Tables", isLeaf = false },
     })
-    picker_options.actions.object_expand_all(picker)
-    assert(vim.deep_equal(loaded, { "broken", "healthy" }))
-    assert(vim.deep_equal(errors, { "permission denied" }))
-    assert(vim.tbl_contains(
-      vim.tbl_map(function(item)
-        return item.label
-      end, picker_options.finder()),
-      "Columns"
-    ))
-  end)
-end
-
-T["Object explorer opens contextual actions with K"] = function()
-  local picker_options
-  local selected_title
-  local copied
-  local refreshed
-  local queried
-  local defined
-  local selected_action = "copy_qualified_name"
-  local picker = {
-    closed = false,
-    matcher = { opts = {} },
-    refresh = function() end,
-    norm = function()
-      error("Object action focused the source window before scripting completed")
-    end,
-  }
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return {}
-        end,
-      },
-      select = function(actions, opts, callback)
-        selected_title = opts.prompt
-        assert(opts.snacks.focus == "list")
-        assert(opts.snacks.layout.layout.relative == "cursor")
-        assert(opts.snacks.layout.layout[1].win == "list")
-        assert(opts.format_item(actions[1]):find(actions[1].label, 1, true))
-        callback(vim.iter(actions):find(function(action)
-          return action.id == selected_action
-        end))
-      end,
-      pick = function(options)
-        picker_options = options
-        picker.matcher.opts = options.matcher
-        return picker
-      end,
-    },
-  }, function()
+    local complete
+    local requests = 0
     explorer.open({
-      connection = { server = "localhost", database = "TestDb" },
-      objects = {
-        { id = "person", name = "Person", schema = "dbo", type = "Table", path = "Tables/" },
-      },
-      on_copy = function(text)
-        copied = text
-      end,
-      on_expand = function(object, callback)
-        refreshed = object
-        callback({})
-      end,
-      on_query = function(object)
-        queried = object
-      end,
-      on_definition = function(object)
-        defined = object
+      root = root,
+      on_expand = function(_, _, done)
+        requests = requests + 1
+        complete = done
       end,
       on_error = error,
     })
-    local tables = picker_options.finder()[3]
-    picker_options.actions.object_toggle(picker, tables)
-    local person = picker_options.finder()[4]
-    local action = picker_options.win.list.keys.K
-    assert(action == "object_actions")
-    picker_options.actions[action](picker, person)
-    assert(selected_title == "[dbo].[Person]")
-    assert(copied == "[dbo].[Person]")
+    local options = get_options()
+    local tables = options.finder()[2]
+    options.actions.object_toggle(picker, tables)
+    options.actions.object_toggle(picker, tables)
+    assert(requests == 1 and tables.node.loading)
 
-    selected_action = "query"
-    picker_options.actions[action](picker, person)
-    selected_action = "definition"
-    picker_options.actions[action](picker, person)
-    assert(vim.wait(1000, function()
-      return queried ~= nil and defined ~= nil
-    end))
-    selected_action = "refresh"
-    picker_options.actions[action](picker, person)
-    assert(refreshed == person.object)
-  end)
-end
-
-T["Object explorer covers formatting and defensive tree actions"] = function()
-  local picker_options
-  local errors = {}
-  local refresh_count = 0
-  local picker = {
-    closed = false,
-    matcher = { opts = {} },
-    find = function(_, opts)
-      assert(opts.refresh)
-      refresh_count = refresh_count + 1
-    end,
-    focus = function() end,
-    input = { set = function() end },
-  }
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return { { "tree" } }
-        end,
-      },
-      pick = function(options)
-        picker_options = options
-        picker.matcher.opts = options.matcher
-        return picker
-      end,
-    },
-  }, function()
-    explorer.open({
-      connection = { server = "localhost", database = "TestDb" },
-      objects = { { id = "person", name = "Person", type = "Table", path = "Tables/" } },
-      on_query = function() end,
-      on_definition = function() end,
-      on_expand = function(_, callback)
-        callback({ { id = "column", label = "ID", type = "Column" } })
-      end,
-      on_refresh = function(callback)
-        callback(nil, { message = "refresh failed" })
-      end,
-      on_error = function(message)
-        errors[#errors + 1] = message
-      end,
+    options.actions.object_collapse(picker, tables)
+    complete({
+      { nodePath = "database/Tables/dbo.Person", label = "dbo.Person", objectType = "Table", isLeaf = false },
     })
-
-    local items = picker_options.finder()
-    picker_options.actions.object_toggle(picker, nil)
-    picker_options.actions.object_toggle(picker, items[3])
-    local person = picker_options.finder()[4]
-    picker_options.actions.object_collapse_all(picker)
-    picker_options.actions.object_toggle(picker, picker_options.finder()[3])
-    person = picker_options.finder()[4]
-    picker_options.actions.object_toggle(picker, person)
-    local column = picker_options.finder()[5]
-    picker_options.actions.object_toggle(picker, column)
-
-    local formatted = picker_options.format(picker_options.finder()[4], picker)
-    assert(#formatted == 4)
-    assert(formatted[2][1] == " ")
-    assert(formatted[4][1] == "Person")
-
-    picker_options.actions.object_collapse(picker, column)
-    assert(#picker_options.finder() == 4)
-    picker_options.actions.object_collapse(picker, nil)
-    picker_options.actions.object_refresh(picker)
-    assert(vim.deep_equal(errors, { "refresh failed" }))
-    assert(refresh_count >= 3)
+    assert(tables.node.loaded and not tables.node.loading)
+    assert(#options.finder() == 2)
   end)
 end
 
-T["Object explorer reports lazy and contextual refresh failures"] = function()
+T["Object Explorer presents K actions in a cursor-relative context menu"] = function()
   local picker_options
-  local selected_action
-  local expansion_callbacks = {}
-  local errors = {}
-  local picker = { closed = false, matcher = { opts = {} }, refresh = function() end }
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return {}
-        end,
-      },
-      select = function(_, _, callback)
-        callback(selected_action)
-      end,
-      pick = function(options)
-        picker_options = options
-        return picker
-      end,
-    },
-  }, function()
-    explorer.open({
-      connection = {},
-      objects = { { id = "person", name = "Person", type = "Table", path = "Tables/" } },
-      on_expand = function(_, callback)
-        expansion_callbacks[#expansion_callbacks + 1] = callback
-      end,
-      on_error = function(message)
-        errors[#errors + 1] = message
-      end,
-    })
-    picker_options.actions.object_toggle(picker, picker_options.finder()[3])
-    local person = picker_options.finder()[4]
-    picker_options.actions.object_toggle(picker, person)
-    expansion_callbacks[1](nil, { message = "expand failed" })
-
-    selected_action = { id = "refresh" }
-    picker_options.actions.object_actions(picker, person)
-    expansion_callbacks[2](nil, { message = "detail refresh failed" })
-
-    picker_options.actions.object_actions(picker, person)
-    picker.closed = true
-    expansion_callbacks[3]({})
-    assert(vim.deep_equal(errors, { "expand failed", "detail refresh failed" }))
-  end)
-end
-
-T["Object explorer ignores callbacks after its picker closes"] = function()
-  local picker_options
-  local expand_callback
-  local refresh_callback
+  local selected_items
+  local selected_options
   local selected_callback
-  local refresh_count = 0
+  local restored_focus
+  local copied
   local picker = {
     closed = false,
     matcher = { opts = {} },
-    refresh = function()
-      refresh_count = refresh_count + 1
+    input = { win = { win = vim.api.nvim_get_current_win() } },
+    refresh = function() end,
+    focus = function(_, window)
+      restored_focus = window
     end,
   }
   with_snacks({
@@ -779,120 +350,75 @@ T["Object explorer ignores callbacks after its picker closes"] = function()
           return {}
         end,
       },
-      select = function(_, _, callback)
+      pick = function(options)
+        picker_options = options
+        picker.matcher.opts = options.matcher
+        return picker
+      end,
+      select = function(items, options, callback)
+        selected_items = items
+        selected_options = options
         selected_callback = callback
       end,
-      pick = function(options)
-        picker_options = options
-        return picker
-      end,
     },
   }, function()
-    explorer.open({
-      connection = {},
-      objects = { { id = "person", name = "Person", type = "Table", path = "Tables/" } },
-      on_expand = function(_, callback)
-        expand_callback = callback
-      end,
-      on_refresh = function(callback)
-        refresh_callback = callback
-      end,
-      on_error = error,
-    })
-    picker_options.actions.object_toggle(picker, picker_options.finder()[3])
-    local person = picker_options.finder()[4]
-    picker_options.actions.object_toggle(picker, person)
-    picker_options.actions.object_actions(picker, person)
-    picker_options.actions.object_refresh(picker)
-
-    picker.closed = true
-    local refreshes_before_close = refresh_count
-    expand_callback({})
-    refresh_callback({})
-    selected_callback({ id = "query" })
-    picker_options.actions.object_expand_all(picker)
-    assert(refresh_count == refreshes_before_close)
-  end)
-end
-
-T["Object explorer dispatches copy-name and ignores empty actions"] = function()
-  local picker_options
-  local selected_action
-  local copied = {}
-  local picker = { closed = false, matcher = { opts = {} }, refresh = function() end }
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return {}
-        end,
+    local root = service_node("database", "TestDb", "Database", false)
+    root.expanded = true
+    model.set_service_children(root, {
+      {
+        nodePath = "database/Tables/dbo.Person",
+        label = "dbo.Person",
+        objectType = "Table",
+        isLeaf = false,
+        metadata = { name = "Person", schema = "dbo", metadataTypeName = "Table" },
       },
-      select = function(_, _, callback)
-        callback(selected_action)
-      end,
-      pick = function(options)
-        picker_options = options
-        return picker
-      end,
-    },
-  }, function()
+    })
     explorer.open({
-      connection = {},
-      objects = { { id = "person", name = "Person", type = "Table", path = "Tables/" } },
+      root = root,
       on_copy = function(value)
-        copied[#copied + 1] = value
+        copied = value
       end,
     })
-    picker_options.actions.object_toggle(picker, picker_options.finder()[3])
-    local person = picker_options.finder()[4]
-    picker_options.actions.object_actions(picker, nil)
+    local person = picker_options.finder()[2]
     picker_options.actions.object_actions(picker, person)
-    selected_action = { id = "copy_name" }
-    picker_options.actions.object_actions(picker, person)
-    assert(vim.deep_equal(copied, { "Person" }))
+
+    assert(#selected_items > 1)
+    assert(selected_options.prompt == "[dbo].[Person]")
+    assert(selected_options.snacks.focus == "list")
+    local formatted = selected_options.snacks.format({ item = selected_items[1], idx = 1 })
+    assert(formatted[1][1] == selected_items[1].icon .. "  " .. selected_items[1].label)
+    assert(not formatted[1][1]:match("^%d+%."))
+    local layout = selected_options.snacks.layout.layout
+    assert(layout.relative == "cursor" and layout.row == 1 and layout.col == 0)
+    assert(layout.border == "rounded" and layout.title == "{title}" and layout.title_pos == "left")
+    assert(layout.height == #selected_items + 2 and layout[1].win == "list")
+    assert(selected_options.snacks.layout.preset == nil)
+    selected_callback(nil)
+    assert(vim.wait(1000, function()
+      return restored_focus == "input" and vim.fn.mode():find("^n") ~= nil
+    end))
+    restored_focus = nil
+    selected_callback(vim.iter(selected_items):find(function(action)
+      return action.id == "copy_qualified_name"
+    end))
+    assert(vim.wait(1000, function()
+      return copied == "[dbo].[Person]" and restored_focus == "input" and vim.fn.mode():find("^n") ~= nil
+    end))
   end)
 end
 
-T["Object explorer removes closed pickers and close is idempotent"] = function()
-  local picker_options
-  local configured_close_count = 0
-  local picker = {
-    closed = false,
-    close = function(self)
-      self.closed = true
-    end,
-  }
-  with_snacks({
-    picker = {
-      format = {
-        tree = function()
-          return {}
-        end,
-      },
-      pick = function(options)
-        picker_options = options
-        return picker
-      end,
-    },
-  }, function()
+T["Object Explorer closes its owning session callback"] = function()
+  fake_snacks(function(picker)
+    local closed = 0
     explorer.open({
-      bufnr = 9341,
-      connection = {},
-      objects = {},
-      picker = {
-        on_close = function(closed)
-          assert(closed == picker)
-          configured_close_count = configured_close_count + 1
-        end,
-      },
+      bufnr = 8123,
+      root = service_node("database", "TestDb", "Database", false),
+      on_close = function()
+        closed = closed + 1
+      end,
     })
-    picker_options.on_close(picker)
-    assert(configured_close_count == 1)
-    assert(not explorer.close(9341))
-
-    picker.closed = true
-    explorer.open({ bufnr = 9342, connection = {}, objects = {} })
-    assert(explorer.close(9342))
+    assert(explorer.close(8123))
+    assert(picker.closed and closed == 1)
   end)
 end
 

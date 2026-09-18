@@ -18,6 +18,7 @@ local modules = {
   "object_lifecycle_spec",
   "object_actions_spec",
   "object_explorer_adapter_spec",
+  "object_explorer_session_spec",
   "object_picker_spec",
   "object_explorer_model_spec",
   "object_explorer_ui_spec",

@@ -26,85 +26,75 @@ local detail_icons = {
   Triggers = "󰯂",
 }
 
-local function node(id, kind, label, icon, children, object, loadable, node_type)
+local actionable_types = {
+  ScalarValuedFunction = true,
+  StoredProcedure = true,
+  Table = true,
+  TableValuedFunction = true,
+  View = true,
+}
+
+local function icon_for(node_type)
+  return object_icons[node_type] or detail_icons[node_type] or "󰘦"
+end
+
+local function public_object(service_node)
+  if not actionable_types[service_node.objectType] then
+    return nil
+  end
+  local metadata = service_node.metadata
+  if type(metadata) ~= "table" or not (metadata.name and metadata.schema and metadata.metadataTypeName) then
+    return nil
+  end
   return {
-    id = id,
-    kind = kind,
-    label = label,
-    icon = icon,
-    children = children or {},
-    object = object,
-    loadable = loadable == true,
-    loaded = not loadable,
-    node_type = node_type,
+    id = service_node.nodePath,
+    name = metadata.name,
+    schema = metadata.schema,
+    type = service_node.objectType or metadata.metadataTypeName,
   }
 end
 
-local function path_segments(path)
-  local segments = {}
-  for segment in (path or ""):gmatch("[^/]+") do
-    segments[#segments + 1] = segment
-  end
-  return segments
-end
-
----@param connection table
----@param objects table[]
+---@param service_node table
 ---@return table
-function M.build(connection, objects)
-  connection = connection or {}
-  local server_name = connection.server or "SQL Server"
-  local database_name = connection.database or "Database"
-  local server = node("server:" .. server_name, "server", server_name, "")
-  local database = node(server.id .. "/database:" .. database_name, "database", database_name, "")
-  server.children = { database }
-
-  local folders = { [""] = database }
-  for _, object in ipairs(objects or {}) do
-    local parent = database
-    local path = ""
-    for _, segment in ipairs(path_segments(object.path)) do
-      path = path == "" and segment or path .. "/" .. segment
-      if not folders[path] then
-        folders[path] = node(database.id .. "/path:" .. path, "group", segment, "󰉋")
-        parent.children[#parent.children + 1] = folders[path]
-      end
-      parent = folders[path]
-    end
-    parent.children[#parent.children + 1] = node(
-      parent.id .. "/object:" .. object.id,
-      "object",
-      object.name,
-      object_icons[object.type] or "󰘦",
-      nil,
-      object,
-      object.expandable == true or object.type == "Table"
-    )
-  end
-
-  return server
+function M.from_service(service_node)
+  local result = vim.deepcopy(service_node)
+  assert(type(service_node.nodePath) == "string", "SQL Tools Service node has no nodePath")
+  result.id = service_node.nodePath
+  result.label = type(service_node.label) == "string" and service_node.label or result.id
+  result.path_labels = { result.label }
+  local node_type = type(service_node.objectType) == "string" and service_node.objectType
+    or type(service_node.nodeType) == "string" and service_node.nodeType
+    or nil
+  result.icon = icon_for(node_type)
+  result.children = nil
+  result.loaded = service_node.isLeaf == true
+  result.loading = false
+  result.expanded = false
+  result.object = public_object(service_node)
+  return result
 end
 
 ---@param parent table
----@param children table[]
-function M.set_children(parent, children)
-  local mapped = vim
-    .iter(children or {})
-    :map(function(child)
-      return node(
-        child.id,
-        "detail",
-        child.label,
-        detail_icons[child.type] or "󰘦",
-        nil,
-        nil,
-        child.expandable,
-        child.type
-      )
+---@param service_nodes table[]
+function M.set_service_children(parent, service_nodes)
+  local seen = {}
+  parent.children = vim
+    .iter(service_nodes or {})
+    :filter(function(service_node)
+      if type(service_node) ~= "table" or type(service_node.nodePath) ~= "string" or seen[service_node.nodePath] then
+        return false
+      end
+      seen[service_node.nodePath] = true
+      return true
     end)
+    :map(M.from_service)
     :totable()
-  parent.children = mapped
+  for _, child in ipairs(parent.children) do
+    child.path_labels = vim.deepcopy(parent.path_labels or { parent.label })
+    child.path_labels[#child.path_labels + 1] = child.label
+  end
   parent.loaded = true
+  parent.loading = false
 end
 
 return M

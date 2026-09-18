@@ -113,6 +113,48 @@ T["Object actions should build queries and definitions"] = require("tests.helper
   vim.api.nvim_buf_delete(reloaded_definition, { force = true })
 end)
 
+T["Public object API lists and queries every supported type"] = require("tests.helpers").async(function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  test_utils.await(function(callback)
+    sqlserver.disconnect(bufnr, callback)
+  end)
+  test_utils.connect(bufnr, "TestDbB")
+
+  local expected = {
+    { type = "Table", name = "Car", keyword = "SELECT" },
+    { type = "View", name = "CarView", keyword = "SELECT" },
+    { type = "StoredProcedure", name = "GetCar", keyword = "EXEC" },
+    { type = "ScalarValuedFunction", name = "GetCarMake", keyword = "SELECT" },
+    { type = "TableValuedFunction", name = "CarsForPerson", keyword = "SELECT" },
+  }
+  for _, item in ipairs(expected) do
+    local objects = test_utils.await(function(callback)
+      sqlserver.list_objects({
+        bufnr = bufnr,
+        name = item.name,
+        schema = "dbo",
+        type = item.type,
+      }, callback)
+    end)
+    assert(#objects == 1)
+    local object = objects[1]
+    assert(object.id and object.name == item.name and object.schema == "dbo" and object.type == item.type)
+    assert(type(object.path) == "string" and object.path ~= "")
+    assert(not vim.inspect(object):find("password", 1, true))
+
+    local scripted = test_utils.await(function(callback)
+      sqlserver.script_object({ bufnr = bufnr, object = object, intent = "query" }, callback)
+    end)
+    assert(scripted.object.id == object.id)
+    assert(scripted.script:upper():find(item.keyword, 1, true))
+  end
+
+  local empty = test_utils.await(function(callback)
+    sqlserver.list_objects({ bufnr = bufnr, name = "ObjectThatDoesNotExist", schema = "dbo" }, callback)
+  end)
+  assert(vim.deep_equal(empty, {}))
+end)
+
 T["Object definitions should surface SQL Tools Service errors"] = require("tests.helpers").async(function()
   local admin_bufnr = vim.api.nvim_get_current_buf()
   test_utils.await(function(callback)

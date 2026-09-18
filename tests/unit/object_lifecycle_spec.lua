@@ -166,4 +166,41 @@ T["Workspace disposal cancels an active Object Explorer load"] = require("tests.
   assert(coroutine.resume(loading_coroutine, {}))
 end)
 
+T["Object Explorer expansion activity identifies its node"] = require("tests.helpers").async(function()
+  local expansion_coroutine
+  local session = {
+    expand_async = function(node_path)
+      assert(node_path == "database/Tables")
+      expansion_coroutine = coroutine.running()
+      return coroutine.yield()
+    end,
+    close = function() end,
+  }
+  local workspace, events = create_workspace({
+    open_explorer_async = function()
+      return session, { nodePath = "database", label = "ApplicationDb" }
+    end,
+    is_refreshing = function()
+      return false
+    end,
+  })
+  workspace.open_object_explorer_async()
+
+  local result
+  local workflow = coroutine.create(function()
+    result =
+      workspace.expand_object_explorer_async(session, "database/Tables", false, "Tables", "ApplicationDb › Tables")
+  end)
+  assert(coroutine.resume(workflow))
+  assert(workspace.get_active_operation().message == "Loading database object")
+  assert(events[#events].message == "ApplicationDb › Tables · Loading")
+  assert(coroutine.resume(expansion_coroutine, { { nodePath = "database/Tables/dbo.Person" } }))
+  assert(#result == 1)
+  assert(events[#events].message == "ApplicationDb › Tables · Loaded")
+  assert(events[#events].node_path == "database/Tables")
+  assert(events[#events].node_label == "Tables")
+
+  workspace.dispose_async()
+end)
+
 return T

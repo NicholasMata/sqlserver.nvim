@@ -47,6 +47,9 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
   }
   local refreshing = false
   local has_cache = true
+  local listed_connection
+  local listed_filters
+  local script_failure
   local objects = {
     initialise_cache_async = function()
       return { cancelled = false, count = 1 }
@@ -57,10 +60,15 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
     has_cache = function()
       return has_cache
     end,
-    list = function(_, filters)
+    list = function(connection, filters)
+      listed_connection = connection
+      listed_filters = filters
       return { { id = "table-1", name = filters.name or "Person", schema = "dbo", type = "Table" } }
     end,
     script_async = function(_, _, _, opts)
+      if script_failure then
+        error(script_failure, 0)
+      end
       return { script = "SELECT * FROM dbo.Person", intent = opts.intent }
     end,
   }
@@ -152,9 +160,11 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
   assert(disposed_query_id == 3)
 
   local listed = completed(function(callback)
-    api.list_objects({ bufnr = 321, name = "Person" }, callback)
+    api.list_objects({ bufnr = 321, name = "Person", schema = "dbo", type = "Table" }, callback)
   end)
   assert(listed[1].id == "table-1")
+  assert(listed_connection.server == "localhost" and listed_connection.database == "ApplicationDb")
+  assert(vim.deep_equal(listed_filters, { name = "Person", schema = "dbo", type = "Table" }))
   refreshing = true
   has_cache = false
   local _, refreshing_error = completed(function(callback)
@@ -171,6 +181,13 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
     api.script_object({ bufnr = 321, id = "table-1", intent = "query" }, callback)
   end)
   assert(scripted.script == "SELECT * FROM dbo.Person" and scripted.intent == "query")
+  script_failure = "SQL Server object was not found in the current metadata cache"
+  local _, missing_object_error = completed(function(callback)
+    api.script_object({ bufnr = 321, id = "missing", intent = "definition" }, callback)
+  end)
+  assert(missing_object_error.code == "object_script_failed")
+  assert(missing_object_error.message:find("was not found", 1, true))
+  script_failure = nil
 
   local export_result = completed(function(callback)
     api.export_results({
@@ -204,6 +221,16 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
   completed(function(callback)
     api.disconnect(321, callback)
   end)
+  local _, disconnected_list_error = completed(function(callback)
+    api.list_objects({ bufnr = 321 }, callback)
+  end)
+  assert(disconnected_list_error.code == "object_list_failed")
+  assert(disconnected_list_error.message:find("Connect before listing", 1, true))
+  local _, disconnected_script_error = completed(function(callback)
+    api.script_object({ bufnr = 321, id = "table-1" }, callback)
+  end)
+  assert(disconnected_script_error.code == "object_script_failed")
+  assert(disconnected_script_error.message:find("Connect before scripting", 1, true))
   local _, profile_error = completed(function(callback)
     api.connect("missing", { bufnr = 321 }, callback)
   end)
@@ -215,6 +242,11 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
   registry.detach(321)
   local _, workspace_error = api.current_connection(321)
   assert(workspace_error.code == "workspace_not_found")
+  local _, missing_workspace_list_error = completed(function(callback)
+    api.list_objects({ bufnr = 321 }, callback)
+  end)
+  assert(missing_workspace_list_error.code == "workspace_not_found")
+  assert(missing_workspace_list_error.message:find("workspace is attached", 1, true))
 end)
 
 return T

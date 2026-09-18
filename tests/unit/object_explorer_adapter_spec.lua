@@ -22,7 +22,11 @@ local function client_for(opts)
         callback(response.request_error, {})
         if not response.request_error then
           vim.schedule(function()
-            self.handlers["objectexplorer/expandCompleted"](response.error, response.result, {})
+            if response.disconnected then
+              self.handlers["objectexplorer/sessionDisconnected"](nil, response.disconnected, {})
+            else
+              self.handlers["objectexplorer/expandCompleted"](response.error, response.result, {})
+            end
           end)
         end
       end)
@@ -110,6 +114,22 @@ T["Object Explorer child loading reports protocol failures"] = require("tests.he
       client = client_for({
         session = { sessionId = "request-error", rootNode = { objectType = "Database", nodePath = target } },
         expansions = { [target] = { request_error = { message = "expand failed" } } },
+      }),
+    },
+    {
+      expected = "connection lost",
+      client = client_for({
+        session = { sessionId = "disconnected", rootNode = { objectType = "Database", nodePath = target } },
+        expansions = {
+          [target] = { disconnected = { sessionId = "disconnected", errorMessage = "connection lost" } },
+        },
+      }),
+    },
+    {
+      expected = "Object Explorer session disconnected",
+      client = client_for({
+        session = { sessionId = "disconnected", rootNode = { objectType = "Database", nodePath = target } },
+        expansions = { [target] = { disconnected = { sessionId = "disconnected" } } },
       }),
     },
     {

@@ -1,8 +1,20 @@
 local utils = require("sqlserver.utils")
 local object_script = require("sqlserver.objects.script")
 local scripting = require("sqlserver.adapters.sql_tools_service.scripting")
+local explorer_adapter = require("sqlserver.adapters.sql_tools_service.object_explorer")
+local explorer_model = require("sqlserver.objects.explorer")
 local object_explorer_timeout = 10000
 local object_selector = require("sqlserver.objects.ui.select").select
+
+local function open_explorer_async(client, connection_options)
+  local session = explorer_adapter.open_async(client, connection_options)
+  local root = explorer_model.from_service(session.root)
+  if root.objectType == "Database" then
+    explorer_model.set_service_children(root, session.expand_async(root.nodePath))
+    root.expanded = true
+  end
+  return session, root
+end
 
 ---Same as utils.wait_for_notification_async but ignores any owner uri
 ---@param client vim.lsp.Client
@@ -15,20 +27,41 @@ local wait_for_notification_async = function(client, method, timeout, session_id
   local this = coroutine.running()
   local resumed = false
   local handler
+  local disconnected_handler
+  local function unregister()
+    utils.unregister_lsp_handler(client, method, handler)
+    if disconnected_handler then
+      utils.unregister_lsp_handler(client, "objectexplorer/sessionDisconnected", disconnected_handler)
+    end
+  end
   handler = function(err, result, _)
     if not resumed and (not session_id or not result or not result.sessionId or result.sessionId == session_id) then
       resumed = true
-      utils.unregister_lsp_handler(client, method, handler)
+      unregister()
       utils.try_resume(this, result, err)
     end
     return result, err
   end
   utils.register_lsp_handler(client, method, handler)
+  if session_id then
+    disconnected_handler = function(err, result)
+      if not resumed and (not result or not result.sessionId or result.sessionId == session_id) then
+        resumed = true
+        unregister()
+        local message = err and err.message
+          or result and (result.errorMessage or result.message)
+          or "The SQL Tools Service Object Explorer session disconnected"
+        utils.try_resume(this, nil, vim.lsp.rpc_response_error(vim.lsp.protocol.ErrorCodes.UnknownErrorCode, message))
+      end
+      return result, err
+    end
+    utils.register_lsp_handler(client, "objectexplorer/sessionDisconnected", disconnected_handler)
+  end
   if timeout then
     vim.defer_fn(function()
       if not resumed then
         resumed = true
-        utils.unregister_lsp_handler(client, method, handler)
+        unregister()
         utils.try_resume(
           this,
           nil,
@@ -555,6 +588,7 @@ end
 return {
   setup = function(timeouts, selector)
     object_explorer_timeout = timeouts.object_explorer
+    explorer_adapter.setup(timeouts)
     object_selector = selector or object_selector
   end,
   initialise_cache_async = initialise_cache_async,
@@ -566,4 +600,5 @@ return {
   list = list_objects,
   script_async = script_object_async,
   list_children_async = list_children_async,
+  open_explorer_async = open_explorer_async,
 }

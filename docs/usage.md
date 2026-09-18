@@ -167,6 +167,11 @@ leaving Neovim stops plugin-owned SQL Tools Service clients.
 
 A mixed query outcome uses a warning state while each underlying SQL error
 remains an error; an error-only execution uses the failed state.
+Each activity row includes its source, such as `Object Explorer · ApplicationDb
+› Tables › dbo.Person › Columns · Loading` or `Query · Query completed`,
+so concurrent asynchronous work remains distinguishable. Object Explorer
+activity uses tree breadcrumbs while the winbar deliberately keeps the compact
+`Loading database object` status.
 
 ## Language features
 
@@ -215,6 +220,7 @@ them. The rest of sqlserver.nvim does not require Snacks.
 | --- | --- | --- | --- |
 | Normal | `<CR>` | Snacks `confirm` | Build a runnable query for an object, or toggle a structural node |
 | Normal | `K` | `object_actions` | Open contextual actions for the selected object |
+| Normal | `c` | `object_cancel_search` | Cancel an active full-tree search load |
 | Normal | `l` | `object_toggle` | Expand or collapse a node, lazily loading table details |
 | Normal | `h` | `object_collapse` | Collapse the current node or its parent |
 | Normal | `L` | `object_expand_all` | Expand the complete tree, loading object details as needed |
@@ -223,10 +229,21 @@ them. The rest of sqlserver.nvim does not require Snacks.
 | Normal | `r` | `object_refresh` | Refresh the complete metadata snapshot and redraw the tree |
 | Normal | `q` | Snacks `cancel` | Close the Object Explorer |
 
-Typing in the picker searches every loaded node, including nodes hidden below
-collapsed branches, and retains each match's parents for context. Tables load
-their SQL Tools Service children, such as Columns, Keys, and Indexes, only when
-expanded with `l` or as `L` traverses the complete tree.
+Typing in the picker searches every currently loaded node, including nodes
+hidden below collapsed branches. The filtered tree preserves service order and
+shows only matching nodes and the ancestors needed to locate them. If unopened
+nodes remain, every search begins with a selectable `Search all objects…` row.
+When no loaded node matches, `No matching loaded objects` appears beneath it.
+Selecting the first row loads the remaining tree through the normal
+asynchronous Object Explorer lifecycle and reruns the current search. Progress
+remains visible in the explorer and `c` cancels the traversal after the active
+SQL Tools Service request completes.
+
+Loaded nodes are retained in the Object Explorer session, so later searches do
+not request them again. Once the entire tree is cached, an empty search displays
+`No matching objects`. Tables otherwise load their SQL Tools Service children,
+such as Columns, Keys, and Indexes, only when expanded with `l` or as `L`
+traverses the complete tree.
 Each server-backed expansion participates in the workspace activity lifecycle,
 so slow loads, failures, and workspace disposal are reflected consistently with
 other asynchronous plugin work.

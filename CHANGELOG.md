@@ -26,6 +26,9 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   phases through the winbar, activity stream, and native progress messages.
 - Keep Object Explorer visible while object scripts are generated, then present
   fully populated query or definition buffers in the source workspace window.
+- End pending Object Explorer expansion immediately when SQL Tools Service
+  disconnects its session, and ignore late callbacks after the source workspace
+  or explorer closes.
 - Treat visible and hidden definition buffers consistently by offering to use
   the existing buffer or open a numbered copy, while regenerating deleted
   buffers without a collision prompt.
