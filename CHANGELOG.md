@@ -13,11 +13,12 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Add configurable object selection with automatic Snacks integration,
   `vim.ui.select`, and custom picker providers.
 - Add an optional Snacks-backed Object Explorer that preserves SQL Tools
-  Service folder paths and lazily loads object details. Search includes
-  collapsed branches and retains parent context, with actions to expand or
-  collapse the loaded tree. Server-backed expansion uses the shared workspace
-  operation lifecycle. Press `K` for contextual query, definition, copy-name,
-  and detail-refresh actions while `<CR>` retains its default behavior.
+  Service folder paths and lazily loads object details. Search covers loaded
+  nodes while preserving their hierarchy, and can traverse and cache the
+  remaining tree with a cancellable `Search all objects…` action. Actions
+  expand or collapse the tree, and `K` offers contextual query, definition,
+  copy-name, and detail-refresh operations while `<CR>` retains its default
+  behavior.
 
 ### Changed
 
@@ -26,6 +27,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   phases through the winbar, activity stream, and native progress messages.
 - Keep Object Explorer visible while object scripts are generated, then present
   fully populated query or definition buffers in the source workspace window.
+- Show complete Object Explorer ancestry in activity entries while keeping the
+  corresponding winbar status compact.
 - End pending Object Explorer expansion immediately when SQL Tools Service
   disconnects its session, and ignore late callbacks after the source workspace
   or explorer closes.
