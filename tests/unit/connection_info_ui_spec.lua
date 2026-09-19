@@ -1,4 +1,5 @@
 local connection_info_ui = require("sqlserver.ui.connection_info")
+local activity_stream_module = require("sqlserver.workspace.activity_stream")
 
 local T = MiniTest.new_set()
 
@@ -26,6 +27,7 @@ T["Connection information view renders safe server metadata"] = function()
       os_version = "Linux",
       cpu_count = 8,
       physical_memory_mb = 4096,
+      options = vim.empty_dict(),
     },
   }
   local source_bufnr = vim.api.nvim_create_buf(false, true)
@@ -36,7 +38,8 @@ T["Connection information view renders safe server metadata"] = function()
     end,
   }
 
-  connection_info_ui.setup({ height = 10 })
+  local activity_stream = activity_stream_module.create()
+  connection_info_ui.setup({ height = 10 }, activity_stream)
   local bufnr = connection_info_ui.show(workspace)
   local contents = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
   assert(vim.bo[bufnr].filetype == "sqlserver-connection")
@@ -48,7 +51,9 @@ T["Connection information view renders safe server metadata"] = function()
   assert(contents:find("Supported         Yes", 1, true))
   assert(contents:find("Version           16.0.1000.6", 1, true))
   assert(contents:find("Cloud             No", 1, true))
+  assert(not contents:find("Azure version", 1, true))
   assert(contents:find("Physical memory   4096 MB", 1, true))
+  assert(contents:find("Options           —", 1, true))
   assert(not contents:lower():find("password", 1, true))
   assert(not contents:lower():find("token", 1, true))
 
@@ -56,11 +61,20 @@ T["Connection information view renders safe server metadata"] = function()
   assert(find_mapping(bufnr, "q").desc == "Close SQL Server connection information")
   assert(find_mapping(bufnr, "?").desc == "Show connection information mappings")
   assert(vim.api.nvim_win_get_height(0) == 10)
+  assert(vim.wo.number == false)
+  assert(vim.wo.relativenumber == false)
+  assert(vim.wo.signcolumn == "no")
 
   info.database = "ChangedDb"
   assert(connection_info_ui.render(source_bufnr))
   contents = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
   assert(contents:find("Database          ChangedDb", 1, true))
+
+  info = nil
+  activity_stream.publish(workspace, { kind = "connection", status = "success" })
+  contents = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
+  assert(contents:find("Not connected", 1, true))
+  assert(not contents:find("ChangedDb", 1, true))
 
   vim.api.nvim_buf_delete(source_bufnr, { force = true })
   assert(not vim.api.nvim_buf_is_valid(bufnr), "Deleting the SQL source must dispose its connection information")

@@ -2,6 +2,7 @@ local M = {}
 
 local config = { height = "auto" }
 local views = {}
+local unsubscribe
 
 local function value_or_dash(value)
   if value == nil or value == "" or value == vim.NIL then
@@ -11,6 +12,9 @@ local function value_or_dash(value)
     return value and "Yes" or "No"
   end
   if type(value) == "table" then
+    if vim.tbl_isempty(value) then
+      return "—"
+    end
     return vim.inspect(value, { newline = " ", indent = "" })
   end
   return tostring(value)
@@ -21,7 +25,10 @@ local function add_field(lines, label, value)
 end
 
 local function format_lines(workspace)
-  local info = workspace.get_connection_info() or {}
+  local info = workspace.get_connection_info()
+  if not info then
+    return { "SQL Server Connection", "", "Not connected" }
+  end
   local server = info.server_info or {}
   local lines = { "SQL Server Connection", "", "Connection" }
   add_field(lines, "Username", info.username)
@@ -38,7 +45,9 @@ local function format_lines(workspace)
   add_field(lines, "Level", server.level)
   add_field(lines, "Engine edition", server.engine_edition_id)
   add_field(lines, "Cloud", server.is_cloud)
-  add_field(lines, "Azure version", server.azure_version)
+  if server.is_cloud then
+    add_field(lines, "Azure version", server.azure_version)
+  end
   add_field(lines, "Machine", server.machine_name)
   add_field(lines, "Operating system", server.os_version)
   add_field(lines, "CPU count", server.cpu_count)
@@ -83,12 +92,24 @@ function M.render(source_bufnr)
   if not (view and vim.api.nvim_buf_is_valid(view.buffer)) then
     return false
   end
+  local lines = format_lines(view.workspace)
+  if vim.deep_equal(view.lines, lines) then
+    return true
+  end
   vim.api.nvim_set_option_value("readonly", false, { buf = view.buffer })
   vim.api.nvim_set_option_value("modifiable", true, { buf = view.buffer })
-  vim.api.nvim_buf_set_lines(view.buffer, 0, -1, false, format_lines(view.workspace))
+  vim.api.nvim_buf_set_lines(view.buffer, 0, -1, false, lines)
   vim.api.nvim_set_option_value("modifiable", false, { buf = view.buffer })
   vim.api.nvim_set_option_value("readonly", true, { buf = view.buffer })
+  view.lines = lines
   return true
+end
+
+local function on_activity(workspace)
+  local view = workspace and views[workspace.bufnr]
+  if view and view.window and vim.api.nvim_win_is_valid(view.window) then
+    M.render(workspace.bufnr)
+  end
 end
 
 ---@param workspace SqlServerWorkspace
@@ -129,6 +150,9 @@ function M.show(workspace)
     vim.api.nvim_set_current_win(view.window)
   else
     view.window = vim.api.nvim_open_win(view.buffer, true, { split = "below", win = 0 })
+    vim.api.nvim_set_option_value("number", false, { win = view.window })
+    vim.api.nvim_set_option_value("relativenumber", false, { win = view.window })
+    vim.api.nvim_set_option_value("signcolumn", "no", { win = view.window })
     local height = config.height
     if height == "auto" then
       height = math.min(#format_lines(workspace), math.max(1, math.floor(source_height * 0.5)))
@@ -139,8 +163,17 @@ function M.show(workspace)
   return view.buffer
 end
 
-function M.setup(opts)
+---@param opts? table
+---@param activity_stream? SqlServerActivityStream
+function M.setup(opts, activity_stream)
   config = vim.tbl_deep_extend("force", { height = "auto" }, opts or {})
+  if unsubscribe then
+    unsubscribe()
+    unsubscribe = nil
+  end
+  if activity_stream then
+    unsubscribe = activity_stream.subscribe(on_activity)
+  end
 end
 
 M.format_lines = format_lines

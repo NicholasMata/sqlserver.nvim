@@ -120,6 +120,7 @@ local function enable_lsp(opts)
 
       coroutine.resume(coroutine.create(function()
         workspace.connection_changed_async(result)
+        connection_info_ui.render(workspace.bufnr)
       end))
 
       clean_cache()
@@ -409,7 +410,7 @@ local function setup_async(opts)
     native_progress = opts.ui.native_progress,
   })
   activity_ui.setup(activity_opts)
-  connection_info_ui.setup(opts.ui.connection_info)
+  connection_info_ui.setup(opts.ui.connection_info, activity_stream)
   if opts.ui.presenter == "default" then
     status_ui.setup(opts.ui.winbar)
     activity_ui.setup(activity_opts, activity_stream)

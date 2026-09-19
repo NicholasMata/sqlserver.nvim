@@ -197,7 +197,9 @@ SQL Tools Service.
 The view includes the resolved username, server, database, SQL Server session
 ID, SQL Tools Service connection ID, supported-version status, server version,
 edition, engine information, and available host details. It never displays a
-password, access token, or connection string.
+password, access token, or connection string. Non-applicable server fields are
+omitted, empty values render as `—`, and a visible view updates when connection
+state changes.
 
 ## Language features
 

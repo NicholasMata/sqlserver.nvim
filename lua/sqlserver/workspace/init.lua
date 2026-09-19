@@ -491,6 +491,7 @@ function M.create(opts)
     if summary.has_error and summary.row_count == 0 and backend.is_connected_async then
       local probe_ok, connected = pcall(backend.is_connected_async)
       if not probe_ok or not connected then
+        connection_info = nil
         set_state(M.states.disconnected)
         finish_operation(operation_id, "error", "Connection lost", {
           server_duration_ms = summary.server_duration_ms,
@@ -536,6 +537,7 @@ function M.create(opts)
       return nil
     end
     if not ok then
+      connection_info = nil
       set_state(M.states.disconnected)
       if type(result) == "table" and result.diagnostic then
         workspace.record_message(result.diagnostic, false)

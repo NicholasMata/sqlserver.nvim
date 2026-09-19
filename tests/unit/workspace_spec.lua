@@ -169,6 +169,7 @@ T["Workspace should own connection and query state"] = require("tests.helpers").
   end
   workspace.execute_async({ kind = "buffer", text = "SELECT invalid" })
   assert(workspace.get_state() == workspace_module.states.disconnected)
+  assert(workspace.get_connection_info() == nil)
   assert(workspace.get_activity()[#workspace.get_activity()].message == "Connection lost")
 
   workspace.reconnect_async()
@@ -195,6 +196,7 @@ T["Workspace should own connection and query state"] = require("tests.helpers").
   end)
   assert(not execution_ok)
   assert(workspace.get_state() == workspace_module.states.disconnected)
+  assert(workspace.get_connection_info() == nil)
   assert(workspace.get_connection().database == "ApplicationDb")
   assert(workspace.get_activity()[#workspace.get_activity()].message == "Connection lost")
 
