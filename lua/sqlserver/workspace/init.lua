@@ -25,6 +25,7 @@ function M.create(opts)
   local objects = opts.objects
   local activity = {}
   local disposed = false
+  local explorer_sessions = {}
   local workspace
 
   local function emit(event)
@@ -65,18 +66,21 @@ function M.create(opts)
     }
     if operation.details then
       event = vim.tbl_extend("force", event, operation.details)
+      event.message = operation.details.activity_message or event.message
       event.activity_status = nil
+      event.activity_message = nil
     end
     emit(event)
   end)
 
-  local function begin_operation(kind, title, message, phase)
+  local function begin_operation(kind, title, message, phase, details)
     return operation_manager.start({
       kind = kind,
       title = title,
       message = message,
       phase = phase or kind,
       source_bufnr = opts.bufnr,
+      details = details,
     }).id
   end
 
@@ -405,6 +409,11 @@ function M.create(opts)
     end
     disposed = true
 
+    for session in pairs(explorer_sessions) do
+      session.close()
+    end
+    explorer_sessions = {}
+
     if state == M.states.executing then
       pcall(backend.cancel_async)
     end
@@ -632,6 +641,100 @@ function M.create(opts)
   function workspace.list_objects(filters)
     assert(connect_params, "Connect before listing database objects")
     return objects.list(connect_params.connection.options, filters)
+  end
+
+  function workspace.list_object_children_async(object)
+    assert(connect_params, "Connect before expanding a database object")
+    local operation_id = begin_operation(
+      "metadata",
+      "SQL Server Object Explorer",
+      "Loading database object details",
+      "loading_object_details"
+    )
+    local loaded, result =
+      pcall(objects.list_children_async, backend.client, connect_params.connection.options, object.id)
+    if disposed then
+      return nil
+    end
+    if not loaded then
+      finish_operation(operation_id, "error", "Database object details failed", {
+        object_id = object.id,
+      })
+      error(result, 0)
+    end
+    finish_operation(operation_id, "success", "Database object details loaded", {
+      object_id = object.id,
+      node_count = #result,
+    })
+    return result
+  end
+
+  function workspace.open_object_explorer_async()
+    assert(connect_params, "Connect before opening Object Explorer")
+    local operation_id =
+      begin_operation("metadata", "SQL Server Object Explorer", "Loading Object Explorer", "loading_object_explorer")
+    local opened, session, root = pcall(objects.open_explorer_async, backend.client, connect_params.connection.options)
+    if disposed then
+      if opened and session then
+        session.close()
+      end
+      return nil
+    end
+    if not opened then
+      finish_operation(operation_id, "error", "Object Explorer failed")
+      error(session, 0)
+    end
+    explorer_sessions[session] = true
+    finish_operation(operation_id, "success", "Object Explorer ready")
+    return session, root
+  end
+
+  function workspace.close_object_explorer_session(session)
+    if not explorer_sessions[session] then
+      return false
+    end
+    explorer_sessions[session] = nil
+    return session.close()
+  end
+
+  function workspace.expand_object_explorer_async(session, node_path, refresh, node_label, activity_path)
+    if not explorer_sessions[session] then
+      error("Object Explorer session is not active", 0)
+    end
+    local display_name = node_label or node_path:match("[^/]+$") or node_path
+    local display_path = activity_path or display_name
+    local operation_id = begin_operation(
+      "metadata",
+      "SQL Server Object Explorer",
+      refresh and "Refreshing database object" or "Loading database object",
+      refresh and "refreshing_object" or "loading_object",
+      {
+        activity_message = display_path .. (refresh and " · Refreshing" or " · Loading"),
+        node_path = node_path,
+        node_label = display_name,
+      }
+    )
+    local expanded, result = pcall(session.expand_async, node_path, refresh)
+    if not expanded then
+      finish_operation(
+        operation_id,
+        "error",
+        refresh and "Database object refresh failed" or "Database object load failed",
+        {
+          activity_message = display_path .. (refresh and " · Refresh failed" or " · Load failed"),
+          node_path = node_path,
+          node_label = display_name,
+        }
+      )
+      error(result, 0)
+    end
+    finish_operation(operation_id, "success", refresh and "Database object refreshed" or "Database object loaded", {
+      activity_message = display_path .. (refresh and " · Refreshed" or " · Loaded"),
+      node_path = node_path,
+      node_label = display_name,
+      node_count = #result,
+    })
+    return result
   end
 
   function workspace.script_object_async(opts)

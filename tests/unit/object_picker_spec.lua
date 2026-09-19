@@ -40,6 +40,8 @@ for _, title in ipairs({ "Find Query", "Object Definition" }) do
     end)
     assert(opts.title == title)
     assert(opts.items[1].text == "Person Tables/")
+    local action_format = opts.format({ label = "Show definition" })
+    assert(action_format[1][1] == "" and action_format[5][1] == "")
     local fake_picker = {
       close = function()
         opts.on_close()

@@ -25,11 +25,11 @@ function M.select(context, callback)
     items = context.items,
     format = function(item)
       return {
-        { item.icon, "SnacksPickerIcon" },
+        { item.icon or "", "SnacksPickerIcon" },
         { " " },
         { item.label },
         { " " },
-        { item.path, "SnacksPickerComment" },
+        { item.path or "", "SnacksPickerComment" },
       }
     end,
     confirm = function(picker, item)
