@@ -117,6 +117,10 @@ Result buffers use the same native winbar area to show their source buffer,
 execution position, and result-set position. The object form provides workspace
 layout and identity control:
 
+<p align="center">
+  <img src="assets/connection-identity-winbar.png" alt="Workspace winbar showing the SQL Server username, server, database, and status" width="1000">
+</p>
+
 ```lua
 ui = {
   winbar = {
