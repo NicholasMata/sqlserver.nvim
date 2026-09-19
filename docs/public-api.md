@@ -42,6 +42,8 @@ Options for `connect(profile, opts, callback)` are:
 Use `disconnect(bufnr, callback)` and `reconnect(bufnr, callback)` for lifecycle
 operations. `current_connection(bufnr)` is synchronous and returns
 `connection, err`; it returns `nil, nil` when the workspace is disconnected.
+Connected snapshots include `username` when SQL Tools Service reports one and
+never include passwords or access tokens.
 
 ## Query Execution
 

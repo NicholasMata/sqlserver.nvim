@@ -79,9 +79,10 @@ indefinitely.
 | `ui.presenter` | `"default"` | Uses the built-in presenter, `false` for none, or `function(workspace, event)` for a custom primary subscriber. |
 | `ui.object_picker` | `"auto"` | Uses the dedicated Snacks picker when available and otherwise `vim.ui.select`. Set `"select"`, `"snacks"`, or `function(context, callback)` to choose explicitly. |
 | `ui.object_explorer` | `{}` | Snacks picker options merged into the Object Explorer's persistent sidebar configuration. |
-| `ui.winbar` | `true` | Enables the default winbar. Use `false` or a table with `layout` and `alignment` to customize it. |
+| `ui.winbar` | `true` | Enables the default winbar. Use `false` or a table with `layout`, `alignment`, and `identity` to customize it. |
 | `ui.winbar.layout` | `"split"` | With the object form, uses `"split"` or `"compact"` content. |
 | `ui.winbar.alignment` | `"right"` | With the compact layout, aligns content `"left"`, `"center"`, or `"right"`. |
+| `ui.winbar.identity` | `{ "username", "server", "database" }` | Chooses and orders connection fields. Adjacent username and server fields render as `username@server`. |
 | `ui.native_progress` | `true` | Publishes active and completed operations through Neovim's built-in progress messages. |
 | `ui.height` | `12` | Height of the built-in activity split. |
 | `results.sticky_header` | `true` | Keeps the column header visible while scrolling through result rows. |
@@ -108,19 +109,35 @@ environment-variable references are documented in
 
 ## Presentation
 
-`ui.winbar = true` uses the split layout, with server and database on the left
-and status on the right. Result buffers use the same native winbar area to show
-their source buffer, execution position, and result-set position. The object
-form provides workspace layout control:
+`ui.winbar = true` uses the split layout, with
+`username@server / database` on the left and status on the right. The username
+comes from SQL Tools Service and is omitted when unavailable. Long server names
+are shortened first so the username, database, and status remain visible.
+Result buffers use the same native winbar area to show their source buffer,
+execution position, and result-set position. The object form provides workspace
+layout and identity control:
+
+<p align="center">
+  <img src="assets/connection-identity-winbar.png" alt="Workspace winbar showing the SQL Server username, server, database, and status" width="1000">
+</p>
 
 ```lua
 ui = {
   winbar = {
     layout = "compact", -- "compact" or "split"
     alignment = "right", -- "left", "center", or "right"
+    identity = { "username", "server", "database" },
   },
 }
 ```
+
+`identity` accepts each of `"username"`, `"server"`, and `"database"` at
+most once. Remove or reorder fields to suit narrow windows; an empty list uses
+the generic `SQL Server` label beside workspace status.
+
+The Activity buffer also shows the SQL Tools Service username as a separate
+connection-summary field. It displays `—` when the service does not provide
+one; activity event rows remain focused on operations and messages.
 
 The state icon links to standard Neovim highlight groups. Override its colors
 with `SqlServerReady`, `SqlServerWorking`, `SqlServerCancelling`, and

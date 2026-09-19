@@ -41,7 +41,13 @@ T["Workspace should own connection and query state"] = require("tests.helpers").
           serverName = "localhost",
         },
       })
-      return { connectionSummary = { databaseName = "ApplicationDb" } }
+      return {
+        connectionSummary = {
+          databaseName = "ApplicationDb",
+          serverName = "localhost",
+          userName = "sa",
+        },
+      }
     end,
     disconnect_async = function()
       disconnect_count = disconnect_count + 1
@@ -74,6 +80,7 @@ T["Workspace should own connection and query state"] = require("tests.helpers").
   })
   assert(workspace.get_state() == workspace_module.states.connected)
   assert(workspace.get_connection().database == "ApplicationDb")
+  assert(workspace.get_connection().username == "sa")
   assert(initialized_connection == nil, "Connection notifications must not start an untracked metadata refresh")
   assert(activity[1].message == "Connecting" and activity[1].status == "running")
   assert(activity[#activity].message == "Connected" and activity[#activity].status == "success")
