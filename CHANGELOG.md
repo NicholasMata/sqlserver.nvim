@@ -51,6 +51,9 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Keep a visible Connection Information view synchronized with database and
+  connection lifecycle changes, hide non-applicable Azure metadata, and render
+  empty server options without exposing Lua implementation details.
 - Provide searchable text for Snacks object-picker items so Find Query and
   Object Definition remain compatible with the Snacks matcher.
 - Prevent slow, cancelled, or failed asynchronous work from opening empty or
