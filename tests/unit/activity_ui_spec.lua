@@ -5,7 +5,7 @@ local activity_stream_module = require("sqlserver.workspace.activity_stream")
 
 local T = MiniTest.new_set()
 
-T["Activity UI should expose persistent workspace state"] = require("tests.helpers").async(function()
+T["Activity UI should present chronological workspace events"] = require("tests.helpers").async(function()
   local activity_stream = activity_stream_module.create()
   local workspace = workspace_module.create({
     bufnr = vim.api.nvim_get_current_buf(),
@@ -76,20 +76,14 @@ T["Activity UI should expose persistent workspace state"] = require("tests.helpe
   local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
   local contents = table.concat(lines, "\n")
   assert(contents:find("SQL Server Activity", 1, true))
-  assert(contents:find("Username  app_user", 1, true))
+  assert(not contents:find("Status    ", 1, true))
+  assert(not contents:find("Server    localhost", 1, true))
+  assert(not contents:find("Database  ApplicationDb", 1, true))
+  assert(not contents:find("Username  app_user", 1, true))
   assert(contents:find("Message · Changed  database context", 1, true))
   assert(contents:find("Query · Query completed", 1, true))
   assert(contents:find("server 125 ms · total", 1, true))
   assert(vim.api.nvim_win_get_height(0) == 8)
-  activity_ui.toggle(workspace)
-
-  workspace.connection_changed_async({
-    ownerUri = "file:///activity.sql",
-    connection = { userName = "", serverName = "localhost", databaseName = "ApplicationDb" },
-  })
-  activity_ui.toggle(workspace)
-  contents = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
-  assert(contents:find("Username  —", 1, true))
   activity_ui.toggle(workspace)
 
   local original_echo = vim.api.nvim_echo

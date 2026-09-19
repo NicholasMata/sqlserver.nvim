@@ -21,7 +21,12 @@ require("sqlserver").setup({
     object_explorer = {},
     winbar = true,
     native_progress = true,
-    height = 12,
+    activity = {
+      height = 12,
+    },
+    connection_info = {
+      height = "auto",
+    },
   },
 
   results = {
@@ -84,7 +89,8 @@ indefinitely.
 | `ui.winbar.alignment` | `"right"` | With the compact layout, aligns content `"left"`, `"center"`, or `"right"`. |
 | `ui.winbar.identity` | `{ "username", "server", "database" }` | Chooses and orders connection fields. Adjacent username and server fields render as `username@server`. |
 | `ui.native_progress` | `true` | Publishes active and completed operations through Neovim's built-in progress messages. |
-| `ui.height` | `12` | Height of the built-in activity split. |
+| `ui.activity.height` | `12` | Height of the built-in Activity split. |
+| `ui.connection_info.height` | `"auto"` | Height of the Connection Information split. `"auto"` fits its content up to half the source-window height; a positive integer uses a fixed height. |
 | `results.sticky_header` | `true` | Keeps the column header visible while scrolling through result rows. |
 | `results.history_limit` | `10` | Successful executions retained in memory for each SQL source buffer. |
 | `results.max_rows` | `1000` | Maximum rows fetched for each result set. |
@@ -135,9 +141,8 @@ ui = {
 most once. Remove or reorder fields to suit narrow windows; an empty list uses
 the generic `SQL Server` label beside workspace status.
 
-The Activity buffer also shows the SQL Tools Service username as a separate
-connection-summary field. It displays `—` when the service does not provide
-one; activity event rows remain focused on operations and messages.
+Connection metadata is available through `:SQLServer ConnectionInfo`. The
+Activity buffer is reserved for operations and messages.
 
 The state icon links to standard Neovim highlight groups. Override its colors
 with `SqlServerReady`, `SqlServerWorking`, `SqlServerCancelling`, and

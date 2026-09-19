@@ -21,6 +21,7 @@ function M.create(opts)
   local state = opts.service_pending and M.states.starting or M.states.disconnected
   local connect_params
   local last_connect_params
+  local connection_info
   local backend = opts.backend
   local objects = opts.objects
   local activity = {}
@@ -157,6 +158,7 @@ function M.create(opts)
       message = "Operation cancelled because SQL Tools Service stopped",
     })
     connect_params = nil
+    connection_info = nil
     set_state(M.states.disconnected)
     local operation = operation_manager.create_operation({
       kind = "service",
@@ -197,6 +199,10 @@ function M.create(opts)
     return connect_params and connect_params.connection and vim.deepcopy(connect_params.connection.options) or nil
   end
 
+  function workspace.get_connection_info()
+    return connection_info and vim.deepcopy(connection_info) or nil
+  end
+
   local function complete_connection(operation_id)
     if disposed then
       return false
@@ -213,6 +219,7 @@ function M.create(opts)
       error("You are currently " .. state, 0)
     end
     connect_params = vim.deepcopy(params)
+    connection_info = nil
     last_connect_params = vim.deepcopy(params)
     connect_params.ownerUri = backend.owner_uri
     local operation_id = begin_operation("connection", "SQL Server connection", "Connecting")
@@ -254,6 +261,35 @@ function M.create(opts)
         connect_params.connection.options.username = summary.userName
       end
     end
+    if result then
+      local summary = result.connectionSummary or {}
+      local server = result.serverInfo or {}
+      connection_info = {
+        username = summary.userName,
+        server = summary.serverName,
+        database = summary.databaseName,
+        connection_id = result.connectionId,
+        server_connection_id = result.serverConnectionId,
+        is_supported_version = result.isSupportedVersion,
+        type = result.type,
+        server_info = {
+          version = server.serverVersion,
+          major_version = server.serverMajorVersion,
+          minor_version = server.serverMinorVersion,
+          release_version = server.serverReleaseVersion,
+          level = server.serverLevel,
+          edition = server.serverEdition,
+          engine_edition_id = server.engineEditionId,
+          is_cloud = server.isCloud,
+          azure_version = server.azureVersion,
+          os_version = server.osVersion,
+          machine_name = server.machineName,
+          cpu_count = server.cpuCount,
+          physical_memory_mb = server.physicalMemoryInMB,
+          options = server.options,
+        },
+      }
+    end
     local finished = false
     local lifecycle = {}
 
@@ -280,6 +316,7 @@ function M.create(opts)
       finished = true
       pcall(backend.disconnect_async)
       connect_params = nil
+      connection_info = nil
       set_state(M.states.disconnected)
       local operation = operation_manager.operation(operation_id)
       return operation
@@ -324,6 +361,7 @@ function M.create(opts)
       error(err, 0)
     end
     connect_params = nil
+    connection_info = nil
     set_state(M.states.disconnected)
     finish_operation(operation_id, "success", "Disconnected")
   end
@@ -434,6 +472,7 @@ function M.create(opts)
     end
     operation_manager.dispose({ phase = "disposed", message = "Operation cancelled" })
     connect_params = nil
+    connection_info = nil
     last_connect_params = nil
     set_state(M.states.disconnected)
   end
@@ -583,6 +622,11 @@ function M.create(opts)
           server = result.connection.serverName,
         },
       },
+    })
+    connection_info = vim.tbl_deep_extend("force", connection_info or {}, {
+      username = result.connection.userName,
+      database = result.connection.databaseName,
+      server = result.connection.serverName,
     })
   end
 

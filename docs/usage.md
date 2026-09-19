@@ -45,6 +45,7 @@ executions is the query buffer's result history.
 | Normal | `<keymap_prefix>b` | `ObjectExplorer` | Browse database objects in a hierarchical Snacks sidebar |
 | Normal | `<keymap_prefix>r` | `RefreshCache` | Refresh object and IntelliSense metadata |
 | Normal | `<keymap_prefix>a` | `Activity` | Toggle workspace activity |
+| Normal | `<keymap_prefix>i` | `ConnectionInfo` | Show connection and server information |
 
 If a disconnected query is executed, the plugin attempts to use the connection
 profile named `default`. Current-statement parsing is delegated to SQL Tools
@@ -165,6 +166,10 @@ leaving Neovim stops plugin-owned SQL Tools Service clients.
 | --- | --- | --- | --- |
 | Normal | `q` | — | Close the activity view |
 
+The Activity view contains chronological plugin operations, progress, SQL
+messages, warnings, and errors. Connection metadata is kept in its own view so
+the activity stream remains focused on what is happening.
+
 A mixed query outcome uses a warning state while each underlying SQL error
 remains an error; an error-only execution uses the failed state.
 Each activity row includes its source, such as `Object Explorer · ApplicationDb
@@ -172,6 +177,23 @@ Each activity row includes its source, such as `Object Explorer · ApplicationDb
 so concurrent asynchronous work remains distinguishable. Object Explorer
 activity uses tree breadcrumbs while the winbar deliberately keeps the compact
 `Loading database object` status.
+
+## Connection information
+
+Run `:SQLServer ConnectionInfo` from a connected SQL buffer to open a reusable,
+read-only view of the current connection and the server metadata reported by
+SQL Tools Service.
+
+| Vim Mode | Mapping | Command | Description |
+| --- | --- | --- | --- |
+| Normal | `r` | — | Refresh the view from the latest workspace connection state |
+| Normal | `q` | — | Close the connection information view |
+| Normal | `?` | — | Show the connection information mappings |
+
+The view includes the resolved username, server, database, SQL Server session
+ID, SQL Tools Service connection ID, supported-version status, server version,
+edition, engine information, and available host details. It never displays a
+password, access token, or connection string.
 
 ## Language features
 
@@ -221,6 +243,7 @@ scope, screenshot, and configuration.
 | Command | Purpose |
 | --- | --- |
 | `Activity` | Toggle workspace activity |
+| `ConnectionInfo` | Show connection and server information |
 | `Connect` | Connect the current query buffer |
 | `Reconnect` | Retry the query buffer's previous connection |
 | `Disconnect` | Disconnect the current query buffer |

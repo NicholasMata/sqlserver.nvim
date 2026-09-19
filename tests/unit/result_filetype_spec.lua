@@ -31,6 +31,7 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
     end,
   })
   require("sqlserver.ui.keymaps").set_keymaps("<leader>d", handlers)
+  assert(vim.fn.maparg("<leader>di", "n", false, true).desc == "Connection Information")
 
   local prefixed_mappings = {}
   for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(result_buffer, "n")) do
