@@ -184,6 +184,9 @@ ui = {
 }
 ```
 
+See [Object Explorer](object-explorer.md) for its mappings, lazy-loading model,
+search behavior, supported object scope, and screenshot.
+
 ## SQL Tools Service
 
 `lsp_settings` is passed directly to SQL Tools Service. See

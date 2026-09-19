@@ -130,6 +130,7 @@ available through `:SQLServer`.
 | Install and configure the plugin | [Configuration](docs/configuration.md) |
 | Create secure connection profiles | [Connection profiles](docs/connections-json.md) |
 | Execute queries and work with results | [Usage](docs/usage.md) |
+| Browse the SQL Tools Service hierarchy | [Object Explorer](docs/object-explorer.md) |
 | Configure SQL formatting and IntelliSense | [SQL Tools Service settings](docs/lsp-settings.md) |
 | Automate the plugin from Lua | [Public Lua API](docs/public-api.md) |
 | Move from `mssql.nvim` | [Migrating from mssql.nvim](docs/migrating-from-mssql.md) |

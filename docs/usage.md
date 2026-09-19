@@ -211,67 +211,10 @@ Individual-node refresh and generic `ALTER`/`DROP` actions are outside the 1.0
 scope.
 
 When `snacks.nvim` is installed with its picker enabled,
-`:SQLServer ObjectExplorer` opens a persistent sidebar for the current SQL
-buffer's connection. It preserves SQL Tools Service paths such as
-`Programmability > Stored Procedures` instead of flattening or regrouping
-them. The rest of sqlserver.nvim does not require Snacks.
-
-| Vim Mode | Mapping | Command | Description |
-| --- | --- | --- | --- |
-| Normal | `<CR>` | Snacks `confirm` | Build a runnable query for an object, or toggle a structural node |
-| Normal | `K` | `object_actions` | Open contextual actions for the selected object |
-| Normal | `c` | `object_cancel_search` | Cancel an active full-tree search load |
-| Normal | `l` | `object_toggle` | Expand or collapse a node, lazily loading table details |
-| Normal | `h` | `object_collapse` | Collapse the current node or its parent |
-| Normal | `L` | `object_expand_all` | Expand the complete tree, loading object details as needed |
-| Normal | `H` | `object_collapse_all` | Return to the compact server and database outline |
-| Normal | `d` | `object_definition` | Open the selected object's editable definition |
-| Normal | `r` | `object_refresh` | Refresh the complete metadata snapshot and redraw the tree |
-| Normal | `q` | Snacks `cancel` | Close the Object Explorer |
-
-Typing in the picker searches every currently loaded node, including nodes
-hidden below collapsed branches. The filtered tree preserves service order and
-shows only matching nodes and the ancestors needed to locate them. If unopened
-nodes remain, every search begins with a selectable `Search all objects…` row.
-When no loaded node matches, `No matching loaded objects` appears beneath it.
-Selecting the first row loads the remaining tree through the normal
-asynchronous Object Explorer lifecycle and reruns the current search. Progress
-remains visible in the explorer and `c` cancels the traversal after the active
-SQL Tools Service request completes.
-
-Loaded nodes are retained in the Object Explorer session, so later searches do
-not request them again. Once the entire tree is cached, an empty search displays
-`No matching objects`. Tables otherwise load their SQL Tools Service children,
-such as Columns, Keys, and Indexes, only when expanded with `l` or as `L`
-traverses the complete tree.
-Each server-backed expansion participates in the workspace activity lifecycle,
-so slow loads, failures, and workspace disposal are reflected consistently with
-other asynchronous plugin work.
-
-### Supported Object Explorer scope
-
-The explorer deliberately covers the plugin's query and object-scripting
-workflow rather than SQL Server administration. Its selectable objects are
-tables, views, stored procedures, scalar-valued functions, and table-valued
-functions. Their folder placement and ordering come from SQL Tools Service.
-
-Expandable objects display every child returned by SQL Tools Service. With the
-pinned service, tables can expose Columns, Keys, Constraints, Indexes,
-Statistics, and Triggers. The service currently returns empty child collections
-when views, procedures, and functions are expanded, which the explorer handles
-as valid empty nodes. An unfamiliar child type from a future service version is
-still shown with a generic icon instead of being discarded.
-
-Server administration branches such as Security, Storage, Service Broker, and
-SQL Server Agent are outside the current Object Explorer scope.
-
-### Object actions
-
-Press `K` on an object to open a compact Snacks action menu beside the current
-tree row. Tables and views offer Select rows; procedures offer Create execution
-script; and functions offer Create query script. Every supported object also
-offers Show definition, Copy name, Copy qualified name, and Refresh details.
-`<CR>` remains the fast default query or execution-script action.
+`:SQLServer ObjectExplorer` opens a persistent, lazily loaded sidebar for the
+current connection. See [Object Explorer](object-explorer.md) for its hierarchy,
+mappings, search and cancellation behavior, contextual actions, supported
+scope, screenshot, and configuration.
 
 ## Command reference
 
