@@ -47,7 +47,7 @@ Requires Neovim 0.11.7 or newer. With [lazy.nvim](https://github.com/folke/lazy.
 ```lua
 {
   "NicholasMata/sqlserver.nvim",
-  -- version = "v1.0.0-rc.4", -- Pin a release
+  -- version = "v1.0.0-rc.5", -- Pin a release
   -- branch = "next", -- Follow unreleased development
   opts = {
     keymap_prefix = "<leader>s",
