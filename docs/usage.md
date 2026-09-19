@@ -184,6 +184,10 @@ Run `:SQLServer ConnectionInfo` from a connected SQL buffer to open a reusable,
 read-only view of the current connection and the server metadata reported by
 SQL Tools Service.
 
+<p align="center">
+  <img src="assets/connection-information.png" alt="SQL Server Connection Information view" width="1000">
+</p>
+
 | Vim Mode | Mapping | Command | Description |
 | --- | --- | --- | --- |
 | Normal | `r` | — | Refresh the view from the latest workspace connection state |
