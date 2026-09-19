@@ -12,7 +12,7 @@ BEGIN
 END;
 GO
 IF EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'sqlserver_nvim_restricted')
-  DROP LOGIN sqlserver_nvim_restricted;
+  DROP LOGIN [sqlserver_nvim_restricted];
 GO
 
 CREATE DATABASE TestDbA;
@@ -54,6 +54,18 @@ CREATE TABLE Car
   Make NVARCHAR(50),
   PersonId INT
 );
+ALTER TABLE Car
+  ADD CONSTRAINT CK_Car_PersonId CHECK (PersonId > 0);
+CREATE INDEX IX_Car_Make ON Car (Make);
+GO
+CREATE TRIGGER CarInsertTrigger
+ON Car
+AFTER INSERT
+AS
+BEGIN
+  SET NOCOUNT ON;
+END;
+GO
 INSERT INTO Car
   (Make, PersonId)
 VALUES
@@ -92,12 +104,12 @@ RETURN
 );
 GO
 USE master;
-CREATE LOGIN sqlserver_nvim_restricted
+CREATE LOGIN [sqlserver_nvim_restricted]
   WITH PASSWORD = 'Restricted_Password_123';
 GO
 USE TestDbB;
-CREATE USER sqlserver_nvim_restricted
-  FOR LOGIN sqlserver_nvim_restricted;
-GRANT SELECT ON OBJECT::dbo.Car TO sqlserver_nvim_restricted;
-GRANT VIEW DEFINITION ON OBJECT::dbo.Car TO sqlserver_nvim_restricted;
+CREATE USER [sqlserver_nvim_restricted]
+  FOR LOGIN [sqlserver_nvim_restricted];
+GRANT SELECT ON OBJECT::dbo.Car TO [sqlserver_nvim_restricted];
+GRANT VIEW DEFINITION ON OBJECT::dbo.Car TO [sqlserver_nvim_restricted];
 GO

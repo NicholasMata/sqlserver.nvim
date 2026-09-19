@@ -18,6 +18,7 @@ require("sqlserver").setup({
   ui = {
     presenter = "default",
     object_picker = "auto",
+    object_explorer = {},
     winbar = true,
     native_progress = true,
     height = 12,
@@ -77,6 +78,7 @@ indefinitely.
 | `view_messages_in` | `"activity"` | Sends SQL messages to `"activity"`, `"notification"`, `"buffer"`, or `function(message, is_error, error_selection)`. The optional selection uses zero-based document positions. |
 | `ui.presenter` | `"default"` | Uses the built-in presenter, `false` for none, or `function(workspace, event)` for a custom primary subscriber. |
 | `ui.object_picker` | `"auto"` | Uses the dedicated Snacks picker when available and otherwise `vim.ui.select`. Set `"select"`, `"snacks"`, or `function(context, callback)` to choose explicitly. |
+| `ui.object_explorer` | `{}` | Snacks picker options merged into the Object Explorer's persistent sidebar configuration. |
 | `ui.winbar` | `true` | Enables the default winbar. Use `false` or a table with `layout` and `alignment` to customize it. |
 | `ui.winbar.layout` | `"split"` | With the object form, uses `"split"` or `"compact"` content. |
 | `ui.winbar.alignment` | `"right"` | With the compact layout, aligns content `"left"`, `"center"`, or `"right"`. |
@@ -168,6 +170,22 @@ ui = {
   end,
 }
 ```
+
+The hierarchical Object Explorer is separate from object selection and
+requires `snacks.nvim` with its picker enabled. Snacks remains optional for
+every other sqlserver.nvim workflow. Override its sidebar picker configuration
+through `ui.object_explorer`, for example:
+
+```lua
+ui = {
+  object_explorer = {
+    layout = { preset = "right", preview = false },
+  },
+}
+```
+
+See [Object Explorer](object-explorer.md) for its mappings, lazy-loading model,
+search behavior, supported object scope, and screenshot.
 
 ## SQL Tools Service
 

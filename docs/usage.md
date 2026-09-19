@@ -42,6 +42,7 @@ executions is the query buffer's result history.
 | Normal | `<keymap_prefix>v` | `ShowResults` | Reopen the active retained execution |
 | Normal | `<keymap_prefix>f` | `Find` | Build a query for a selected database object |
 | Normal | `<keymap_prefix>o` | `ObjectDefinition` | Open a selected database object's definition |
+| Normal | `<keymap_prefix>b` | `ObjectExplorer` | Browse database objects in a hierarchical Snacks sidebar |
 | Normal | `<keymap_prefix>r` | `RefreshCache` | Refresh object and IntelliSense metadata |
 | Normal | `<keymap_prefix>a` | `Activity` | Toggle workspace activity |
 
@@ -166,6 +167,11 @@ leaving Neovim stops plugin-owned SQL Tools Service clients.
 
 A mixed query outcome uses a warning state while each underlying SQL error
 remains an error; an error-only execution uses the failed state.
+Each activity row includes its source, such as `Object Explorer · ApplicationDb
+› Tables › dbo.Person › Columns · Loading` or `Query · Query completed`,
+so concurrent asynchronous work remains distinguishable. Object Explorer
+activity uses tree breadcrumbs while the winbar deliberately keeps the compact
+`Loading database object` status.
 
 ## Language features
 
@@ -198,9 +204,17 @@ Generated table and view queries execute immediately by default. Procedure
 calls are inserted but never executed automatically because they may have side
 effects. Definitions use `CREATE` scripting and open in dedicated editable SQL
 buffers named `<schema>.<object>.sql`. If that name is already open, choose to
-focus it or create a numbered buffer such as `dbo.Person (2).sql`.
+use the existing visible or hidden buffer, or create a numbered buffer such as
+`dbo.Person (2).sql`. A deleted buffer is generated again without a collision
+prompt.
 Individual-node refresh and generic `ALTER`/`DROP` actions are outside the 1.0
 scope.
+
+When `snacks.nvim` is installed with its picker enabled,
+`:SQLServer ObjectExplorer` opens a persistent, lazily loaded sidebar for the
+current connection. See [Object Explorer](object-explorer.md) for its hierarchy,
+mappings, search and cancellation behavior, contextual actions, supported
+scope, screenshot, and configuration.
 
 ## Command reference
 
@@ -218,6 +232,7 @@ scope.
 | `SwitchDatabase` | Change database on the current server |
 | `Find` | Build a runnable query for a database object |
 | `ObjectDefinition` | Script a database object's definition |
+| `ObjectExplorer` | Browse the current database in a hierarchical Snacks sidebar |
 | `RefreshCache` | Refresh metadata and IntelliSense caches |
 | `EditConnections` | Edit connection profiles |
 | `ExportQueryResults` | Export the current result set |

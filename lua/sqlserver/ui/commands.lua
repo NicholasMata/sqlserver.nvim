@@ -30,6 +30,7 @@ local function available_commands(handlers)
     CopyResultCell = handlers.copy_result_cell,
     Find = handlers.find_object,
     ObjectDefinition = handlers.show_object_definition,
+    ObjectExplorer = handlers.object_explorer,
     CancelQuery = handlers.cancel_query,
   }
 end
@@ -81,6 +82,7 @@ local function completion_items()
       "RestoreDatabase",
       "Find",
       "ObjectDefinition",
+      "ObjectExplorer",
     }
     if query_results.has_results(workspace.bufnr) then
       table.insert(items, "ShowResults")
