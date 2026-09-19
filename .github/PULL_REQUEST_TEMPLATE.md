@@ -5,6 +5,14 @@ Describe what changed and why it is needed. Link an issue with a keyword such
 as "Fixes #123" when this pull request resolves one.
 -->
 
+## Screenshots or recordings
+
+<!--
+Required for visible Neovim changes. Remove this section when the pull request
+has no visible interface changes. Do not include credentials, connection
+strings, access tokens, or private database contents.
+-->
+
 ## Type of change
 
 <!-- Check every option that applies. -->
@@ -29,6 +37,7 @@ agents.
 - [ ] I have added or updated relevant tests, or explained why none are needed.
 - [ ] I have updated relevant documentation, or none is needed.
 - [ ] I have documented user-visible changes under `Unreleased` in `CHANGELOG.md`, or no changelog update is needed.
+- [ ] I have included a screenshot or recording for visible Neovim changes, or this pull request has no visible interface changes.
 - [ ] I have not included credentials or private database contents.
 
 ## Further context
