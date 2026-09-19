@@ -22,9 +22,9 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
-- Show the SQL Tools Service connection username in the workspace winbar and
-  public connection snapshot. Shorten long server names first, and allow the
-  displayed identity fields to be configured.
+- Show the SQL Tools Service connection username in the workspace winbar,
+  Activity summary, and public connection snapshot. Shorten long server names
+  first, and allow the displayed winbar identity fields to be configured.
 - Keep connection status active until initial database metadata is ready, and
   show distinct startup, result-loading, rendering, scripting, and export
   phases through the winbar, activity stream, and native progress messages.

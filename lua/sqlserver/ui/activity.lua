@@ -123,6 +123,7 @@ function M.render()
     "Status    " .. status.render(target_workspace),
     "Server    " .. (connection.server or "—"),
     "Database  " .. (connection.database or "—"),
+    "Username  " .. (connection.username ~= nil and connection.username ~= "" and connection.username or "—"),
     "",
     "Recent activity",
   }

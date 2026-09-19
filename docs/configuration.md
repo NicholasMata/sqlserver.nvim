@@ -135,6 +135,10 @@ ui = {
 most once. Remove or reorder fields to suit narrow windows; an empty list uses
 the generic `SQL Server` label beside workspace status.
 
+The Activity buffer also shows the SQL Tools Service username as a separate
+connection-summary field. It displays `—` when the service does not provide
+one; activity event rows remain focused on operations and messages.
+
 The state icon links to standard Neovim highlight groups. Override its colors
 with `SqlServerReady`, `SqlServerWorking`, `SqlServerCancelling`, and
 `SqlServerDisconnected`:
