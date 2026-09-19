@@ -13,7 +13,13 @@ T["Activity UI should expose persistent workspace state"] = require("tests.helpe
       owner_uri = "file:///activity.sql",
       client = {},
       connect_async = function()
-        return { connectionSummary = { databaseName = "ApplicationDb" } }
+        return {
+          connectionSummary = {
+            databaseName = "ApplicationDb",
+            serverName = "localhost",
+            userName = "app_user",
+          },
+        }
       end,
       disconnect_async = function() end,
       execute_async = function()
@@ -49,6 +55,7 @@ T["Activity UI should expose persistent workspace state"] = require("tests.helpe
   local status = status_ui.render(workspace)
   assert(status:find("localhost", 1, true))
   assert(status:find("ApplicationDb", 1, true))
+  assert(status:find("app_user@localhost", 1, true))
   assert(status:find("Ready", 1, true))
   assert(not status:find("SQL  ", 1, true))
   assert(not status:find("%%#SqlServerReady#"))
@@ -56,8 +63,10 @@ T["Activity UI should expose persistent workspace state"] = require("tests.helpe
   assert(winbar:find("Ready %#SqlServerReady#●%*", 1, true))
   assert(vim.endswith(winbar, "%#SqlServerReady#●%* "))
   assert(winbar:find("ApplicationDb%=", 1, true))
+  assert(winbar:find("app_user@localhost", 1, true))
+  assert(vim.startswith(winbar, "%<"), "The winbar must preserve right-aligned status when space is exhausted")
   status_ui.setup({ layout = "compact", alignment = "left" })
-  assert(not vim.startswith(status_ui.render_winbar(workspace), "%="))
+  assert(vim.startswith(status_ui.render_winbar(workspace), "%<"))
   status_ui.setup({ layout = "compact", alignment = "center" })
   local centered = status_ui.render_winbar(workspace)
   assert(vim.startswith(centered, "%=") and vim.endswith(centered, "%="))
@@ -109,5 +118,27 @@ T["Activity UI should expose persistent workspace state"] = require("tests.helpe
   assert(progress_updates[3].chunks[1][2] == "WarningMsg", "Mixed outcomes must highlight the title")
   assert(progress_updates[3].chunks[2][2] == nil, "Mixed-outcome details must use normal highlighting")
 end)
+
+T["Workspace winbar formats configurable connection identity"] = function()
+  local connection = {
+    username = "app_user",
+    server = "production-sql-server.internal.example.com",
+    database = "ApplicationDb",
+  }
+  assert(
+    status_ui.format_identity(connection, { "username", "server", "database" })
+      == "app_user@production-sql-server.internal.example.com / ApplicationDb"
+  )
+  assert(
+    status_ui.format_identity(connection, { "username", "server", "database" }, 35)
+      == "app_user@productio… / ApplicationDb"
+  )
+  assert(status_ui.format_identity(connection, { "username", "database" }) == "app_user / ApplicationDb")
+  assert(status_ui.format_identity({ server = "localhost", database = "master" }, {
+    "username",
+    "server",
+    "database",
+  }) == "localhost / master")
+end
 
 return T

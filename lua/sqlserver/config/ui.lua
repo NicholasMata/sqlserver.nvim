@@ -1,15 +1,21 @@
 local M = {}
 
 ---@param value boolean|table
----@return { enabled: boolean, layout: "split"|"compact", alignment: "left"|"center"|"right" }
+---@return { enabled: boolean, layout: "split"|"compact", alignment: "left"|"center"|"right", identity: string[] }
 function M.normalize_winbar(value)
+  local defaults = {
+    enabled = true,
+    layout = "split",
+    alignment = "right",
+    identity = { "username", "server", "database" },
+  }
   local winbar
   if value == true then
-    winbar = { enabled = true, layout = "split", alignment = "right" }
+    winbar = vim.deepcopy(defaults)
   elseif value == false then
-    winbar = { enabled = false, layout = "split", alignment = "right" }
+    winbar = vim.tbl_extend("force", vim.deepcopy(defaults), { enabled = false })
   elseif type(value) == "table" then
-    winbar = vim.tbl_deep_extend("keep", value, { enabled = true, layout = "split", alignment = "right" })
+    winbar = vim.tbl_deep_extend("keep", vim.deepcopy(value), defaults)
   else
     error("ui.winbar must be true, false, or a table", 0)
   end
@@ -19,6 +25,19 @@ function M.normalize_winbar(value)
   end
   if not vim.tbl_contains({ "split", "compact" }, winbar.layout) then
     error("ui.winbar.layout must be 'split' or 'compact'", 0)
+  end
+  if not vim.islist(winbar.identity) then
+    error("ui.winbar.identity must be a list", 0)
+  end
+  local seen = {}
+  for _, field in ipairs(winbar.identity) do
+    if not vim.tbl_contains({ "username", "server", "database" }, field) then
+      error("ui.winbar.identity values must be 'username', 'server', or 'database'", 0)
+    end
+    if seen[field] then
+      error("ui.winbar.identity must not contain duplicate fields", 0)
+    end
+    seen[field] = true
   end
   return winbar
 end
