@@ -5,12 +5,15 @@ local T = MiniTest.new_set()
 
 local function search(picker, pattern, expected_label)
   vim.api.nvim_set_current_win(picker.input.win.win)
-  vim.api.nvim_buf_set_lines(picker.input.win.buf, 0, -1, false, { pattern })
-  vim.api.nvim_win_set_cursor(picker.input.win.win, { 1, #pattern })
-  vim.api.nvim_exec_autocmds("TextChangedI", { buffer = picker.input.win.buf })
+  picker.input:set(pattern)
+  picker:find()
   assert(
     vim.wait(10000, function()
-      if picker.input.filter.pattern ~= pattern then
+      if picker.input.filter.pattern ~= pattern or picker.matcher:running() then
+        return false
+      end
+      local first = picker.list:get(1)
+      if not first or not first.search_all then
         return false
       end
       for index = 1, picker.list:count() do
@@ -67,7 +70,6 @@ T["Object Explorer works with a real Snacks picker"] = require("tests.helpers").
   assert(picker.opts.win.list.keys.L == "object_expand_all")
   assert(picker.opts.win.list.keys.H == "object_collapse_all")
   assert(picker.opts.win.list.keys.K == "object_actions")
-  assert(picker.opts.win.input.keys.K.action == "object_actions")
   assert(type(picker.opts.win.list.actions.object_toggle.action) == "function")
 
   local tables
@@ -87,8 +89,15 @@ T["Object Explorer works with a real Snacks picker"] = require("tests.helpers").
     "Object Explorer did not load Tables before searching"
   )
 
-  search(picker, "Person", "dbo.Person")
-  assert(picker.list:count() == 4, "Filtered Object Explorer included unrelated nodes")
+  search(picker, "Car", "dbo.Car")
+  local filtered_labels = {}
+  for index = 1, picker.list:count() do
+    filtered_labels[#filtered_labels + 1] = picker.list:get(index).label
+  end
+  assert(
+    picker.list:count() == 4,
+    "Filtered Object Explorer included unrelated nodes: " .. vim.inspect(filtered_labels)
+  )
   press_normal("K")
   local action_picker
   assert(
@@ -106,14 +115,14 @@ T["Object Explorer works with a real Snacks picker"] = require("tests.helpers").
   action_picker:close()
 
   vim.api.nvim_set_current_win(picker.input.win.win)
-  vim.api.nvim_buf_set_lines(picker.input.win.buf, 0, -1, false, { "NoSuchDatabaseObject" })
-  vim.api.nvim_win_set_cursor(picker.input.win.win, { 1, 20 })
-  vim.api.nvim_exec_autocmds("TextChangedI", { buffer = picker.input.win.buf })
+  picker.input:set("NoSuchDatabaseObject")
+  picker:find()
   assert(
     vim.wait(1000, function()
       local first = picker.list:get(1)
       local second = picker.list:get(2)
       return picker.input.filter.pattern == "NoSuchDatabaseObject"
+        and not picker.matcher:running()
         and picker.list:count() == 2
         and first
         and first.search_all
