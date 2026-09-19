@@ -70,4 +70,37 @@ function M.normalize_object_explorer(value)
   return vim.deepcopy(value)
 end
 
+local function normalize_height(value, option, allow_auto)
+  if allow_auto and value == "auto" then
+    return value
+  end
+  if type(value) ~= "number" or value < 1 or value % 1 ~= 0 then
+    local expected = allow_auto and "'auto' or a positive integer" or "a positive integer"
+    error(option .. " must be " .. expected, 0)
+  end
+  return value
+end
+
+---@param value table
+---@return { height: integer }
+function M.normalize_activity(value)
+  if type(value) ~= "table" then
+    error("ui.activity must be a table", 0)
+  end
+  local options = vim.tbl_deep_extend("keep", vim.deepcopy(value), { height = 12 })
+  options.height = normalize_height(options.height, "ui.activity.height", false)
+  return options
+end
+
+---@param value table
+---@return { height: "auto"|integer }
+function M.normalize_connection_info(value)
+  if type(value) ~= "table" then
+    error("ui.connection_info must be a table", 0)
+  end
+  local options = vim.tbl_deep_extend("keep", vim.deepcopy(value), { height = "auto" })
+  options.height = normalize_height(options.height, "ui.connection_info.height", true)
+  return options
+end
+
 return M

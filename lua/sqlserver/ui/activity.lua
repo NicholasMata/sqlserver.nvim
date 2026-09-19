@@ -1,5 +1,3 @@
-local status = require("sqlserver.ui.status")
-
 local M = {}
 local uv = vim.uv or vim.loop
 
@@ -116,14 +114,8 @@ function M.render()
     return
   end
 
-  local connection = target_workspace.get_connection() or {}
   local lines = {
     "SQL Server Activity",
-    "",
-    "Status    " .. status.render(target_workspace),
-    "Server    " .. (connection.server or "—"),
-    "Database  " .. (connection.database or "—"),
-    "Username  " .. (connection.username ~= nil and connection.username ~= "" and connection.username or "—"),
     "",
     "Recent activity",
   }

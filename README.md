@@ -95,7 +95,12 @@ require("sqlserver").setup({
     presenter = "default",
     winbar = true,
     native_progress = true,
-    height = 12,
+    activity = {
+      height = 12,
+    },
+    connection_info = {
+      height = "auto",
+    },
   },
 })
 ```

@@ -23,6 +23,7 @@ local modules = {
   "object_explorer_model_spec",
   "object_explorer_ui_spec",
   "activity_ui_spec",
+  "connection_info_ui_spec",
   "generated_buffer_spec",
   "query_result_renderer_spec",
   "result_filetype_spec",

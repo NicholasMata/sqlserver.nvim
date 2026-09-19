@@ -15,6 +15,7 @@ local workspace_module = require("sqlserver.workspace")
 local workspace_registry = require("sqlserver.workspace.registry")
 local activity_stream = require("sqlserver.workspace.activity_stream").create({ on_error = utils.log_error })
 local activity_ui = require("sqlserver.ui.activity")
+local connection_info_ui = require("sqlserver.ui.connection_info")
 local ui_options = require("sqlserver.config.ui")
 local status_ui = require("sqlserver.ui.status")
 local generated_buffer = require("sqlserver.ui.generated_buffer")
@@ -376,6 +377,9 @@ end
 local function setup_async(opts)
   opts = opts or {}
   opts = vim.tbl_deep_extend("keep", opts or {}, default_opts)
+  if opts.ui.height ~= nil then
+    error("ui.height has been replaced by ui.activity.height", 0)
+  end
   if type(opts.results.sticky_header) ~= "boolean" then
     error("results.sticky_header must be true or false", 0)
   end
@@ -389,6 +393,8 @@ local function setup_async(opts)
   opts.timeouts = timeout_options.normalize(opts.timeouts)
   opts.ui.object_picker = ui_options.normalize_object_picker(opts.ui.object_picker)
   opts.ui.object_explorer = ui_options.normalize_object_explorer(opts.ui.object_explorer)
+  opts.ui.activity = ui_options.normalize_activity(opts.ui.activity)
+  opts.ui.connection_info = ui_options.normalize_connection_info(opts.ui.connection_info)
   finder.setup(opts.timeouts, opts.ui.object_picker)
   query_results.setup(opts.results)
   opts.ui.winbar = ui_options.normalize_winbar(opts.ui.winbar)
@@ -399,10 +405,14 @@ local function setup_async(opts)
     custom_presenter_unsubscribe()
     custom_presenter_unsubscribe = nil
   end
-  activity_ui.setup(opts.ui)
+  local activity_opts = vim.tbl_extend("force", vim.deepcopy(opts.ui.activity), {
+    native_progress = opts.ui.native_progress,
+  })
+  activity_ui.setup(activity_opts)
+  connection_info_ui.setup(opts.ui.connection_info)
   if opts.ui.presenter == "default" then
     status_ui.setup(opts.ui.winbar)
-    activity_ui.setup(opts.ui, activity_stream)
+    activity_ui.setup(activity_opts, activity_stream)
   elseif type(opts.ui.presenter) == "function" then
     custom_presenter_unsubscribe = activity_stream.subscribe(opts.ui.presenter)
   elseif opts.ui.presenter ~= false then
@@ -1162,6 +1172,19 @@ local command_handlers = {
       return
     end
     activity_ui.toggle(workspace)
+  end,
+
+  show_connection_info = function()
+    local workspace = workspace_registry.get()
+    if not workspace then
+      utils.log_error("No SQL Server workspace is attached to this buffer")
+      return
+    end
+    if workspace.get_state() ~= workspace_module.states.connected then
+      utils.log_error("Connect before viewing connection information")
+      return
+    end
+    connection_info_ui.show(workspace)
   end,
 
   backup_database = function()
