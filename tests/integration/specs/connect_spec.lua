@@ -1,5 +1,6 @@
 local test_utils = require("tests.helpers.integration")
 local sqlserver = require("sqlserver")
+local workspace_registry = require("sqlserver.workspace.registry")
 
 local T = MiniTest.new_set()
 
@@ -8,6 +9,13 @@ T["Connect to database should work"] = require("tests.helpers").async(function()
   local connection = test_utils.connect(bufnr)
   assert(connection.database == vim.env.DbDatabase)
   assert(connection.username == vim.env.DbUser)
+  local connection_info = workspace_registry.get(bufnr).get_connection_info()
+  assert(connection_info.username == vim.env.DbUser)
+  assert(connection_info.database == vim.env.DbDatabase)
+  assert(connection_info.connection_id and connection_info.connection_id ~= "")
+  assert(connection_info.server_connection_id and connection_info.server_connection_id ~= "")
+  assert(connection_info.server_info.version and connection_info.server_info.version ~= "")
+  assert(connection_info.server_info.edition and connection_info.server_info.edition ~= "")
   assert(test_utils.get_sql_client(bufnr), "No SQL Tools Service client attached")
 end)
 

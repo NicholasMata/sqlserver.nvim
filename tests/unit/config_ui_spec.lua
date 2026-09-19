@@ -71,4 +71,16 @@ T["UI options should normalize Object Explorer options"] = function()
   assert(tostring(err):find("ui.object_explorer must be a table", 1, true))
 end
 
+T["UI options should scope split heights to their views"] = function()
+  assert(ui_options.normalize_activity({}).height == 12)
+  assert(ui_options.normalize_activity({ height = 8 }).height == 8)
+  assert(ui_options.normalize_connection_info({}).height == "auto")
+  assert(ui_options.normalize_connection_info({ height = 18 }).height == 18)
+
+  local ok, err = pcall(ui_options.normalize_activity, { height = "auto" })
+  assert(not ok and err:find("ui.activity.height", 1, true))
+  ok, err = pcall(ui_options.normalize_connection_info, { height = 0 })
+  assert(not ok and err:find("ui.connection_info.height", 1, true))
+end
+
 return T

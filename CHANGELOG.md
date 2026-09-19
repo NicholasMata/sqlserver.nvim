@@ -19,12 +19,18 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   expand or collapse the tree, and `K` offers contextual query, definition,
   copy-name, and detail-refresh operations while `<CR>` retains its default
   behavior.
+- Add a dedicated connection information view for SQL Tools Service connection
+  and server metadata, with buffer-local refresh, close, and help mappings.
 
 ### Changed
 
-- Show the SQL Tools Service connection username in the workspace winbar,
-  Activity summary, and public connection snapshot. Shorten long server names
-  first, and allow the displayed winbar identity fields to be configured.
+- Show the SQL Tools Service connection username in the workspace winbar and
+  public connection snapshot. Shorten long server names first, and allow the
+  displayed winbar identity fields to be configured.
+- Keep the Activity view focused on chronological operations and messages by
+  moving its connection summary into the connection information view.
+- Scope the Activity split height under `ui.activity.height` and size Connection
+  Information adaptively through its independent `ui.connection_info.height`.
 - Keep connection status active until initial database metadata is ready, and
   show distinct startup, result-loading, rendering, scripting, and export
   phases through the winbar, activity stream, and native progress messages.

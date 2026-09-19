@@ -15,6 +15,12 @@ return {
 
     local keymaps = {
       activity = { "a", M.toggle_activity, desc = "Activity", icon = { icon = "󰋼", color = "blue" } },
+      connection_info = {
+        "i",
+        M.show_connection_info,
+        desc = "Connection Information",
+        icon = { icon = "󰋼", color = "blue" },
+      },
       new_query = { "n", M.new_query, desc = "New Query", icon = { icon = "", color = "yellow" } },
       connect = { "c", M.connect, desc = "Connect", icon = { icon = "󱘖", color = "green" } },
       reconnect = { "R", M.reconnect, desc = "Reconnect", icon = { icon = "󰑓", color = "yellow" } },
@@ -115,6 +121,7 @@ return {
               keymaps.new_default_query,
               keymaps.edit_connections,
               keymaps.refresh_cache,
+              keymaps.connection_info,
               keymaps.execute_query,
               keymaps.execute_buffer,
               keymaps.disconnect,

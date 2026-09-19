@@ -32,7 +32,12 @@ return {
     object_explorer = {},
     winbar = true,
     native_progress = true,
-    height = 12,
+    activity = {
+      height = 12,
+    },
+    connection_info = {
+      height = "auto",
+    },
   },
 
   -- Result retrieval and rendering limits.

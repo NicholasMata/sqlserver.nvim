@@ -42,10 +42,21 @@ T["Workspace should own connection and query state"] = require("tests.helpers").
         },
       })
       return {
+        connectionId = "connection-123",
+        serverConnectionId = "57",
+        isSupportedVersion = true,
         connectionSummary = {
           databaseName = "ApplicationDb",
           serverName = "localhost",
           userName = "sa",
+        },
+        serverInfo = {
+          serverVersion = "16.0.1000.6",
+          serverEdition = "Developer Edition",
+          engineEditionId = 3,
+          isCloud = false,
+          machineName = "sqlserver",
+          osVersion = "Linux",
         },
       }
     end,
@@ -81,6 +92,13 @@ T["Workspace should own connection and query state"] = require("tests.helpers").
   assert(workspace.get_state() == workspace_module.states.connected)
   assert(workspace.get_connection().database == "ApplicationDb")
   assert(workspace.get_connection().username == "sa")
+  local connection_info = workspace.get_connection_info()
+  assert(connection_info.connection_id == "connection-123")
+  assert(connection_info.server_connection_id == "57")
+  assert(connection_info.is_supported_version == true)
+  assert(connection_info.server_info.version == "16.0.1000.6")
+  assert(connection_info.server_info.edition == "Developer Edition")
+  assert(connection_info.server_info.machine_name == "sqlserver")
   assert(initialized_connection == nil, "Connection notifications must not start an untracked metadata refresh")
   assert(activity[1].message == "Connecting" and activity[1].status == "running")
   assert(activity[#activity].message == "Connected" and activity[#activity].status == "success")
@@ -129,6 +147,7 @@ T["Workspace should own connection and query state"] = require("tests.helpers").
   workspace.disconnect_async()
   assert(workspace.get_state() == workspace_module.states.disconnected)
   assert(workspace.get_connection() == nil)
+  assert(workspace.get_connection_info() == nil)
   assert(workspace.can_reconnect())
 
   objects.initialise_cache_async = function() end
@@ -186,6 +205,7 @@ T["Workspace should own connection and query state"] = require("tests.helpers").
   workspace.dispose_async()
   assert(workspace.get_state() == workspace_module.states.disconnected)
   assert(workspace.get_connection() == nil and not workspace.can_reconnect())
+  assert(workspace.get_connection_info() == nil)
   assert(disconnect_count == 3, "Workspace disposal should disconnect exactly once")
   assert(#workspace.get_activity() == #activity)
   assert(registry.detach(99) == workspace)
