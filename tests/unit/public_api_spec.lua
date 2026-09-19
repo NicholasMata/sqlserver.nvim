@@ -23,7 +23,13 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
     owner_uri = "file:///public-api.sql",
     client = {},
     connect_async = function()
-      return { connectionSummary = { databaseName = "ApplicationDb" } }
+      return {
+        connectionSummary = {
+          databaseName = "ApplicationDb",
+          serverName = "localhost",
+          userName = "sa",
+        },
+      }
     end,
     disconnect_async = function() end,
     execute_async = function()
@@ -95,7 +101,7 @@ T["Public API should expose UI-independent workspace operations"] = require("tes
   assert(not err and connection.database == "ApplicationDb")
   assert(connection.password == nil, "Public connection snapshots must not expose passwords")
   local current = api.current_connection(321)
-  assert(current.server == "localhost" and current.password == nil)
+  assert(current.server == "localhost" and current.username == "sa" and current.password == nil)
   local refreshed = completed(function(callback)
     api.refresh_objects(321, callback)
   end)

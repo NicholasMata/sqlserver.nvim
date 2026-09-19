@@ -5,17 +5,27 @@ local T = MiniTest.new_set()
 T["UI options should normalize winbar configuration"] = require("tests.helpers").async(function()
   local defaults = ui_options.normalize_winbar(true)
   assert(defaults.enabled and defaults.layout == "split" and defaults.alignment == "right")
+  assert(vim.deep_equal(defaults.identity, { "username", "server", "database" }))
 
   local disabled = ui_options.normalize_winbar(false)
   assert(not disabled.enabled and disabled.layout == "split")
 
-  local configured = ui_options.normalize_winbar({ layout = "compact", alignment = "left" })
+  local configured = ui_options.normalize_winbar({
+    layout = "compact",
+    alignment = "left",
+    identity = { "username", "database" },
+  })
   assert(configured.enabled and configured.layout == "compact" and configured.alignment == "left")
+  assert(vim.deep_equal(configured.identity, { "username", "database" }))
 
   local ok, err = pcall(ui_options.normalize_winbar, { alignment = "diagonal" })
   assert(not ok and err:find("left", 1, true))
   ok, err = pcall(ui_options.normalize_winbar, { layout = "stacked" })
   assert(not ok and err:find("split", 1, true))
+  ok, err = pcall(ui_options.normalize_winbar, { identity = { "server", "hostname" } })
+  assert(not ok and err:find("username", 1, true))
+  ok, err = pcall(ui_options.normalize_winbar, { identity = { "server", "server" } })
+  assert(not ok and err:find("duplicate", 1, true))
 end)
 
 T["UI options should normalize object picker providers"] = function()

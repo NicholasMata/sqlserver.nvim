@@ -241,9 +241,18 @@ function M.create(opts)
     end
 
     if result and result.connectionSummary then
-      local database = result.connectionSummary.databaseName
-      connect_params.connection.options.database = database
-      connect_params.connection.options.DatabaseDisplayName = database
+      local summary = result.connectionSummary
+      if summary.databaseName ~= nil then
+        connect_params.connection.options.database = summary.databaseName
+        connect_params.connection.options.DatabaseDisplayName = summary.databaseName
+      end
+      if summary.serverName ~= nil then
+        connect_params.connection.options.server = summary.serverName
+      end
+      if summary.userName ~= nil then
+        connect_params.connection.options.user = summary.userName
+        connect_params.connection.options.username = summary.userName
+      end
     end
     local finished = false
     local lifecycle = {}
@@ -569,6 +578,7 @@ function M.create(opts)
       connection = {
         options = {
           user = result.connection.userName,
+          username = result.connection.userName,
           database = result.connection.databaseName,
           server = result.connection.serverName,
         },
