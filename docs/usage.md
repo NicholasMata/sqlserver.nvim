@@ -38,7 +38,7 @@ executions is the query buffer's result history.
 | Normal | `<keymap_prefix>x` | `ExecuteQuery` | Execute the statement under the cursor |
 | Visual | `<keymap_prefix>x` | `ExecuteQuery` | Execute the selected text |
 | Normal | `<keymap_prefix>X` | `ExecuteBuffer` | Execute the complete buffer |
-| Normal | `<keymap_prefix>l` | `CancelQuery` | Cancel the active query |
+| Normal | `<keymap_prefix>l` | `CancelOperation` | Cancel the active query or object script |
 | Normal | `<keymap_prefix>v` | `ShowResults` | Reopen the active retained execution |
 | Normal | `<keymap_prefix>f` | `Find` | Build a query for a selected database object |
 | Normal | `<keymap_prefix>o` | `ObjectDefinition` | Open a selected database object's definition |
@@ -255,7 +255,8 @@ scope, screenshot, and configuration.
 | `Disconnect` | Disconnect the current query buffer |
 | `ExecuteQuery` | Execute the statement under the cursor or selected text |
 | `ExecuteBuffer` | Execute the complete buffer |
-| `CancelQuery` | Cancel the active query |
+| `CancelOperation` | Cancel the active query or object script |
+| `CancelQuery` | Compatibility alias for `CancelOperation` |
 | `NewQuery` | Open a query buffer |
 | `NewDefaultQuery` | Open a query using the `default` profile |
 | `SwitchDatabase` | Change database on the current server |

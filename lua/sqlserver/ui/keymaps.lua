@@ -25,7 +25,7 @@ return {
       connect = { "c", M.connect, desc = "Connect", icon = { icon = "󱘖", color = "green" } },
       reconnect = { "R", M.reconnect, desc = "Reconnect", icon = { icon = "󰑓", color = "yellow" } },
       disconnect = { "q", M.disconnect, desc = "Disconnect", icon = { icon = "", color = "red" } },
-      cancel_query = { "l", M.cancel_query, desc = "Cancel Query", icon = { icon = "", color = "red" } },
+      cancel_operation = { "l", M.cancel_operation, desc = "Cancel Operation", icon = { icon = "", color = "red" } },
       execute_query = {
         "x",
         M.execute_query,
@@ -113,7 +113,7 @@ return {
               keymaps.new_query,
               keymaps.new_default_query,
               keymaps.edit_connections,
-              keymaps.cancel_query,
+              keymaps.cancel_operation,
             })
           elseif state == states.connected then
             local items = {
@@ -135,6 +135,10 @@ return {
               keymaps.object_definition,
               keymaps.object_explorer,
             }
+            local operation = workspace.get_active_operation()
+            if operation and operation.kind == "object" then
+              table.insert(items, keymaps.cancel_operation)
+            end
             if query_results.has_results(workspace.bufnr) then
               table.insert(items, keymaps.show_results)
             end

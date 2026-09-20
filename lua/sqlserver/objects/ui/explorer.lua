@@ -101,7 +101,9 @@ function M.open(context)
     end
 
     local function matches(node)
-      return #vim.fn.matchfuzzy({ node.label }, search_pattern) > 0
+      local searchable = { node.label }
+      vim.list_extend(searchable, object_tree.details(node))
+      return #vim.fn.matchfuzzy(searchable, search_pattern) > 0
     end
 
     local function project(node, include_all)
@@ -480,7 +482,14 @@ function M.open(context)
       local marker = item.loading and "… " or can_expand(item.node) and (item.expanded and " " or " ") or "  "
       formatted[#formatted + 1] = { marker, "SnacksPickerTree" }
       formatted[#formatted + 1] = { item.icon .. " ", "SnacksPickerIcon" }
-      formatted[#formatted + 1] = { item.label, item.object and "SnacksPickerFile" or "SnacksPickerDirectory" }
+      local label_highlight = item.node.errorMessage and "DiagnosticError"
+        or item.object and "SnacksPickerFile"
+        or "SnacksPickerDirectory"
+      formatted[#formatted + 1] = { item.label, label_highlight }
+      local details = object_tree.details(item.node)
+      if #details > 0 then
+        formatted[#formatted + 1] = { " · " .. table.concat(details, " · "), "SnacksPickerComment" }
+      end
       return formatted
     end,
     confirm = function(current_picker, item)

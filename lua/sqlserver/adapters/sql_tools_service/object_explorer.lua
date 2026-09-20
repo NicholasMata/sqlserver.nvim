@@ -114,6 +114,8 @@ function M.open_async(client, connection_options)
         }, "objectexplorer/expandCompleted", session.id, session)
         if expand_error then
           resume_job(job, nil, expand_error.message or tostring(expand_error))
+        elseif expanded and type(expanded.errorMessage) == "string" and expanded.errorMessage ~= "" then
+          resume_job(job, nil, expanded.errorMessage)
         elseif not (expanded and type(expanded.nodes) == "table") then
           resume_job(job, nil, "SQL Tools Service returned an invalid Object Explorer expansion")
         else

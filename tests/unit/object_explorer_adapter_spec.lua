@@ -140,6 +140,17 @@ T["Object Explorer child loading reports protocol failures"] = require("tests.he
       }),
     },
     {
+      expected = "permission denied while loading keys",
+      client = client_for({
+        session = { sessionId = "service-error", rootNode = { objectType = "Database", nodePath = target } },
+        expansions = {
+          [target] = {
+            result = { sessionId = "service-error", errorMessage = "permission denied while loading keys" },
+          },
+        },
+      }),
+    },
+    {
       expected = "could not locate the selected object",
       client = client_for({
         session = { sessionId = "missing", rootNode = { objectType = "Database", nodePath = "server" } },
@@ -151,7 +162,7 @@ T["Object Explorer child loading reports protocol failures"] = require("tests.he
   for _, case in ipairs(cases) do
     local ok, err = pcall(load, case.client, target)
     assert(not ok)
-    assert(tostring(err):find(case.expected, 1, true), tostring(err))
+    assert(tostring(err):find(case.expected, 1, true), "expected " .. case.expected .. ", got " .. tostring(err))
   end
 end)
 

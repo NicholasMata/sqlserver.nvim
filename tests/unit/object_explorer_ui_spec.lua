@@ -422,4 +422,33 @@ T["Object Explorer closes its owning session callback"] = function()
   end)
 end
 
+T["Object Explorer renders and searches service node details"] = function()
+  fake_snacks(function(picker, get_options)
+    local root = service_node("database", "TestDb", "Database", false)
+    root.expanded = true
+    model.set_service_children(root, {
+      {
+        nodePath = "database/Tables/dbo.Person/Keys/PK_Person",
+        label = "PK_Person",
+        objectType = "Key",
+        nodeSubType = "PrimaryKey",
+        nodeStatus = "Disabled",
+        errorMessage = "Key metadata is unavailable",
+        isLeaf = true,
+      },
+    })
+    explorer.open({ root = root })
+    local options = get_options()
+    local key = options.finder()[2]
+    local formatted = options.format(key, picker)
+    assert(formatted[3][1] == "PK_Person" and formatted[3][2] == "DiagnosticError")
+    assert(formatted[4][1] == " · PrimaryKey · Disabled · Key metadata is unavailable")
+    assert(formatted[4][2] == "SnacksPickerComment")
+
+    assert(options.filter.transform(picker, { pattern = "Disabled" }))
+    local matches = options.finder()
+    assert(matches[#matches].label == "PK_Person")
+  end)
+end
+
 return T

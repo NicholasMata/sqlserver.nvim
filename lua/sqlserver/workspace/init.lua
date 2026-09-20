@@ -27,6 +27,7 @@ function M.create(opts)
   local activity = {}
   local disposed = false
   local explorer_sessions = {}
+  local active_object_script
   local workspace
 
   local function emit(event)
@@ -85,12 +86,12 @@ function M.create(opts)
     }).id
   end
 
-  local function update_operation(operation_id, message, phase)
+  local function update_operation(operation_id, message, phase, details)
     local operation = operation_manager.operation(operation_id)
     if not operation then
       return
     end
-    operation.update({ message = message, phase = phase })
+    operation.update({ message = message, phase = phase, details = details })
   end
 
   local function finish_operation(operation_id, status, message, details)
@@ -113,6 +114,56 @@ function M.create(opts)
 
   local function set_state(next_state)
     state = next_state
+  end
+
+  local function object_script_control(operation_id)
+    local control = {}
+    function control.on_operation(protocol_operation_id, cancel)
+      active_object_script = {
+        operation_id = operation_id,
+        protocol_operation_id = protocol_operation_id,
+        cancel = cancel,
+      }
+    end
+    function control.on_progress(progress)
+      if
+        not active_object_script
+        or active_object_script.operation_id ~= operation_id
+        or active_object_script.cancel_requested
+      then
+        return
+      end
+      local completed = tonumber(progress.completedCount)
+      local total = tonumber(progress.totalCount or progress.count)
+      local message = "Generating object script"
+      if completed and total and total > 0 then
+        message = string.format("Generating object script (%d/%d)", completed, total)
+      elseif total and total > 0 then
+        message = string.format("Preparing object script (%d objects)", total)
+      end
+      update_operation(operation_id, message, "generating_script", {
+        completed_count = completed,
+        total_count = total,
+        scripting_status = progress.status,
+      })
+    end
+    return control
+  end
+
+  local function finish_object_script(operation_id, scripted, result)
+    if active_object_script and active_object_script.operation_id == operation_id then
+      active_object_script = nil
+    end
+    if not scripted then
+      if type(result) == "table" and result.code == "cancelled" then
+        finish_operation(operation_id, "cancelled", result.message or "Object scripting cancelled")
+        return nil, true
+      end
+      finish_operation(operation_id, "error", "Object scripting failed")
+      error(result, 0)
+    end
+    finish_operation(operation_id, "success", "Object script ready")
+    return result, false
   end
 
   workspace = {
@@ -456,6 +507,11 @@ function M.create(opts)
     end
     disposed = true
 
+    if active_object_script then
+      pcall(active_object_script.cancel)
+      active_object_script = nil
+    end
+
     for session in pairs(explorer_sessions) do
       session.close()
     end
@@ -592,19 +648,33 @@ function M.create(opts)
   end
 
   function workspace.cancel_async()
-    if state ~= M.states.executing then
-      error("There is no query being executed in the current buffer", 0)
+    if state == M.states.executing then
+      set_state(M.states.cancelling)
+      local operation = workspace.get_active_operation()
+      local operation_id = operation and operation.kind == "query" and operation.id or nil
+      update_operation(operation_id, "Cancelling query")
+      local ok, err = pcall(backend.cancel_async)
+      if not ok then
+        finish_operation(operation_id, "error", "Cancellation failed")
+        set_state(M.states.connected)
+        error(err, 0)
+      end
+      return
     end
-    set_state(M.states.cancelling)
-    local operation = workspace.get_active_operation()
-    local operation_id = operation and operation.kind == "query" and operation.id or nil
-    update_operation(operation_id, "Cancelling query")
-    local ok, err = pcall(backend.cancel_async)
-    if not ok then
-      finish_operation(operation_id, "error", "Cancellation failed")
-      set_state(M.states.connected)
-      error(err, 0)
+
+    if active_object_script then
+      active_object_script.cancel_requested = true
+      update_operation(active_object_script.operation_id, "Cancelling object script", "cancelling_script")
+      local ok, requested = pcall(active_object_script.cancel)
+      if not ok or requested == false then
+        finish_operation(active_object_script.operation_id, "error", "Object script cancellation failed")
+        active_object_script = nil
+        error(ok and "SQL Tools Service rejected object script cancellation" or requested, 0)
+      end
+      return
     end
+
+    error("There is no cancellable operation in the current buffer", 0)
   end
 
   function workspace.fetch_result_rows_async(locator)
@@ -682,16 +752,18 @@ function M.create(opts)
     end
 
     local operation_id = begin_operation("object", "SQL Server object", "Generating object script", "generating_script")
-    local scripted, result = pcall(objects.generate_script_async, item, backend.client, backend.owner_uri, intent)
+    local scripted, result = pcall(
+      objects.generate_script_async,
+      item,
+      backend.client,
+      backend.owner_uri,
+      intent,
+      object_script_control(operation_id)
+    )
     if disposed then
       return nil
     end
-    if not scripted then
-      finish_operation(operation_id, "error", "Object scripting failed")
-      error(result, 0)
-    end
-    finish_operation(operation_id, "success", "Object script ready")
-    return result
+    return (finish_object_script(operation_id, scripted, result))
   end
 
   function workspace.list_objects(filters)
@@ -796,17 +868,18 @@ function M.create(opts)
   function workspace.script_object_async(opts)
     assert(connect_params, "Connect before scripting a database object")
     local operation_id = begin_operation("object", "SQL Server object", "Generating object script", "generating_script")
-    local scripted, result =
-      pcall(objects.script_async, connect_params.connection.options, backend.client, backend.owner_uri, opts)
+    local scripted, result = pcall(
+      objects.script_async,
+      connect_params.connection.options,
+      backend.client,
+      backend.owner_uri,
+      opts,
+      object_script_control(operation_id)
+    )
     if disposed then
       return nil
     end
-    if not scripted then
-      finish_operation(operation_id, "error", "Object scripting failed")
-      error(result, 0)
-    end
-    finish_operation(operation_id, "success", "Object script ready")
-    return result
+    return (finish_object_script(operation_id, scripted, result))
   end
 
   function workspace.is_refreshing()

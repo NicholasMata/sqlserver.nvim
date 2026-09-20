@@ -96,6 +96,74 @@ T["Object scripting failures terminate their operation"] = function()
   workspace.dispose_async()
 end
 
+T["Object scripting cancellation owns the protocol operation"] = require("tests.helpers").async(function()
+  local scripting_coroutine
+  local cancellation_requests = 0
+  local workspace, events = create_workspace({
+    script_async = function(_, _, _, _, control)
+      control.on_operation("script-42", function()
+        cancellation_requests = cancellation_requests + 1
+        return true
+      end)
+      control.on_progress({
+        operationId = "script-42",
+        completedCount = 1,
+        totalCount = 3,
+        status = "Progress",
+      })
+      scripting_coroutine = coroutine.running()
+      coroutine.yield()
+      error({ code = "cancelled", message = "Object scripting cancelled" }, 0)
+    end,
+    is_refreshing = function()
+      return false
+    end,
+  })
+  local result
+  local workflow = coroutine.create(function()
+    result = workspace.script_object_async({ id = "table-1", intent = "definition" })
+  end)
+
+  assert(coroutine.resume(workflow))
+  local operation = workspace.get_active_operation()
+  assert(operation.message == "Generating object script (1/3)")
+  assert(operation.details.completed_count == 1 and operation.details.total_count == 3)
+  workspace.cancel_async()
+  assert(cancellation_requests == 1)
+  assert(workspace.get_active_operation().phase == "cancelling_script")
+  assert(coroutine.resume(scripting_coroutine))
+  assert(result == nil and workspace.get_active_operation() == nil)
+  assert(events[#events].status == "cancelled")
+  assert(events[#events].message == "Object scripting cancelled")
+  workspace.dispose_async()
+end)
+
+T["Workspace disposal cancels SQL Tools Service object scripting"] = require("tests.helpers").async(function()
+  local scripting_coroutine
+  local cancellation_requests = 0
+  local workspace = create_workspace({
+    script_async = function(_, _, _, _, control)
+      control.on_operation("dispose-script", function()
+        cancellation_requests = cancellation_requests + 1
+        return true
+      end)
+      scripting_coroutine = coroutine.running()
+      return coroutine.yield()
+    end,
+    is_refreshing = function()
+      return false
+    end,
+  })
+  local workflow = coroutine.create(function()
+    workspace.script_object_async({ id = "table-1", intent = "definition" })
+  end)
+
+  assert(coroutine.resume(workflow))
+  workspace.dispose_async()
+  assert(cancellation_requests == 1)
+  assert(coroutine.resume(scripting_coroutine, { script = "CREATE TABLE dbo.Person (ID int)" }))
+end)
+
 T["Object Explorer child loading uses the shared operation lifecycle"] = function()
   local expected = { { id = "column-1", name = "ID" } }
   local workspace, events = create_workspace({

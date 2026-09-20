@@ -38,6 +38,10 @@ local function icon_for(node_type)
   return object_icons[node_type] or detail_icons[node_type] or "󰘦"
 end
 
+local function optional_string(value)
+  return type(value) == "string" and value ~= "" and value or nil
+end
+
 local function public_object(service_node)
   if not actionable_types[service_node.objectType] then
     return nil
@@ -66,12 +70,31 @@ function M.from_service(service_node)
     or type(service_node.nodeType) == "string" and service_node.nodeType
     or nil
   result.icon = icon_for(node_type)
+  result.nodeSubType = optional_string(service_node.nodeSubType)
+  result.nodeStatus = optional_string(service_node.nodeStatus)
+  result.errorMessage = optional_string(service_node.errorMessage)
   result.children = nil
   result.loaded = service_node.isLeaf == true
   result.loading = false
   result.expanded = false
   result.object = public_object(service_node)
   return result
+end
+
+---@param node table
+---@return string[]
+function M.details(node)
+  local details = {}
+  for _, field in ipairs({ "nodeSubType", "nodeStatus" }) do
+    local value = node[field]
+    if type(value) == "string" and value ~= "" then
+      details[#details + 1] = value
+    end
+  end
+  if type(node.errorMessage) == "string" and node.errorMessage ~= "" and node.errorMessage ~= node.label then
+    details[#details + 1] = node.errorMessage
+  end
+  return details
 end
 
 ---@param parent table
