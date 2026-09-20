@@ -32,6 +32,7 @@ local function available_commands(handlers)
     Find = handlers.find_object,
     ObjectDefinition = handlers.show_object_definition,
     ObjectExplorer = handlers.object_explorer,
+    CancelOperation = handlers.cancel_operation,
     CancelQuery = handlers.cancel_query,
   }
 end
@@ -68,7 +69,7 @@ local function completion_items()
   if state == states.connecting then
     return with_activity({ "NewQuery", "NewDefaultQuery", "EditConnections" })
   elseif state == states.executing then
-    return with_activity({ "NewQuery", "NewDefaultQuery", "EditConnections", "CancelQuery" })
+    return with_activity({ "NewQuery", "NewDefaultQuery", "EditConnections", "CancelOperation" })
   elseif state == states.connected then
     local items = {
       "ConnectionInfo",
@@ -88,6 +89,10 @@ local function completion_items()
     }
     if query_results.has_results(workspace.bufnr) then
       table.insert(items, "ShowResults")
+    end
+    local operation = workspace.get_active_operation()
+    if operation and operation.kind == "object" then
+      table.insert(items, "CancelOperation")
     end
     return with_activity(items)
   elseif state == states.disconnected then

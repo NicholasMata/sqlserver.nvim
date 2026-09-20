@@ -10,12 +10,19 @@ T["Object Explorer preserves SQL Tools Service nodes"] = function()
     objectType = "Tables",
     nodeType = "Folder",
     isLeaf = false,
+    nodeSubType = "UserTables",
+    nodeStatus = "Available",
+    errorMessage = "Metadata is incomplete",
     filterableProperties = { { name = "Name" } },
   }
   local node = explorer.from_service(source)
   assert(node.id == source.nodePath and node.nodePath == source.nodePath)
   assert(node.parentNodePath == source.parentNodePath and node.objectType == "Tables")
   assert(vim.deep_equal(node.filterableProperties, source.filterableProperties))
+  assert(node.nodeSubType == "UserTables")
+  assert(node.nodeStatus == "Available")
+  assert(node.errorMessage == "Metadata is incomplete")
+  assert(vim.deep_equal(explorer.details(node), { "UserTables", "Available", "Metadata is incomplete" }))
   assert(node.children == nil and not node.loaded and not node.loading and not node.expanded)
   assert(node.object == nil)
 end

@@ -1443,6 +1443,8 @@ local command_handlers = {
   end,
 }
 
+command_handlers.cancel_operation = command_handlers.cancel_query
+
 local M = {
   current_connection = public_api.current_connection,
   execute = public_api.execute,

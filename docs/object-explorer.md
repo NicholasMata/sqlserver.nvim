@@ -103,7 +103,15 @@ Expandable objects display every child returned by the service. With the
 pinned release, tables can expose Columns, Keys, Constraints, Indexes,
 Statistics, and Triggers. Available children vary by object type, server
 capabilities, and permissions. Empty child collections are treated as valid,
-and unknown future child types remain visible with a generic icon.
+and unknown future child types remain visible with a generic icon. When SQL
+Tools Service supplies a node subtype, status, or error, the explorer appends
+that information as a muted annotation; nodes with service errors use the
+standard diagnostic-error highlight. These annotations are searchable.
+
+Object scripting participates in the same cancellable lifecycle as queries.
+Use `<keymap_prefix>l`, `:SQLServer CancelOperation`, or `sqlserver.cancel()`
+while a script is being generated. Cancellation is sent to SQL Tools Service,
+and scripting plan and progress notifications update the existing operation.
 
 Server-administration branches such as Security, Storage, Service Broker, and
 SQL Server Agent are outside the current Object Explorer scope.

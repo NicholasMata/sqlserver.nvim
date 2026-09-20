@@ -65,15 +65,17 @@ execution is removed, evicted from history, or deleted with its source buffer.
 Starting a new query for the same buffer also releases the previous SQL Tools
 Service query because the backend retains only one query per document URI.
 
-Request cancellation with `cancel(bufnr, callback)`. The callback confirms the
-request; the query's execution callback completes after SQL Tools Service
+Request cancellation with `cancel(bufnr, callback)`. It cancels the active
+query or object-scripting operation owned by the workspace. The callback
+confirms the request; the operation callback completes after SQL Tools Service
 reports cancellation.
 
 ## Objects
 
-The 1.0 object model is a searchable snapshot of tables, views, stored
+The 1.0 object model includes a searchable snapshot of tables, views, stored
 procedures, scalar functions, and table-valued functions in the connected
-database. It is not a hierarchical server explorer.
+database. When Snacks is available, Object Explorer also presents the
+hierarchy returned by SQL Tools Service.
 
 `list_objects(opts, callback)` returns metadata-cache descriptors containing
 `id`, `name`, `schema`, `type`, and `path`. Filter with `name`, `schema`, or

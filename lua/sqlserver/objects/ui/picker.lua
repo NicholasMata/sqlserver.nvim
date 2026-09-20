@@ -132,6 +132,9 @@ local function list_children_async(client, connection_options, target_path)
       if expand_error then
         error(expand_error.message or tostring(expand_error), 0)
       end
+      if result and type(result.errorMessage) == "string" and result.errorMessage ~= "" then
+        error(result.errorMessage, 0)
+      end
       if not (result and type(result.nodes) == "table") then
         error("SQL Tools Service returned an invalid object expansion", 0)
       end
@@ -274,6 +277,10 @@ local get_object_cache_async = function(lsp_client, connection_options, cancella
       clean_up_and_return(nil, "SQL Tools Service could not expand database objects: " .. notification_err.message)
       return
     end
+    if expand_result and type(expand_result.errorMessage) == "string" and expand_result.errorMessage ~= "" then
+      clean_up_and_return(nil, expand_result.errorMessage)
+      return
+    end
     if not (expand_result and type(expand_result.nodes) == "table") then
       clean_up_and_return(nil, "SQL Tools Service returned an invalid object expansion")
       return
@@ -349,7 +356,7 @@ local function public_object(item)
   }
 end
 
-local generate_script_async = function(item, client, owner_uri, intent)
+local generate_script_async = function(item, client, owner_uri, intent, control)
   local spec = object_script.for_intent(item.objectType, intent)
   local scripting_params = {
     scriptDestination = "ToEditor",
@@ -368,7 +375,7 @@ local generate_script_async = function(item, client, owner_uri, intent)
     ownerURI = owner_uri,
     operation = spec.operation,
   }
-  local res = scripting.script_async(client, scripting_params, object_explorer_timeout)
+  local res = scripting.script_async(client, scripting_params, object_explorer_timeout, control)
 
   return {
     script = object_script.response_text(res, intent),
@@ -550,7 +557,7 @@ local function list_objects(connection_options, filters)
     :totable()
 end
 
-local function script_object_async(connection_options, client, owner_uri, opts)
+local function script_object_async(connection_options, client, owner_uri, opts, control)
   local target = opts.object or opts
   local item = vim.iter(cached_items(connection_options)):find(function(candidate)
     local object = public_object(candidate)
@@ -564,7 +571,7 @@ local function script_object_async(connection_options, client, owner_uri, opts)
   if not item then
     error("SQL Server object was not found in the current metadata cache", 0)
   end
-  return generate_script_async(item, client, owner_uri, opts.intent or "definition")
+  return generate_script_async(item, client, owner_uri, opts.intent or "definition", control)
 end
 
 local function delete_unused_cache(in_use_connections)

@@ -72,6 +72,7 @@ VALUES
   ('Merc', 1),
   ('Ford', 1),
   ('Hyundai', 2);
+DISABLE TRIGGER CarInsertTrigger ON Car;
 GO
 CREATE VIEW CarView AS
 SELECT ID, Make, PersonId

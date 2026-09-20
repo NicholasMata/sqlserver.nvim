@@ -159,7 +159,15 @@ T["Object Explorer completes an object workflow"] = require("tests.helpers").asy
   assert_named_child(expand(constraints), "CK_Car_PersonId")
   assert_named_child(expand(indexes), "IX_Car_Make")
   assert_named_child(expand(statistics), "IX_Car_Make")
-  assert_named_child(expand(triggers), "CarInsertTrigger")
+  local trigger = assert_named_child(expand(triggers), "CarInsertTrigger")
+  assert(trigger.node.nodeStatus == "Disabled", "SQL Tools Service did not preserve the disabled trigger status")
+  local formatted_trigger = picker_options.format(trigger, picker)
+  assert(
+    vim.iter(formatted_trigger):any(function(part)
+      return part[1]:find("Disabled", 1, true) ~= nil
+    end),
+    "Object Explorer did not render the disabled trigger status: " .. vim.inspect(formatted_trigger)
+  )
 
   for _, object in ipairs({ procedure, scalar_function, table_function, view }) do
     for _, child in ipairs(expand(object)) do
