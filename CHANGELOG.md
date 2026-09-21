@@ -6,22 +6,6 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Added
-
-- Surface SQL Tools Service Object Explorer node subtypes, statuses, and errors
-  as searchable tree annotations.
-
-### Changed
-
-- Let `cancel()` and `CancelOperation` stop either the active query or object
-  script while retaining `CancelQuery` as a compatibility alias.
-
-### Fixed
-
-- Send protocol-level object-scripting cancellation on user cancellation,
-  timeout, or workspace disposal and report scripting progress through the
-  shared operation lifecycle.
-
 ## [1.0.0-rc.5] - 2026-09-19
 
 ### Added
@@ -39,6 +23,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   behavior.
 - Add a dedicated connection information view for SQL Tools Service connection
   and server metadata, with buffer-local refresh, close, and help mappings.
+- Surface SQL Tools Service Object Explorer node subtypes, statuses, and errors
+  as searchable tree annotations.
 
 ### Changed
 
@@ -66,6 +52,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   current window and display them only after their contents are complete.
 - Continue serving the previous object cache while an explicit metadata
   refresh is running and coordinate initial refreshes shared by workspaces.
+- Let `cancel()` and `CancelOperation` stop either the active query or object
+  script while retaining `CancelQuery` as a compatibility alias.
 
 ### Fixed
 
@@ -78,6 +66,9 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   partially initialized query, result, definition, and export buffers.
 - Roll back partially initialized connections, suppress late callbacks after
   workspace or result disposal, and clean up plugin-owned export files.
+- Send protocol-level object-scripting cancellation on user cancellation,
+  timeout, or workspace disposal and report scripting progress through the
+  shared operation lifecycle.
 
 ## [1.0.0-rc.4] - 2026-09-13
 

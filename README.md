@@ -123,7 +123,7 @@ available through `:SQLServer`.
            │                    │                    │
       ✅ IntelliSense       🔵 SQL Agent          ⚪ Profiler
       ✅ Query              ⚪ Backup             ⚪ Query Store
-      🟡 Objects            ⚪ Restore            🔵 Query Plans
+      ✅ Objects            ⚪ Restore            🔵 Query Plans
       ⚪ Schema Compare     ⚪ Edit Data          ⚪ Assessment
       ⚪ Table Design       ⚪ Security
 ```
