@@ -3,6 +3,10 @@
 <!--
 Describe what changed and why it is needed. Link an issue with a keyword such
 as "Fixes #123" when this pull request resolves one.
+
+Do not add a local validation or testing section, and do not list local test
+results. The pull request's CI/CD checks are the authoritative validation
+record.
 -->
 
 ## Screenshots or recordings
