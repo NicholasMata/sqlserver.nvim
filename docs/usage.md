@@ -65,6 +65,10 @@ Each execution can contain one or more `sqlserver-result` buffers, displayed in
 a reusable results window. Unless noted otherwise, these mappings run from a
 result buffer:
 
+<p align="center">
+  <img src="assets/result-cell-navigation.png" alt="Result view with semantic cell navigation" width="1000">
+</p>
+
 | Vim Mode | Mapping | Command | Behavior |
 | --- | --- | --- | --- |
 | Normal, Visual | `h` / `l` | — | Move to the previous or next cell, wrapping between columns |
@@ -91,10 +95,12 @@ The default `true` value is equivalent to `{ wrap = true }`; use
 `results.cell_navigation = { wrap = false }` to stop `h`, `l`, `[c`, and `]c`
 at the first and last columns instead.
 
-The current semantic cell is highlighted by default, including when the cursor
-is on a header cell. The highlight is hidden during Visual mode so it does not
-obscure the selected range. Set `results.highlight_current_cell = false` to
-disable it, or customize its color through the normal Neovim highlight API:
+Set `results.highlight_current_cell = true` to highlight the current semantic
+cell, including header cells. The opt-in highlight is hidden during Visual mode
+so it does not obscure the selected range. It includes the padding beside each
+cell while leaving the vertical separators unhighlighted. By default,
+`SqlServerResultCurrentCell` links to `Search`; customize it through the normal
+Neovim highlight API:
 
 ```lua
 vim.api.nvim_set_hl(0, "SqlServerResultCurrentCell", { link = "CursorColumn" })

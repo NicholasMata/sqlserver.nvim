@@ -13,7 +13,7 @@ local sources = {}
 local result_sessions = {}
 local next_execution_id = 1
 local last_source_buffer
-local highlight_current_cell = true
+local highlight_current_cell = false
 local cell_navigation_wrap = true
 
 local highlight_links = {
@@ -21,7 +21,7 @@ local highlight_links = {
   SqlServerResultBorder = "NonText",
   SqlServerResultNull = "Comment",
   SqlServerResultTruncated = "DiagnosticWarn",
-  SqlServerResultCurrentCell = "Visual",
+  SqlServerResultCurrentCell = "Search",
 }
 
 local function define_highlights()
@@ -32,7 +32,7 @@ end
 
 function M.setup(opts)
   define_highlights()
-  highlight_current_cell = opts == nil or opts.highlight_current_cell ~= false
+  highlight_current_cell = opts ~= nil and opts.highlight_current_cell == true
   local navigation = opts and opts.cell_navigation or { enabled = true, wrap = true }
   if type(navigation) ~= "table" then
     navigation = { enabled = navigation ~= false, wrap = true }
@@ -337,8 +337,10 @@ function M.refresh_current_cell(bufnr)
     return false
   end
   local range = ranges[column]
-  vim.api.nvim_buf_set_extmark(bufnr, current_cell_namespace, cursor[1] - 1, range.start_col, {
-    end_col = range.end_col,
+  local highlight_start = range.start_col - (column > 1 and 1 or 0)
+  local highlight_end = range.end_col + (column < #ranges and 1 or 0)
+  vim.api.nvim_buf_set_extmark(bufnr, current_cell_namespace, cursor[1] - 1, highlight_start, {
+    end_col = highlight_end,
     hl_group = "SqlServerResultCurrentCell",
     hl_mode = "combine",
     priority = 120,

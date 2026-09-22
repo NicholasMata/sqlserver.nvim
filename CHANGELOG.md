@@ -10,7 +10,7 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 - Add configurable Vim-style `h`, `j`, `k`, and `l` cell navigation to result
   buffers, including counts and Visual-mode selection.
-- Highlight the current semantic result cell with a color-scheme-aware,
+- Add an opt-in current-cell highlight using a color-scheme-aware,
   user-overridable Neovim highlight group.
 
 ## [1.0.0-rc.5] - 2026-09-19

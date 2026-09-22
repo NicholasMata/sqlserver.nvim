@@ -31,7 +31,7 @@ require("sqlserver").setup({
 
   results = {
     cell_navigation = true,
-    highlight_current_cell = true,
+    highlight_current_cell = false,
     sticky_header = true,
     history_limit = 10,
     max_rows = 1000,
@@ -94,7 +94,7 @@ indefinitely.
 | `ui.activity.height` | `12` | Height of the built-in Activity split. |
 | `ui.connection_info.height` | `"auto"` | Height of the Connection Information split. `"auto"` fits its content up to half the source-window height; a positive integer uses a fixed height. |
 | `results.cell_navigation` | `true` | Uses `h`, `j`, `k`, and `l` as semantic cell motions in result buffers. Use `false` to disable it or `{ wrap = false }` to stop horizontal movement at table boundaries. Arrow keys retain native text movement. |
-| `results.highlight_current_cell` | `true` | Highlights the semantic result cell under the cursor. `SqlServerResultCurrentCell` links to `Visual` by default and can be overridden by the user. |
+| `results.highlight_current_cell` | `false` | Highlights the semantic result cell under the cursor when enabled. `SqlServerResultCurrentCell` links to `Search` unless overridden by the user. |
 | `results.sticky_header` | `true` | Keeps the column header visible while scrolling through result rows. |
 | `results.history_limit` | `10` | Successful executions retained in memory for each SQL source buffer. |
 | `results.max_rows` | `1000` | Maximum rows fetched for each result set. |

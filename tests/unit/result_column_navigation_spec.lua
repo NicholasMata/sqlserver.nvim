@@ -34,6 +34,11 @@ end
 
 T["Result column navigation follows rendered cell boundaries"] = require("tests.helpers").async(function()
   view.clear()
+  view.setup({
+    cell_navigation = { enabled = true, wrap = true },
+    highlight_current_cell = true,
+    sticky_header = true,
+  })
   local source = vim.api.nvim_create_buf(false, true)
   local model = query_result.create({
     columns = { "ID", "X", "Payload" },
@@ -83,18 +88,21 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
 
   vim.api.nvim_win_set_cursor(0, { 3, 0 })
   assert(view.refresh_current_cell())
-  assert(vim.api.nvim_get_hl(0, { name = "SqlServerResultCurrentCell", link = true }).link == "Visual")
+  assert(vim.api.nvim_get_hl(0, { name = "SqlServerResultCurrentCell", link = true }).link == "Search")
   local highlight_namespace = vim.api.nvim_create_namespace("sqlserver-result-current-cell")
   local highlights = vim.api.nvim_buf_get_extmarks(0, highlight_namespace, 0, -1, { details = true })
   assert(#highlights == 1, "The current result cell was not highlighted")
   assert(highlights[1][2] == 2 and highlights[1][3] == 0)
-  assert(highlights[1][4].end_col == 2)
+  assert(highlights[1][4].end_col == 3, "The first cell highlight should include separator padding")
   assert(highlights[1][4].hl_group == "SqlServerResultCurrentCell")
 
   assert(view.next_column())
   assert(vim.api.nvim_win_get_cursor(0)[2] == 7)
   highlights = vim.api.nvim_buf_get_extmarks(0, highlight_namespace, 0, -1, { details = true })
-  assert(#highlights == 1 and highlights[1][3] == 7, "Cell navigation did not move the highlight")
+  assert(
+    #highlights == 1 and highlights[1][3] == 6 and highlights[1][4].end_col == 12,
+    "Interior cell highlighting should include padding without covering separators"
+  )
   assert(view.next_column())
   assert(vim.api.nvim_win_get_cursor(0)[2] == 16, "Unicode rows require their own byte boundaries")
   assert(view.previous_column())
@@ -163,7 +171,7 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
   assert(not view.next_cell(), "Clamped navigation should stop at the final column")
   view.setup({
     cell_navigation = { enabled = true, wrap = true },
-    highlight_current_cell = true,
+    highlight_current_cell = false,
     sticky_header = true,
   })
 
