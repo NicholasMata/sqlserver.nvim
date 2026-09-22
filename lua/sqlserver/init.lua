@@ -384,6 +384,9 @@ local function setup_async(opts)
   if type(opts.results.sticky_header) ~= "boolean" then
     error("results.sticky_header must be true or false", 0)
   end
+  if type(opts.results.cell_navigation) ~= "boolean" then
+    error("results.cell_navigation must be true or false", 0)
+  end
   if
     type(opts.results.history_limit) ~= "number"
     or opts.results.history_limit < 1

@@ -42,6 +42,8 @@ return {
 
   -- Result retrieval and rendering limits.
   results = {
+    -- Treat h/j/k/l as semantic cell motions in result buffers.
+    cell_navigation = true,
     -- Keep the table header visible while scrolling through result rows.
     sticky_header = true,
     -- Number of successful executions retained for each SQL source buffer.

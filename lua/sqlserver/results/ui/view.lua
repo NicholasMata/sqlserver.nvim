@@ -28,6 +28,7 @@ end
 
 function M.setup(opts)
   define_highlights()
+  require("sqlserver.results.ui.keymaps").configure({ cell_navigation = opts == nil or opts.cell_navigation ~= false })
   sticky_header.setup({ enabled = opts == nil or opts.sticky_header ~= false })
   local group = vim.api.nvim_create_augroup("SqlServerResultHighlights", { clear = true })
   vim.api.nvim_create_autocmd("ColorScheme", { group = group, callback = define_highlights })
@@ -279,7 +280,7 @@ local function current_column(ranges, cursor_col)
   return column
 end
 
-local function move_column(offset)
+local function move_column(offset, count)
   local bufnr = vim.api.nvim_get_current_buf()
   local session = result_sessions[bufnr]
   if not session then
@@ -294,8 +295,45 @@ local function move_column(offset)
     return false
   end
   local column = current_column(ranges, cursor[2])
-  local target = ((column - 1 + offset) % #ranges) + 1
+  local target = ((column - 1 + offset * (count or 1)) % #ranges) + 1
   vim.api.nvim_win_set_cursor(0, { cursor[1], ranges[target].start_col })
+  return true
+end
+
+local function navigable_rows(session)
+  local rows = {}
+  for line, ranges in ipairs(session.cell_ranges or {}) do
+    if line ~= 2 and ranges and #ranges > 0 then
+      rows[#rows + 1] = line
+    end
+  end
+  return rows
+end
+
+local function move_row(offset, count)
+  local bufnr = vim.api.nvim_get_current_buf()
+  local session = result_sessions[bufnr]
+  if not session then
+    return false
+  end
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local current_ranges = session.cell_ranges and session.cell_ranges[cursor[1]]
+  if not current_ranges or cursor[1] == 2 or #current_ranges == 0 then
+    return false
+  end
+  local rows = navigable_rows(session)
+  local row_index = vim.fn.index(rows, cursor[1]) + 1
+  if row_index == 0 then
+    return false
+  end
+  local target_index = math.max(1, math.min(#rows, row_index + offset * (count or 1)))
+  if target_index == row_index then
+    return false
+  end
+  local column = current_column(current_ranges, cursor[2])
+  local target_ranges = session.cell_ranges[rows[target_index]]
+  local target = target_ranges[math.min(column, #target_ranges)]
+  vim.api.nvim_win_set_cursor(0, { rows[target_index], target.start_col })
   return true
 end
 
@@ -305,6 +343,22 @@ end
 
 function M.previous_column()
   return move_column(-1)
+end
+
+function M.next_cell(count)
+  return move_column(1, count)
+end
+
+function M.previous_cell(count)
+  return move_column(-1, count)
+end
+
+function M.next_row(count)
+  return move_row(1, count)
+end
+
+function M.previous_row(count)
+  return move_row(-1, count)
 end
 
 function M.show_column_info()

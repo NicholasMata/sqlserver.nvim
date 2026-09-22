@@ -48,8 +48,18 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
         result_cell.create({ display_value = "😀" }),
         result_cell.create({ display_value = "long\nvalue" }),
       },
+      {
+        result_cell.create({ display_value = "2" }),
+        result_cell.create({ display_value = "β" }),
+        result_cell.create({ display_value = "second" }),
+      },
+      {
+        result_cell.create({ display_value = "3" }),
+        result_cell.create({ display_value = "終" }),
+        result_cell.create({ display_value = "third" }),
+      },
     },
-    row_count = 2,
+    row_count = 4,
     locator = { resultSetIndex = 0 },
     ordinal = 1,
   })
@@ -79,6 +89,25 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
   assert(view.previous_column())
   assert(vim.api.nvim_win_get_cursor(0)[2] == 7)
 
+  vim.api.nvim_win_set_cursor(0, { 3, 0 })
+  assert(view.next_cell(2))
+  assert(vim.api.nvim_win_get_cursor(0)[2] == 16, "Horizontal counts should move across semantic cells")
+  assert(view.previous_cell(2))
+  assert(vim.api.nvim_win_get_cursor(0)[2] == 0)
+
+  vim.cmd("normal 2l")
+  assert(vim.api.nvim_win_get_cursor(0)[2] == 16, "The l mapping should pass its Vim count to cell navigation")
+
+  vim.api.nvim_win_set_cursor(0, { 1, 7 })
+  assert(view.next_row(), "Moving down from the header should skip the divider")
+  assert(vim.deep_equal(vim.api.nvim_win_get_cursor(0), { 3, 7 }))
+  assert(view.next_row(2))
+  assert(vim.deep_equal(vim.api.nvim_win_get_cursor(0), { 5, 7 }))
+  assert(not view.next_row(), "Vertical movement should stop at the final data row")
+  assert(view.previous_row(3))
+  assert(vim.deep_equal(vim.api.nvim_win_get_cursor(0), { 1, 7 }))
+  assert(not view.previous_row(), "Vertical movement should stop at the header")
+
   vim.api.nvim_win_set_cursor(0, { 3, 16 })
   assert(view.copy_cell())
   assert(vim.fn.getreg('"') == "long\nvalue", "Cell copying should preserve the untruncated multiline value")
@@ -95,14 +124,17 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
   assert(shown)
   assert(vim.deep_equal(hover_lines, { "nvarchar(20) NULL" }))
 
-  vim.api.nvim_win_set_cursor(0, { 3, 7 })
+  vim.api.nvim_win_set_cursor(0, { 3, 0 })
   vim.cmd("normal! v")
+  assert(view.next_cell())
+  assert(view.next_row())
   local selected = assert(view.visual_selection())
   vim.cmd("normal! \27")
-  assert(vim.deep_equal(selected, { row_start = 0, row_end = 0, column_start = 1, column_end = 1 }))
+  assert(vim.deep_equal(selected, { row_start = 0, row_end = 1, column_start = 0, column_end = 1 }))
 
-  vim.api.nvim_win_set_cursor(0, { 5, 0 })
+  vim.api.nvim_win_set_cursor(0, { 7, 0 })
   assert(not view.next_column(), "Summary lines should not be treated as result cells")
+  assert(not view.next_row(), "Summary lines should not be treated as result rows")
   assert(not view.copy_cell(), "Summary lines should not be copied as result cells")
   view.clear()
   vim.api.nvim_buf_delete(source, { force = true })

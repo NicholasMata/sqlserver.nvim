@@ -67,6 +67,8 @@ result buffer:
 
 | Vim Mode | Mapping | Command | Behavior |
 | --- | --- | --- | --- |
+| Normal, Visual | `h` / `l` | — | Move to the previous or next cell, wrapping between columns |
+| Normal, Visual | `j` / `k` | — | Move within the same column on the next or previous row |
 | Normal | `]r` | `NextResult` | Show the next result set in the execution |
 | Normal | `[r` | `PreviousResult` | Show the previous result set in the execution |
 | Normal | `<keymap_prefix>n` | `NextExecution` | Show the next retained execution |
@@ -79,6 +81,12 @@ result buffer:
 | Visual | `<keymap_prefix>s` | `ExportQueryResults` | Export the selected rows and columns |
 | Visual | `<keymap_prefix>y` | — | Copy the selected cells as a rich HTML table |
 | Normal | — | `CopyResultCell` | Copy the complete value under the cursor; command only |
+
+Cell motions accept Vim counts, keep the current column while moving between
+rows, and skip the rendered header divider. Vertical movement stops at the
+header or final data row; horizontal movement wraps to match `[c` and `]c`.
+Arrow keys retain native character and line movement. Set
+`results.cell_navigation = false` to leave `h`, `j`, `k`, and `l` unmapped.
 
 ### Result history
 

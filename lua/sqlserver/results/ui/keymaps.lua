@@ -1,6 +1,49 @@
 local M = {}
 
 local configured_suffixes = { "s", "n", "p", "d", "y" }
+local cell_navigation = true
+local cell_motion_keys = { "h", "j", "k", "l" }
+local cell_motion_descriptions = {
+  ["Previous SQL result cell"] = true,
+  ["Next SQL result row"] = true,
+  ["Previous SQL result row"] = true,
+  ["Next SQL result cell"] = true,
+}
+
+local function remove_cell_motions(bufnr)
+  for _, mode in ipairs({ "n", "x" }) do
+    local mappings = {}
+    for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(bufnr, mode)) do
+      mappings[mapping.lhs] = mapping
+    end
+    for _, key in ipairs(cell_motion_keys) do
+      local mapping = mappings[key]
+      if mapping and cell_motion_descriptions[mapping.desc] then
+        pcall(vim.keymap.del, mode, key, { buffer = bufnr })
+      end
+    end
+  end
+end
+
+local function attach_cell_motions(bufnr, view)
+  remove_cell_motions(bufnr)
+  if not cell_navigation then
+    return
+  end
+  local motions = {
+    { "h", view.previous_cell, "Previous SQL result cell" },
+    { "j", view.next_row, "Next SQL result row" },
+    { "k", view.previous_row, "Previous SQL result row" },
+    { "l", view.next_cell, "Next SQL result cell" },
+  }
+  for _, mode in ipairs({ "n", "x" }) do
+    for _, motion in ipairs(motions) do
+      vim.keymap.set(mode, motion[1], function()
+        motion[2](vim.v.count1)
+      end, { buffer = bufnr, desc = motion[3] })
+    end
+  end
+end
 
 function M.attach(bufnr)
   local view = require("sqlserver.results.ui.view")
@@ -13,6 +56,17 @@ function M.attach(bufnr)
   }
   for _, mapping in ipairs(mappings) do
     vim.keymap.set("n", mapping[1], mapping[2], { buffer = bufnr, desc = mapping[3] })
+  end
+  attach_cell_motions(bufnr, view)
+end
+
+function M.configure(opts)
+  cell_navigation = opts.cell_navigation ~= false
+  local view = require("sqlserver.results.ui.view")
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].filetype == "sqlserver-result" then
+      attach_cell_motions(bufnr, view)
+    end
   end
 end
 
