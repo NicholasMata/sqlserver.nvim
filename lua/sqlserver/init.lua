@@ -20,6 +20,7 @@ local ui_options = require("sqlserver.config.ui")
 local status_ui = require("sqlserver.ui.status")
 local generated_buffer = require("sqlserver.ui.generated_buffer")
 local timeout_options = require("sqlserver.config.timeouts")
+local result_options = require("sqlserver.config.results")
 local connection_profiles = require("sqlserver.connections.profiles")
 local public_api = require("sqlserver.api")
 
@@ -384,8 +385,8 @@ local function setup_async(opts)
   if type(opts.results.sticky_header) ~= "boolean" then
     error("results.sticky_header must be true or false", 0)
   end
-  if type(opts.results.cell_navigation) ~= "boolean" then
-    error("results.cell_navigation must be true or false", 0)
+  if type(opts.results.highlight_current_cell) ~= "boolean" then
+    error("results.highlight_current_cell must be true or false", 0)
   end
   if
     type(opts.results.history_limit) ~= "number"
@@ -394,6 +395,7 @@ local function setup_async(opts)
   then
     error("results.history_limit must be a positive integer", 0)
   end
+  opts.results.cell_navigation = result_options.normalize_cell_navigation(opts.results.cell_navigation)
   opts.timeouts = timeout_options.normalize(opts.timeouts)
   opts.ui.object_picker = ui_options.normalize_object_picker(opts.ui.object_picker)
   opts.ui.object_explorer = ui_options.normalize_object_explorer(opts.ui.object_explorer)

@@ -87,6 +87,24 @@ rows, and skip the rendered header divider. Vertical movement stops at the
 header or final data row; horizontal movement wraps to match `[c` and `]c`.
 Arrow keys retain native character and line movement. Set
 `results.cell_navigation = false` to leave `h`, `j`, `k`, and `l` unmapped.
+The default `true` value is equivalent to `{ wrap = true }`; use
+`results.cell_navigation = { wrap = false }` to stop `h`, `l`, `[c`, and `]c`
+at the first and last columns instead.
+
+The current semantic cell is highlighted by default, including when the cursor
+is on a header cell. The highlight is hidden during Visual mode so it does not
+obscure the selected range. Set `results.highlight_current_cell = false` to
+disable it, or customize its color through the normal Neovim highlight API:
+
+```lua
+vim.api.nvim_set_hl(0, "SqlServerResultCurrentCell", { link = "CursorColumn" })
+```
+
+For a more subdued highlight, link it to `CursorColumn`. Some color schemes
+give `CursorColumn` and `CursorLine` the same background, which makes that
+combination indistinguishable while result row highlighting is enabled.
+Result windows disable Neovim's `list` option so alignment padding does not
+appear as trailing-whitespace markers; other windows retain their own setting.
 
 ### Result history
 

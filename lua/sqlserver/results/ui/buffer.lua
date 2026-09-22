@@ -3,6 +3,7 @@ local M = {}
 local function configure_window(winid)
   vim.api.nvim_set_option_value("wrap", false, { win = winid })
   vim.api.nvim_set_option_value("cursorline", true, { win = winid })
+  vim.api.nvim_set_option_value("list", false, { win = winid })
   vim.api.nvim_set_option_value("signcolumn", "no", { win = winid })
 end
 
@@ -23,7 +24,7 @@ function M.setup(bufnr)
 
   require("sqlserver.results.ui.keymaps").attach(bufnr)
   vim.b[bufnr].undo_ftplugin = table.concat({
-    "setlocal wrap< cursorline< number< relativenumber< signcolumn<",
+    "setlocal wrap< cursorline< list< number< relativenumber< signcolumn<",
     "silent! nunmap <buffer> ]r",
     "silent! nunmap <buffer> [r",
     "silent! nunmap <buffer> ]c",

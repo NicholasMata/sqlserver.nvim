@@ -8,16 +8,20 @@ local result_winbar = require("sqlserver.results.ui.winbar")
 
 local M = {}
 local namespace = vim.api.nvim_create_namespace("sqlserver-results")
+local current_cell_namespace = vim.api.nvim_create_namespace("sqlserver-result-current-cell")
 local sources = {}
 local result_sessions = {}
 local next_execution_id = 1
 local last_source_buffer
+local highlight_current_cell = true
+local cell_navigation_wrap = true
 
 local highlight_links = {
   SqlServerResultHeader = "Title",
   SqlServerResultBorder = "NonText",
   SqlServerResultNull = "Comment",
   SqlServerResultTruncated = "DiagnosticWarn",
+  SqlServerResultCurrentCell = "Visual",
 }
 
 local function define_highlights()
@@ -28,10 +32,27 @@ end
 
 function M.setup(opts)
   define_highlights()
-  require("sqlserver.results.ui.keymaps").configure({ cell_navigation = opts == nil or opts.cell_navigation ~= false })
+  highlight_current_cell = opts == nil or opts.highlight_current_cell ~= false
+  local navigation = opts and opts.cell_navigation or { enabled = true, wrap = true }
+  if type(navigation) ~= "table" then
+    navigation = { enabled = navigation ~= false, wrap = true }
+  end
+  cell_navigation_wrap = navigation.wrap ~= false
+  require("sqlserver.results.ui.keymaps").configure({ cell_navigation = navigation.enabled })
   sticky_header.setup({ enabled = opts == nil or opts.sticky_header ~= false })
   local group = vim.api.nvim_create_augroup("SqlServerResultHighlights", { clear = true })
   vim.api.nvim_create_autocmd("ColorScheme", { group = group, callback = define_highlights })
+  vim.api.nvim_create_autocmd({ "BufEnter", "CursorMoved", "ModeChanged", "WinEnter" }, {
+    group = group,
+    callback = function(args)
+      M.refresh_current_cell(args.buf)
+    end,
+  })
+  for bufnr in pairs(result_sessions) do
+    if vim.api.nvim_buf_is_valid(bufnr) then
+      vim.api.nvim_buf_clear_namespace(bufnr, current_cell_namespace, 0, -1)
+    end
+  end
 end
 
 local function delete_execution(execution)
@@ -280,6 +301,51 @@ local function current_column(ranges, cursor_col)
   return column
 end
 
+local function cell_at(ranges, cursor_col)
+  for index, range in ipairs(ranges) do
+    if cursor_col >= range.start_col and cursor_col < range.end_col then
+      return index
+    end
+  end
+end
+
+local function visual_mode()
+  local mode = vim.api.nvim_get_mode().mode:sub(1, 1)
+  return mode == "v" or mode == "V" or mode == "\22" or mode == "s" or mode == "S" or mode == "\19"
+end
+
+function M.refresh_current_cell(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  if not vim.api.nvim_buf_is_valid(bufnr) then
+    return false
+  end
+  vim.api.nvim_buf_clear_namespace(bufnr, current_cell_namespace, 0, -1)
+  if not highlight_current_cell or bufnr ~= vim.api.nvim_get_current_buf() or visual_mode() then
+    return false
+  end
+  local session = result_sessions[bufnr]
+  if not session then
+    return false
+  end
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  if cursor[1] == 2 then
+    return false
+  end
+  local ranges = session.cell_ranges and session.cell_ranges[cursor[1]]
+  local column = ranges and cell_at(ranges, cursor[2]) or nil
+  if not column then
+    return false
+  end
+  local range = ranges[column]
+  vim.api.nvim_buf_set_extmark(bufnr, current_cell_namespace, cursor[1] - 1, range.start_col, {
+    end_col = range.end_col,
+    hl_group = "SqlServerResultCurrentCell",
+    hl_mode = "combine",
+    priority = 120,
+  })
+  return true
+end
+
 local function move_column(offset, count)
   local bufnr = vim.api.nvim_get_current_buf()
   local session = result_sessions[bufnr]
@@ -295,8 +361,17 @@ local function move_column(offset, count)
     return false
   end
   local column = current_column(ranges, cursor[2])
-  local target = ((column - 1 + offset * (count or 1)) % #ranges) + 1
+  local target
+  if cell_navigation_wrap then
+    target = ((column - 1 + offset * (count or 1)) % #ranges) + 1
+  else
+    target = math.max(1, math.min(#ranges, column + offset * (count or 1)))
+    if target == column then
+      return false
+    end
+  end
   vim.api.nvim_win_set_cursor(0, { cursor[1], ranges[target].start_col })
+  M.refresh_current_cell(bufnr)
   return true
 end
 
@@ -334,6 +409,7 @@ local function move_row(offset, count)
   local target_ranges = session.cell_ranges[rows[target_index]]
   local target = target_ranges[math.min(column, #target_ranges)]
   vim.api.nvim_win_set_cursor(0, { rows[target_index], target.start_col })
+  M.refresh_current_cell(bufnr)
   return true
 end
 
@@ -674,6 +750,7 @@ function M.show(result_sets, opts, source_bufnr, dispose)
   end
 
   display_buffer(source, execution.buffers[1], opts.open_results_in)
+  M.refresh_current_cell(execution.buffers[1])
   return true
 end
 

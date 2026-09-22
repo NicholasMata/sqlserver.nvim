@@ -1,6 +1,7 @@
 local T = MiniTest.new_set()
 
 T["Result filetype should install buffer-local mappings"] = require("tests.helpers").async(function()
+  local original_list = vim.wo.list
   local opened = false
   local shown = require("sqlserver.results.ui.view").show({}, {
     open_results_in = function()
@@ -11,7 +12,9 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
 
   local result_buffer = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_current_buf(result_buffer)
+  vim.wo.list = true
   vim.api.nvim_set_option_value("filetype", "sqlserver-result", { buf = result_buffer })
+  assert(not vim.wo.list, "Result windows should hide alignment padding markers")
 
   local mappings = {}
   for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(result_buffer, "n")) do
@@ -75,6 +78,7 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
     end
   end
   require("sqlserver.results.ui.keymaps").configure({ cell_navigation = true })
+  vim.wo.list = original_list
 end)
 
 return T

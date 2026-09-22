@@ -82,8 +82,19 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
   assert(vim.api.nvim_win_get_cursor(0)[2] == 14, "Previous navigation should wrap to the final column")
 
   vim.api.nvim_win_set_cursor(0, { 3, 0 })
+  assert(view.refresh_current_cell())
+  assert(vim.api.nvim_get_hl(0, { name = "SqlServerResultCurrentCell", link = true }).link == "Visual")
+  local highlight_namespace = vim.api.nvim_create_namespace("sqlserver-result-current-cell")
+  local highlights = vim.api.nvim_buf_get_extmarks(0, highlight_namespace, 0, -1, { details = true })
+  assert(#highlights == 1, "The current result cell was not highlighted")
+  assert(highlights[1][2] == 2 and highlights[1][3] == 0)
+  assert(highlights[1][4].end_col == 2)
+  assert(highlights[1][4].hl_group == "SqlServerResultCurrentCell")
+
   assert(view.next_column())
   assert(vim.api.nvim_win_get_cursor(0)[2] == 7)
+  highlights = vim.api.nvim_buf_get_extmarks(0, highlight_namespace, 0, -1, { details = true })
+  assert(#highlights == 1 and highlights[1][3] == 7, "Cell navigation did not move the highlight")
   assert(view.next_column())
   assert(vim.api.nvim_win_get_cursor(0)[2] == 16, "Unicode rows require their own byte boundaries")
   assert(view.previous_column())
@@ -126,11 +137,35 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
 
   vim.api.nvim_win_set_cursor(0, { 3, 0 })
   vim.cmd("normal! v")
+  assert(not view.refresh_current_cell(), "Visual mode should not retain the current-cell highlight")
+  assert(#vim.api.nvim_buf_get_extmarks(0, highlight_namespace, 0, -1, {}) == 0)
   assert(view.next_cell())
   assert(view.next_row())
   local selected = assert(view.visual_selection())
   vim.cmd("normal! \27")
   assert(vim.deep_equal(selected, { row_start = 0, row_end = 1, column_start = 0, column_end = 1 }))
+
+  vim.api.nvim_win_set_cursor(0, { 2, 0 })
+  assert(not view.refresh_current_cell(), "The rendered divider should not be highlighted as a cell")
+  assert(#vim.api.nvim_buf_get_extmarks(0, highlight_namespace, 0, -1, {}) == 0)
+
+  view.setup({
+    cell_navigation = { enabled = true, wrap = false },
+    highlight_current_cell = false,
+    sticky_header = true,
+  })
+  vim.api.nvim_win_set_cursor(0, { 3, 0 })
+  assert(not view.refresh_current_cell(), "Disabled current-cell highlighting still created an extmark")
+  assert(#vim.api.nvim_buf_get_extmarks(0, highlight_namespace, 0, -1, {}) == 0)
+  assert(not view.previous_cell(), "Clamped navigation should stop at the first column")
+  assert(view.next_cell(99))
+  assert(vim.api.nvim_win_get_cursor(0)[2] == 16, "Clamped navigation should stop at the final column")
+  assert(not view.next_cell(), "Clamped navigation should stop at the final column")
+  view.setup({
+    cell_navigation = { enabled = true, wrap = true },
+    highlight_current_cell = true,
+    sticky_header = true,
+  })
 
   vim.api.nvim_win_set_cursor(0, { 7, 0 })
   assert(not view.next_column(), "Summary lines should not be treated as result cells")
