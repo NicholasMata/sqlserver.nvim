@@ -10,6 +10,7 @@ local modules = {
   "operations_spec",
   "activity_stream_spec",
   "config_ui_spec",
+  "config_results_spec",
   "timeouts_spec",
   "connection_profiles_spec",
   "public_api_spec",

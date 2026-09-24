@@ -65,8 +65,14 @@ Each execution can contain one or more `sqlserver-result` buffers, displayed in
 a reusable results window. Unless noted otherwise, these mappings run from a
 result buffer:
 
+<p align="center">
+  <img src="assets/result-cell-navigation.png" alt="Result view with semantic cell navigation" width="1000">
+</p>
+
 | Vim Mode | Mapping | Command | Behavior |
 | --- | --- | --- | --- |
+| Normal, Visual | `h` / `l` | — | Move to the previous or next cell, wrapping between columns |
+| Normal, Visual | `j` / `k` | — | Move within the same column on the next or previous row |
 | Normal | `]r` | `NextResult` | Show the next result set in the execution |
 | Normal | `[r` | `PreviousResult` | Show the previous result set in the execution |
 | Normal | `<keymap_prefix>n` | `NextExecution` | Show the next retained execution |
@@ -79,6 +85,32 @@ result buffer:
 | Visual | `<keymap_prefix>s` | `ExportQueryResults` | Export the selected rows and columns |
 | Visual | `<keymap_prefix>y` | — | Copy the selected cells as a rich HTML table |
 | Normal | — | `CopyResultCell` | Copy the complete value under the cursor; command only |
+
+Cell motions accept Vim counts, keep the current column while moving between
+rows, and skip the rendered header divider. Vertical movement stops at the
+header or final data row; horizontal movement wraps to match `[c` and `]c`.
+Arrow keys retain native character and line movement. Set
+`results.cell_navigation = false` to leave `h`, `j`, `k`, and `l` unmapped.
+The default `true` value is equivalent to `{ wrap = true }`; use
+`results.cell_navigation = { wrap = false }` to stop `h`, `l`, `[c`, and `]c`
+at the first and last columns instead.
+
+Set `results.highlight_current_cell = true` to highlight the current semantic
+cell, including header cells. The opt-in highlight is hidden during Visual mode
+so it does not obscure the selected range. It includes the padding beside each
+cell while leaving the vertical separators unhighlighted. By default,
+`SqlServerResultCurrentCell` links to `Search`; customize it through the normal
+Neovim highlight API:
+
+```lua
+vim.api.nvim_set_hl(0, "SqlServerResultCurrentCell", { link = "CursorColumn" })
+```
+
+For a more subdued highlight, link it to `CursorColumn`. Some color schemes
+give `CursorColumn` and `CursorLine` the same background, which makes that
+combination indistinguishable while result row highlighting is enabled.
+Result windows disable Neovim's `list` option so alignment padding does not
+appear as trailing-whitespace markers; other windows retain their own setting.
 
 ### Result history
 
