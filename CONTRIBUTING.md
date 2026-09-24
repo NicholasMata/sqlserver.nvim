@@ -166,8 +166,11 @@ review; resolve the requirement or explain the permitted alternative in the
 pull request description before checking it. GitHub Checks is the source of
 truth for automated test results; do not copy CI status or test counts into the
 description. For a visible Neovim change, include a screenshot or recording in
-the template's **Screenshots or recordings** section; remove that section when
-the pull request has no visible interface changes.
+the template's **Screenshots or recordings** section. Upload review-only media
+directly to the pull request so it does not increase repository or Git history
+size. Commit media under `docs/assets/` only when maintained documentation uses
+it. Remove the screenshot section when the pull request has no visible
+interface changes.
 Explain compatibility concerns, known limitations, important design choices,
 and alternatives when they apply.
 
