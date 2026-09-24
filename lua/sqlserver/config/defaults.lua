@@ -42,6 +42,8 @@ return {
 
   -- Result retrieval and rendering limits.
   results = {
+    -- Prefix result headers with a colored icon representing the SQL type family.
+    column_icons = true,
     -- Treat h/j/k/l as semantic cell motions in result buffers.
     cell_navigation = true,
     -- Highlight the semantic cell under the cursor using SqlServerResultCurrentCell.

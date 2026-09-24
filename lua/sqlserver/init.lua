@@ -395,6 +395,7 @@ local function setup_async(opts)
   then
     error("results.history_limit must be a positive integer", 0)
   end
+  opts.results.column_icons = result_options.normalize_column_icons(opts.results.column_icons)
   opts.results.cell_navigation = result_options.normalize_cell_navigation(opts.results.cell_navigation)
   opts.timeouts = timeout_options.normalize(opts.timeouts)
   opts.ui.object_picker = ui_options.normalize_object_picker(opts.ui.object_picker)

@@ -1,5 +1,6 @@
 local query_result = require("sqlserver.results.result_set")
 local result_cell = require("sqlserver.results.cell")
+local column_icons = require("sqlserver.results.column_icons")
 local renderer = require("sqlserver.results.ui.renderer")
 local result_sets = require("sqlserver.results.collection")
 
@@ -59,6 +60,80 @@ T["Result descriptions exclude non-tabular summaries"] = function()
 
   assert(#descriptors == 0, "Summaries without columns must not create empty result buffers")
 end
+
+T["Result column types map to display families"] = function()
+  local expected = {
+    varchar = "text",
+    NVARCHAR = "text",
+    int = "number",
+    decimal = "number",
+    money = "number",
+    bit = "boolean",
+    date = "temporal",
+    datetimeoffset = "temporal",
+    json = "json",
+    uniqueidentifier = "uuid",
+    varbinary = "binary",
+    rowversion = "binary",
+    xml = "unknown",
+  }
+  for type_name, family in pairs(expected) do
+    assert(column_icons.family(type_name) == family, type_name .. " should map to " .. family)
+  end
+  assert(column_icons.family(nil) == "unknown")
+end
+
+T["Result renderer decorates typed headers without changing column names"] = require("tests.helpers").async(function()
+  local model = query_result.create({
+    columns = { "ID", "Name", "CreatedAt", "Payload" },
+    column_metadata = {
+      { name = "ID", type_name = "int", nullable = false },
+      { name = "Name", type_name = "nvarchar", nullable = true },
+      { name = "CreatedAt", type_name = "datetime2", nullable = false },
+      { name = "Payload", type_name = "xml" },
+    },
+    rows = {},
+    row_count = 0,
+    locator = { resultSetIndex = 0 },
+  })
+  local options = {
+    max_cell_width = 100,
+    column_icons = {
+      enabled = true,
+      icons = { number = "N", text = "T", temporal = "D", unknown = "?", nullable = "ˀ" },
+    },
+  }
+  local rendered = renderer.render(model, options)
+
+  assert(rendered.lines[1] == "N  ID │ Tˀ Name │ D  CreatedAt │ ?  Payload")
+  assert(vim.deep_equal(model.columns, { "ID", "Name", "CreatedAt", "Payload" }))
+  local icon_groups = vim
+    .iter(rendered.decorations)
+    :filter(function(decoration)
+      return decoration.line == 0 and decoration.priority == 130
+    end)
+    :map(function(decoration)
+      return decoration.highlight
+    end)
+    :totable()
+  table.sort(icon_groups)
+  assert(vim.deep_equal(icon_groups, {
+    "SqlServerResultNullable",
+    "SqlServerResultTypeNumber",
+    "SqlServerResultTypeTemporal",
+    "SqlServerResultTypeText",
+    "SqlServerResultTypeUnknown",
+  }))
+  assert(
+    vim.iter(rendered.decorations):all(function(decoration)
+      return not vim.startswith(decoration.highlight, "SqlServerResultType") or decoration.priority == 130
+    end),
+    "Result header icons should override the header cell highlight"
+  )
+
+  options.column_icons.enabled = false
+  assert(renderer.render(model, options).lines[1] == "ID │ Name │ CreatedAt │ Payload")
+end)
 
 T["Result renderer preserves models and describes truncation"] = require("tests.helpers").async(function()
   local model = query_result.create({

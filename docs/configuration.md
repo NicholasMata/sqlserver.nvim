@@ -30,6 +30,7 @@ require("sqlserver").setup({
   },
 
   results = {
+    column_icons = true,
     cell_navigation = true,
     highlight_current_cell = false,
     sticky_header = true,
@@ -93,6 +94,7 @@ indefinitely.
 | `ui.native_progress` | `true` | Publishes active and completed operations through Neovim's built-in progress messages. |
 | `ui.activity.height` | `12` | Height of the built-in Activity split. |
 | `ui.connection_info.height` | `"auto"` | Height of the Connection Information split. `"auto"` fits its content up to half the source-window height; a positive integer uses a fixed height. |
+| `results.column_icons` | `true` | Prefixes result headers with colored Nerd Font icons for SQL type families. Use `false` to disable them or a table to override individual glyphs. |
 | `results.cell_navigation` | `true` | Uses `h`, `j`, `k`, and `l` as semantic cell motions in result buffers. Use `false` to disable it or `{ wrap = false }` to stop horizontal movement at table boundaries. Arrow keys retain native text movement. |
 | `results.highlight_current_cell` | `false` | Highlights the semantic result cell under the cursor when enabled. `SqlServerResultCurrentCell` links to `Search` unless overridden by the user. |
 | `results.sticky_header` | `true` | Keeps the column header visible while scrolling through result rows. |
@@ -106,6 +108,34 @@ indefinitely.
 | `timeouts.query` | `false` | Maximum query duration before server-side cancellation is requested. |
 | `execute_generated_select_statements` | `true` | Immediately executes generated table and view queries. Procedures are never executed automatically. |
 | `lsp_settings` | See defaults above | Settings passed directly to SQL Tools Service. |
+
+Result header icons classify the SQL type metadata already returned with each
+query. They do not request full schema metadata or infer keys and indexes. Set
+only the glyphs you want to replace; omitted values retain their defaults:
+
+```lua
+require("sqlserver").setup({
+  results = {
+    column_icons = {
+      text = "󰀬",
+      number = "󰎠",
+      boolean = "󰔡",
+      temporal = "󰃭",
+      json = "󰘦",
+      uuid = "󰯮",
+      binary = "󰈔",
+      unknown = "󰠵",
+      nullable = "ˀ",
+    },
+  },
+})
+```
+
+The icon highlight groups link to standard Neovim groups and follow the active
+color scheme. Override groups such as `SqlServerResultTypeText`,
+`SqlServerResultTypeNumber`, or `SqlServerResultTypeTemporal` with
+`vim.api.nvim_set_hl()` when desired. Nullable columns place the configurable
+`nullable` marker beside the type icon and use `SqlServerResultNullable`.
 | `sql_buffer_options` | See defaults above | Neovim buffer options applied to SQL buffers. |
 | `connections_file` | `nil` | Connection-profile JSON path. `nil` uses `data_dir/connections.json`. |
 | `tools_file` | `nil` | Existing SQL Tools Service executable. `nil` uses the managed installation. |
