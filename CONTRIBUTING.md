@@ -188,6 +188,22 @@ Follow [Tim Pope's commit message guidance](https://tbaggery.com/2008/04/19/a-no
 - wrap body text at approximately 72 characters;
 - explain what changed and why.
 
+Prepare and review the complete message before creating any commit. Use actual
+paragraph breaks rather than escaped newline text such as `\n`, and check the
+body's wrapping before writing the commit. Do not treat a later amend as part
+of the normal commit-writing workflow.
+
+### Squash merges
+
+Maintainers must review the exact squash-commit message before completing a
+pull request and apply the same procedure required for every commit. Keep the
+pull request's `(#<number>)` suffix in the subject.
+
+Treat the resulting GitHub merge commit as immutable. Do not plan to repair a
+malformed message by amending and force-pushing after the merge; that leaves
+GitHub's recorded merge commit outside the target branch. If the merge tool
+cannot produce the reviewed message exactly, stop before merging.
+
 Agents and AI coding tools must also follow [AGENTS.md](AGENTS.md).
 
 ## Releases

@@ -51,3 +51,32 @@ Follow [Tim Pope's commit message guidance](https://tbaggery.com/2008/04/19/a-no
 - Separate the subject from the body with a blank line.
 - Wrap body text at approximately 72 characters.
 - Use the body to explain what changed and why.
+
+## Writing commits
+
+Treat every commit as an operation whose message must be correct before it is
+created. Before writing any commit:
+
+- Prepare the exact final subject and body as real multiline text and inspect
+  the rendered message.
+- Apply all commit-message rules above.
+- Never pass escaped newline text such as `\n` as the commit body. Use an input
+  file or another mechanism that preserves actual newline characters.
+- Check that the body contains no literal escape sequences and that its lines
+  wrap at approximately 72 characters.
+- Do not create a commit with the intention of repairing its message through a
+  later amend. If the commit mechanism cannot preserve the reviewed message,
+  stop before creating the commit.
+
+Inspect the resulting message immediately after every commit.
+
+## Merging pull requests
+
+Apply the writing procedure above before every squash merge. Retain the
+`(#<number>)` suffix so the squash commit remains visibly associated with its
+pull request. Treat a GitHub-created merge commit as immutable and never plan
+to amend or force-push it afterward.
+
+If the merge tool cannot produce the reviewed message exactly, stop before
+merging. Amending the result breaks the commit association recorded by the
+pull request.
