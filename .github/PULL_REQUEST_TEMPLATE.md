@@ -14,7 +14,9 @@ record.
 <!--
 Required for visible Neovim changes. Remove this section when the pull request
 has no visible interface changes. Do not include credentials, connection
-strings, access tokens, or private database contents.
+strings, access tokens, or private database contents. Upload review-only media
+directly to the pull request instead of committing it to the repository. Keep
+an image under docs/assets only when maintained documentation also uses it.
 -->
 
 ## Type of change
