@@ -128,8 +128,11 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
   assert(not view.previous_row(), "Vertical movement should stop at the header")
 
   vim.api.nvim_win_set_cursor(0, { 3, 16 })
-  assert(view.copy_cell())
-  assert(vim.fn.getreg('"') == "long\nvalue", "Cell copying should preserve the untruncated multiline value")
+  vim.cmd("normal yic")
+  assert(vim.fn.getreg('"') == "long\nvalue", "yic should yank the complete untruncated multiline cell value")
+  vim.fn.setreg("a", "previous")
+  vim.cmd('normal "ayic')
+  assert(vim.fn.getreg("a") == "long\nvalue", "yic should honor an explicitly selected Vim register")
 
   vim.api.nvim_win_set_cursor(0, { 3, 7 })
 
