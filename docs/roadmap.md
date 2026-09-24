@@ -99,7 +99,7 @@ architecture, delivery stages, and acceptance criteria.
 
 ## Later
 
-- Result-cell text objects and operators, including `yiC` for copying the
+- Result-cell text objects and operators, including `yic` for copying the
   complete underlying value of the cell under the cursor.
 - Individual object-tree node refresh.
 - Explicit `ALTER` and `DROP` scripting actions with destructive-operation UX.

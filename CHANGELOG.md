@@ -16,6 +16,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   headers without changing semantic column names or exported data.
 - Exclude result column headers from inherited spell checking while continuing
   to check result values.
+- Add a register-aware, result-local `yic` mapping that yanks the complete
+  underlying cell value without rendered truncation or padding.
 
 ## [1.0.0-rc.5] - 2026-09-19
 

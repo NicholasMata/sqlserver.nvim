@@ -485,7 +485,8 @@ function M.copy_cell()
   if not cell then
     return false
   end
-  vim.fn.setreg('"', cell.display_value, "v")
+  local register = vim.v.register ~= "" and vim.v.register or '"'
+  vim.fn.setreg(register, cell.display_value, "v")
   return true
 end
 

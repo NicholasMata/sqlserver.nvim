@@ -53,6 +53,7 @@ function M.attach(bufnr)
     { "]c", view.next_column, "Next SQL result column" },
     { "[c", view.previous_column, "Previous SQL result column" },
     { "K", view.show_column_info, "Show SQL result column type" },
+    { "yic", view.copy_cell, "Yank complete SQL result cell" },
   }
   for _, mapping in ipairs(mappings) do
     vim.keymap.set("n", mapping[1], mapping[2], { buffer = bufnr, desc = mapping[3] })

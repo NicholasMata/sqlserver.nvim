@@ -87,17 +87,25 @@ enabled, result values remain checked while the column header is excluded.
 | Normal | `]c` | — | Move to the next result column |
 | Normal | `[c` | — | Move to the previous result column |
 | Normal | `K` | — | Inspect the current column's SQL type and metadata |
+| Normal | `yic` | `CopyResultCell` | Yank the complete value under the cursor |
 | Normal | `<keymap_prefix>d` | `RemoveResult` | Remove the current result after confirmation |
 | Normal | `<keymap_prefix>s` | `ExportQueryResults` | Export the complete result set |
 | Visual | `<keymap_prefix>s` | `ExportQueryResults` | Export the selected rows and columns |
 | Visual | `<keymap_prefix>y` | — | Copy the selected cells as a rich HTML table |
-| Normal | — | `CopyResultCell` | Copy the complete value under the cursor; command only |
+| Normal | — | `CopyResultCell` | Copy the complete value under the cursor |
 
 Cell motions accept Vim counts, keep the current column while moving between
 rows, and skip the rendered header divider. Vertical movement stops at the
 header or final data row; horizontal movement wraps to match `[c` and `]c`.
 Arrow keys retain native character and line movement. Set
 `results.cell_navigation = false` to leave `h`, `j`, `k`, and `l` unmapped.
+
+`yic` reads from the result model, so it preserves complete multiline values
+even when the displayed cell is truncated. It follows normal Vim register
+selection: use `"+yic` for the system clipboard, `"*yic` for the primary
+selection, or a prefix such as `"ayic` for a named register. Plain `yic` uses
+the unnamed register and follows the user's `clipboard` option.
+
 The default `true` value is equivalent to `{ wrap = true }`; use
 `results.cell_navigation = { wrap = false }` to stop `h`, `l`, `[c`, and `]c`
 at the first and last columns instead.

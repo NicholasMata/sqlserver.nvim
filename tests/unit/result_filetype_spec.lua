@@ -50,6 +50,7 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
   assert(mappings["]c"] == "Next SQL result column")
   assert(mappings["[c"] == "Previous SQL result column")
   assert(mappings["K"] == "Show SQL result column type")
+  assert(mappings["yic"] == "Yank complete SQL result cell")
   assert(mappings["h"] == "Previous SQL result cell")
   assert(mappings["j"] == "Next SQL result row")
   assert(mappings["k"] == "Previous SQL result row")
