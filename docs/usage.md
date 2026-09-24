@@ -69,6 +69,13 @@ result buffer:
   <img src="assets/result-cell-navigation.png" alt="Result view with semantic cell navigation" width="1000">
 </p>
 
+Column headers use colored Nerd Font icons to identify text, number, boolean,
+temporal, JSON, UUID, binary, and unknown SQL type families. These icons are
+display-only: column names, copied values, and exported data remain unchanged.
+Nullable columns add a compact `ˀ` marker beside the type icon.
+Disable or customize them with `results.column_icons`. When spell checking is
+enabled, result values remain checked while the column header is excluded.
+
 | Vim Mode | Mapping | Command | Behavior |
 | --- | --- | --- | --- |
 | Normal, Visual | `h` / `l` | — | Move to the previous or next cell, wrapping between columns |

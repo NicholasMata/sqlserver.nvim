@@ -51,6 +51,7 @@ local function create_header_buffer(header)
   for _, decoration in ipairs(header.decorations) do
     local opts = decoration.end_col == -1 and { line_hl_group = decoration.highlight }
       or { end_col = decoration.end_col, hl_group = decoration.highlight }
+    opts.priority = decoration.priority
     vim.api.nvim_buf_set_extmark(bufnr, namespace, 0, decoration.start_col, opts)
   end
   vim.api.nvim_set_option_value("modifiable", false, { buf = bufnr })
@@ -92,6 +93,7 @@ local function update_window(winid)
     float = { winid = float_window, bufnr = header_buffer, result_buffer = result_buffer }
     floats[winid] = float
     vim.api.nvim_set_option_value("wrap", false, { win = float.winid })
+    vim.api.nvim_set_option_value("spell", false, { win = float.winid })
     vim.api.nvim_set_option_value("winhighlight", "Normal:Normal,NormalNC:Normal", { win = float.winid })
   else
     vim.api.nvim_win_set_config(float.winid, {

@@ -22,6 +22,15 @@ local highlight_links = {
   SqlServerResultNull = "Comment",
   SqlServerResultTruncated = "DiagnosticWarn",
   SqlServerResultCurrentCell = "Search",
+  SqlServerResultTypeText = "String",
+  SqlServerResultTypeNumber = "Number",
+  SqlServerResultTypeBoolean = "Boolean",
+  SqlServerResultTypeTemporal = "Type",
+  SqlServerResultTypeJson = "Special",
+  SqlServerResultTypeUuid = "Constant",
+  SqlServerResultTypeBinary = "NonText",
+  SqlServerResultTypeUnknown = "Identifier",
+  SqlServerResultNullable = "DiagnosticHint",
 }
 
 local function define_highlights()
@@ -656,7 +665,10 @@ function M.show(result_sets, opts, source_bufnr, dispose)
   for index, result_set in ipairs(result_sets) do
     prepared[index] = {
       result_set = result_set,
-      rendered = renderer.render(result_set, { max_cell_width = opts.results.max_cell_width }),
+      rendered = renderer.render(result_set, {
+        max_cell_width = opts.results.max_cell_width,
+        column_icons = opts.results.column_icons,
+      }),
     }
   end
 
@@ -686,6 +698,7 @@ function M.show(result_sets, opts, source_bufnr, dispose)
     for _, decoration in ipairs(rendered.decorations) do
       local extmark = decoration.end_col == -1 and { line_hl_group = decoration.highlight }
         or { end_col = decoration.end_col, hl_group = decoration.highlight }
+      extmark.priority = decoration.priority
       vim.api.nvim_buf_set_extmark(bufnr, namespace, decoration.line, decoration.start_col, extmark)
     end
     sticky_header.attach(

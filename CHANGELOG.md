@@ -12,6 +12,10 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   buffers, including counts and Visual-mode selection.
 - Add an opt-in current-cell highlight using a color-scheme-aware,
   user-overridable Neovim highlight group.
+- Add configurable, color-scheme-aware SQL type icons to result column
+  headers without changing semantic column names or exported data.
+- Exclude result column headers from inherited spell checking while continuing
+  to check result values.
 
 ## [1.0.0-rc.5] - 2026-09-19
 
