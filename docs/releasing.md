@@ -20,9 +20,14 @@ pull request from `next` to `main`. Tag the merge commit on `main`, publish the
 GitHub release, then restore an empty `Unreleased` section on `next` for the
 following release.
 
+Complete the release pull request with a merge commit. Do not squash or rebase
+the promotion: `main` must retain the exact commits and pull request
+associations accumulated on `next`.
+
 An urgent fix for the currently released version may target `main` directly.
-Release that fix promptly and bring the resulting commit into `next` so the
-branches do not diverge.
+Release that fix promptly and merge `main` into `next` so the branches do not
+diverge. Do not rebase `next`, because doing so rewrites commits already
+associated with merged pull requests.
 
 ## Release identity
 

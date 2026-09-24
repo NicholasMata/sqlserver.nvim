@@ -80,3 +80,9 @@ to amend or force-push it afterward.
 If the merge tool cannot produce the reviewed message exactly, stop before
 merging. Amending the result breaks the commit association recorded by the
 pull request.
+
+Use squash merges only for ordinary pull requests targeting `next`. Never
+rebase `next` after it contains merged pull requests. When `main` receives a
+direct change, merge `main` into `next` with a merge commit so existing commit
+IDs and pull request associations remain intact. Promote `next` to `main` with
+a merge commit as well; do not squash or rebase a release promotion.

@@ -143,8 +143,9 @@ Open ordinary feature, fix, refactoring, and documentation pull requests
 against `next`. Create branches from an up-to-date `next` branch so each pull
 request includes the current release-integration work. The only changes that
 normally target `main` are a release promotion from `next` and an urgent fix
-for the currently released version. Bring every urgent `main` fix back into
-`next` before continuing development there.
+for the currently released version. Bring every direct `main` change back into
+`next` with a merge commit before continuing development there. Do not rebase
+`next`; rewriting it breaks commit IDs associated with merged pull requests.
 
 Keep pull requests focused on one coherent change. Split unrelated behavior,
 refactoring, and documentation work when they can be reviewed and merged
@@ -203,6 +204,10 @@ Treat the resulting GitHub merge commit as immutable. Do not plan to repair a
 malformed message by amending and force-pushing after the merge; that leaves
 GitHub's recorded merge commit outside the target branch. If the merge tool
 cannot produce the reviewed message exactly, stop before merging.
+
+Use squash merges for ordinary pull requests into `next`. Release promotions
+from `next` to `main` must use a merge commit, not a squash or rebase, so the
+commits and pull request associations accumulated on `next` remain in `main`.
 
 Agents and AI coding tools must also follow [AGENTS.md](AGENTS.md).
 
