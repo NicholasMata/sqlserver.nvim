@@ -19,6 +19,11 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Add a register-aware, result-local `yic` mapping that yanks the complete
   underlying cell value without rendered truncation or padding.
 
+### Changed
+
+- Keep Visual-mode `h`, `j`, `k`, and `l` as native text-selection motions in
+  result buffers, with `[c` and `]c` available for explicit column jumps.
+
 ## [1.0.0-rc.5] - 2026-09-19
 
 ### Added

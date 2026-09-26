@@ -78,14 +78,14 @@ enabled, result values remain checked while the column header is excluded.
 
 | Vim Mode | Mapping | Command | Behavior |
 | --- | --- | --- | --- |
-| Normal, Visual | `h` / `l` | — | Move to the previous or next cell, wrapping between columns |
-| Normal, Visual | `j` / `k` | — | Move within the same column on the next or previous row |
+| Normal | `h` / `l` | — | Move to the previous or next cell, wrapping between columns |
+| Normal | `j` / `k` | — | Move within the same column on the next or previous row |
 | Normal | `]r` | `NextResult` | Show the next result set in the execution |
 | Normal | `[r` | `PreviousResult` | Show the previous result set in the execution |
 | Normal | `<keymap_prefix>n` | `NextExecution` | Show the next retained execution |
 | Normal | `<keymap_prefix>p` | `PreviousExecution` | Show the previous retained execution |
-| Normal | `]c` | — | Move to the next result column |
-| Normal | `[c` | — | Move to the previous result column |
+| Normal, Visual | `]c` | — | Move to the next result column |
+| Normal, Visual | `[c` | — | Move to the previous result column |
 | Normal | `K` | — | Inspect the current column's SQL type and metadata |
 | Normal | `yic` | `CopyResultCell` | Yank the complete value under the cursor |
 | Normal | `<keymap_prefix>d` | `RemoveResult` | Remove the current result after confirmation |
@@ -94,11 +94,14 @@ enabled, result values remain checked while the column header is excluded.
 | Visual | `<keymap_prefix>y` | — | Copy the selected cells as a rich HTML table |
 | Normal | — | `CopyResultCell` | Copy the complete value under the cursor |
 
-Cell motions accept Vim counts, keep the current column while moving between
-rows, and skip the rendered header divider. Vertical movement stops at the
-header or final data row; horizontal movement wraps to match `[c` and `]c`.
-Arrow keys retain native character and line movement. Set
-`results.cell_navigation = false` to leave `h`, `j`, `k`, and `l` unmapped.
+Normal-mode cell motions accept Vim counts, keep the current column while
+moving between rows, and skip the rendered header divider. Vertical movement
+stops at the header or final data row; horizontal movement wraps to match
+`[c` and `]c`. Visual-mode `h`, `j`, `k`, and `l` retain native text selection;
+use Visual `[c` and `]c` to jump between columns while selecting cells. Arrow
+keys retain native character and line movement. Set
+`results.cell_navigation = false` to leave Normal-mode `h`, `j`, `k`, and `l`
+unmapped.
 
 `yic` reads from the result model, so it preserves complete multiline values
 even when the displayed cell is truncated. It follows normal Vim register
