@@ -6,30 +6,20 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [1.0.0-rc.5] - 2026-09-25
+
 ### Added
 
 - Add configurable Vim-style `h`, `j`, `k`, and `l` cell navigation to result
-  buffers, including counts and Visual-mode selection.
+  buffers, including counts in Normal mode.
 - Add an opt-in current-cell highlight using a color-scheme-aware,
   user-overridable Neovim highlight group.
 - Add configurable, color-scheme-aware SQL type icons to result column
   headers without changing semantic column names or exported data.
-- Exclude result column headers from inherited spell checking while continuing
-  to check result values.
 - Add a register-aware, result-local `yic` mapping that yanks the complete
   underlying cell value without rendered truncation or padding.
 - Add `vic` to select a result cell's rendered contents without changing the
   full-value `yic` mapping.
-
-### Changed
-
-- Keep Visual-mode `h`, `j`, `k`, and `l` as native text-selection motions in
-  result buffers, with `[c` and `]c` available for explicit column jumps.
-
-## [1.0.0-rc.5] - 2026-09-19
-
-### Added
-
 - Add a shared asynchronous operation model for SQL Tools Service startup,
   connections, queries, metadata, object scripting, and result exports.
 - Add configurable object selection with automatic Snacks integration,
@@ -48,6 +38,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Changed
 
+- Keep Visual-mode `h`, `j`, `k`, and `l` as native text-selection motions in
+  result buffers, with `[c` and `]c` available for explicit column jumps.
 - Show the SQL Tools Service connection username in the workspace winbar and
   public connection snapshot. Shorten long server names first, and allow the
   displayed winbar identity fields to be configured.
@@ -77,6 +69,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Fixed
 
+- Exclude result column headers from inherited spell checking while continuing
+  to check result values.
 - Keep a visible Connection Information view synchronized with database and
   connection lifecycle changes, hide non-applicable Azure metadata, and render
   empty server options without exposing Lua implementation details.
