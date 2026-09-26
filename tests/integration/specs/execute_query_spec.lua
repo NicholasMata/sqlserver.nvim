@@ -22,9 +22,12 @@ T["Execute query should run the statement under the cursor"] = require("tests.he
 
   test_utils.defer_async(2000)
 
-  local results = table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+  local lines = vim.api.nvim_buf_get_lines(0, 0, -1, false)
+  local results = table.concat(lines, "\n")
   assert(results:find("Amy"), "SQL query results do not contain the selected statement's row")
   assert(not results:find("Bob"), "SQL query executed more than the statement under the cursor")
+  assert(lines[1]:find("󰎠  ID", 1, true), "Non-null integer metadata did not render its type icon")
+  assert(lines[1]:find("󰀬ˀ Name", 1, true), "Nullable text metadata did not render its icon and marker")
   vim.cmd("bdelete")
 end)
 

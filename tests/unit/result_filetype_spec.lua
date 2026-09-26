@@ -1,6 +1,8 @@
 local T = MiniTest.new_set()
 
 T["Result filetype should install buffer-local mappings"] = require("tests.helpers").async(function()
+  local original_list = vim.wo.list
+  local original_spell = vim.wo.spell
   local opened = false
   local shown = require("sqlserver.results.ui.view").show({}, {
     open_results_in = function()
@@ -11,7 +13,32 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
 
   local result_buffer = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_set_current_buf(result_buffer)
+  vim.api.nvim_buf_set_lines(result_buffer, 0, -1, false, {
+    "MisspelleddHeader",
+    "──────────────────",
+    "misspelledd value",
+  })
+  vim.cmd("syntax enable")
+  vim.wo.list = true
+  vim.wo.spell = true
   vim.api.nvim_set_option_value("filetype", "sqlserver-result", { buf = result_buffer })
+  assert(not vim.wo.list, "Result windows should hide alignment padding markers")
+  assert(vim.wo.spell, "Result windows should preserve spell checking for cell values")
+  local header_syntax = vim
+    .iter(vim.fn.synstack(1, 1))
+    :map(function(id)
+      return vim.fn.synIDattr(id, "name")
+    end)
+    :totable()
+  assert(
+    vim.list_contains(header_syntax, "SqlServerResultHeaderNoSpell"),
+    "Result column headers should be excluded from spell checking"
+  )
+  assert(#vim.fn.synstack(3, 1) == 0, "Result values should remain available to spell checking")
+  vim.api.nvim_win_set_cursor(0, { 1, 0 })
+  assert(vim.fn.spellbadword()[1] == "", "Result column headers should not produce spelling errors")
+  vim.api.nvim_win_set_cursor(0, { 3, 0 })
+  assert(vim.fn.spellbadword()[1] == "misspelledd", "Result values should still produce spelling errors")
 
   local mappings = {}
   for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(result_buffer, "n")) do
@@ -23,6 +50,22 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
   assert(mappings["]c"] == "Next SQL result column")
   assert(mappings["[c"] == "Previous SQL result column")
   assert(mappings["K"] == "Show SQL result column type")
+  assert(mappings["yic"] == "Yank complete SQL result cell")
+  assert(mappings["h"] == "Previous SQL result cell")
+  assert(mappings["j"] == "Next SQL result row")
+  assert(mappings["k"] == "Previous SQL result row")
+  assert(mappings["l"] == "Next SQL result cell")
+
+  local visual_cell_mappings = {}
+  for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(result_buffer, "x")) do
+    visual_cell_mappings[mapping.lhs] = mapping.desc
+  end
+  for _, key in ipairs({ "h", "j", "k", "l" }) do
+    assert(not visual_cell_mappings[key], "Visual " .. key .. " should retain its native motion")
+  end
+  assert(visual_cell_mappings["]c"] == "Next SQL result column")
+  assert(visual_cell_mappings["[c"] == "Previous SQL result column")
+  assert(visual_cell_mappings["ic"] == "Select SQL result cell contents")
 
   local noop = function() end
   local handlers = setmetatable({ export_query_results = noop }, {
@@ -31,6 +74,7 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
     end,
   })
   require("sqlserver.ui.keymaps").set_keymaps("<leader>d", handlers)
+  assert(vim.fn.maparg("<leader>di", "n", false, true).desc == "Connection Information")
 
   local prefixed_mappings = {}
   for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(result_buffer, "n")) do
@@ -47,6 +91,22 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
   end
   assert(visual_mappings["Export selected SQL result cells"])
   assert(visual_mappings["Copy selected SQL result cells as HTML"])
+
+  vim.keymap.set("n", "h", "0", { buffer = result_buffer, desc = "User result motion" })
+  require("sqlserver.results.ui.keymaps").configure({ cell_navigation = false })
+  for _, mode in ipairs({ "n", "x" }) do
+    for _, key in ipairs({ "h", "j", "k", "l" }) do
+      local mapping = vim.fn.maparg(key, mode, false, true)
+      if mode == "n" and key == "h" then
+        assert(mapping.desc == "User result motion", "Disabling cell navigation removed a user mapping")
+      else
+        assert(mapping.buffer ~= 1, "Disabled cell navigation retained " .. mode .. key)
+      end
+    end
+  end
+  require("sqlserver.results.ui.keymaps").configure({ cell_navigation = true })
+  vim.wo.list = original_list
+  vim.wo.spell = original_spell
 end)
 
 return T

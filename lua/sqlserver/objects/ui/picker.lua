@@ -1,32 +1,67 @@
 local utils = require("sqlserver.utils")
 local object_script = require("sqlserver.objects.script")
 local scripting = require("sqlserver.adapters.sql_tools_service.scripting")
+local explorer_adapter = require("sqlserver.adapters.sql_tools_service.object_explorer")
+local explorer_model = require("sqlserver.objects.explorer")
 local object_explorer_timeout = 10000
+local object_selector = require("sqlserver.objects.ui.select").select
+
+local function open_explorer_async(client, connection_options)
+  local session = explorer_adapter.open_async(client, connection_options)
+  local root = explorer_model.from_service(session.root)
+  if root.objectType == "Database" then
+    explorer_model.set_service_children(root, session.expand_async(root.nodePath))
+    root.expanded = true
+  end
+  return session, root
+end
 
 ---Same as utils.wait_for_notification_async but ignores any owner uri
 ---@param client vim.lsp.Client
 ---@param method string
 ---@param timeout integer|false
+---@param session_id? string
 ---@return any result
 ---@return lsp.ResponseError? error
-local wait_for_notification_async = function(client, method, timeout)
+local wait_for_notification_async = function(client, method, timeout, session_id)
   local this = coroutine.running()
   local resumed = false
   local handler
+  local disconnected_handler
+  local function unregister()
+    utils.unregister_lsp_handler(client, method, handler)
+    if disconnected_handler then
+      utils.unregister_lsp_handler(client, "objectexplorer/sessionDisconnected", disconnected_handler)
+    end
+  end
   handler = function(err, result, _)
-    if not resumed then
+    if not resumed and (not session_id or not result or not result.sessionId or result.sessionId == session_id) then
       resumed = true
-      utils.unregister_lsp_handler(client, method, handler)
+      unregister()
       utils.try_resume(this, result, err)
     end
     return result, err
   end
   utils.register_lsp_handler(client, method, handler)
+  if session_id then
+    disconnected_handler = function(err, result)
+      if not resumed and (not result or not result.sessionId or result.sessionId == session_id) then
+        resumed = true
+        unregister()
+        local message = err and err.message
+          or result and (result.errorMessage or result.message)
+          or "The SQL Tools Service Object Explorer session disconnected"
+        utils.try_resume(this, nil, vim.lsp.rpc_response_error(vim.lsp.protocol.ErrorCodes.UnknownErrorCode, message))
+      end
+      return result, err
+    end
+    utils.register_lsp_handler(client, "objectexplorer/sessionDisconnected", disconnected_handler)
+  end
   if timeout then
     vim.defer_fn(function()
       if not resumed then
         resumed = true
-        utils.unregister_lsp_handler(client, method, handler)
+        unregister()
         utils.try_resume(
           this,
           nil,
@@ -72,6 +107,66 @@ local get_session_async = function(client, connection_options)
     error("SQL Tools Service returned an invalid object explorer session", 0)
   end
   return response
+end
+
+local function expand_once_async(client, session_id, node_path)
+  local _, request_error = utils.lsp_request_async(client, "objectexplorer/expand", {
+    sessionId = session_id,
+    nodePath = node_path,
+  })
+  if request_error then
+    return nil, request_error
+  end
+  return wait_for_notification_async(client, "objectexplorer/expandCompleted", object_explorer_timeout, session_id)
+end
+
+local function list_children_async(client, connection_options, target_path)
+  utils.wait_for_schedule_async()
+  local session = get_session_async(client, connection_options)
+  local session_id = session.sessionId
+  local current_path = session.rootNode.nodePath
+  local children
+  local ok, failure = pcall(function()
+    while true do
+      local result, expand_error = expand_once_async(client, session_id, current_path)
+      if expand_error then
+        error(expand_error.message or tostring(expand_error), 0)
+      end
+      if result and type(result.errorMessage) == "string" and result.errorMessage ~= "" then
+        error(result.errorMessage, 0)
+      end
+      if not (result and type(result.nodes) == "table") then
+        error("SQL Tools Service returned an invalid object expansion", 0)
+      end
+      if current_path == target_path then
+        children = result.nodes
+        return
+      end
+      local next_node = vim.iter(result.nodes):find(function(candidate)
+        return type(candidate.nodePath) == "string"
+          and (candidate.nodePath == target_path or vim.startswith(target_path, candidate.nodePath .. "/"))
+      end)
+      if not next_node then
+        error("SQL Tools Service could not locate the selected object", 0)
+      end
+      current_path = next_node.nodePath
+    end
+  end)
+  client:request("objectexplorer/closesession", { sessionId = session_id }, function() end)
+  if not ok then
+    error(failure, 0)
+  end
+  return vim
+    .iter(children)
+    :map(function(child)
+      return {
+        id = child.nodePath,
+        label = child.label,
+        type = child.objectType or child.nodeType,
+        expandable = child.isLeaf == false,
+      }
+    end)
+    :totable()
 end
 
 --[[
@@ -138,7 +233,7 @@ local get_object_cache_async = function(lsp_client, connection_options, cancella
       return
     end
     finished = true
-    lsp_client:request("objectExplorer/closeSession", {
+    lsp_client:request("objectexplorer/closesession", {
       sessionId = session_id,
     }, function(close_err, result, _, _)
       session_id = nil
@@ -175,8 +270,15 @@ local get_object_cache_async = function(lsp_client, connection_options, cancella
     if finished then
       return
     end
+    if expand_result and expand_result.sessionId and expand_result.sessionId ~= session_id then
+      return
+    end
     if notification_err then
       clean_up_and_return(nil, "SQL Tools Service could not expand database objects: " .. notification_err.message)
+      return
+    end
+    if expand_result and type(expand_result.errorMessage) == "string" and expand_result.errorMessage ~= "" then
+      clean_up_and_return(nil, expand_result.errorMessage)
       return
     end
     if not (expand_result and type(expand_result.nodes) == "table") then
@@ -250,10 +352,11 @@ local function public_object(item)
     schema = metadata.schema,
     type = item.objectType or item.nodeType,
     path = item.picker_path,
+    expandable = item.isLeaf == false,
   }
 end
 
-local generate_script_async = function(item, client, owner_uri, intent)
+local generate_script_async = function(item, client, owner_uri, intent, control)
   local spec = object_script.for_intent(item.objectType, intent)
   local scripting_params = {
     scriptDestination = "ToEditor",
@@ -272,7 +375,7 @@ local generate_script_async = function(item, client, owner_uri, intent)
     ownerURI = owner_uri,
     operation = spec.operation,
   }
-  local res = scripting.script_async(client, scripting_params, object_explorer_timeout)
+  local res = scripting.script_async(client, scripting_params, object_explorer_timeout, control)
 
   return {
     script = object_script.response_text(res, intent),
@@ -316,20 +419,44 @@ local initialise_cache_async = function(lsp_client, connection_options, force)
     global_cache[key] = {}
   end
 
-  -- don't refresh if we are already refreshing or have refreshed previously
-  if (global_cache[key].cache or is_refreshing(key)) and not force then
-    return
+  -- Reuse a completed cache, or wait for another workspace that is already
+  -- populating this shared server/database cache.
+  if global_cache[key].cache and not force then
+    return { cancelled = false, count = #global_cache[key].cache }
+  end
+  if is_refreshing(key) and not force then
+    while global_cache[key] and is_refreshing(key) do
+      utils.defer_async(10)
+    end
+    local entry = global_cache[key]
+    if not entry then
+      return { cancelled = true }
+    end
+    if entry.last_refresh_error then
+      error(entry.last_refresh_error, 0)
+    end
+    if entry.cache then
+      return { cancelled = false, count = #entry.cache }
+    end
+    return { cancelled = true }
   end
 
   -- cancel any currently running
   if global_cache[key].cancellation_token then
     global_cache[key].cancellation_token.cancel = true
   end
+  while global_cache[key] and is_refreshing(key) do
+    utils.defer_async(10)
+  end
+  if not global_cache[key] then
+    global_cache[key] = {}
+  end
   local cancellation_token = { cancel = false }
   global_cache[key].cancellation_token = cancellation_token
 
   local refresh_coroutine = coroutine.running()
   global_cache[key].refresh_coroutine = refresh_coroutine
+  global_cache[key].last_refresh_error = nil
   vim.cmd("redrawstatus")
   local new_cache, refresh_error = get_object_cache_async(lsp_client, connection_options, cancellation_token, force)
   if global_cache[key] and global_cache[key].refresh_coroutine == refresh_coroutine then
@@ -340,6 +467,7 @@ local initialise_cache_async = function(lsp_client, connection_options, force)
     return { cancelled = true }
   end
   if refresh_error then
+    global_cache[key].last_refresh_error = refresh_error
     error(refresh_error, 0)
   end
   if not cancellation_token.cancel then
@@ -358,49 +486,40 @@ local picker_icons = {
 }
 
 local pick_item_async = function(cache, title)
+  utils.wait_for_schedule_async()
   local co = coroutine.running()
-
-  local success, snacks = pcall(require, "snacks")
-  if not success then
-    return utils.ui_select_async(cache, {
-      prompt = title,
-      format_item = function(item)
-        return table.concat({
-          picker_icons[item.nodeType],
-          " ",
-          item.picker_path,
-          item.label,
-        })
-      end,
-    })
-  end
-
-  snacks.picker.pick({
-    title = title,
-    layout = "select",
-    items = cache,
-    format = function(item)
+  local completed = false
+  local items = vim
+    .iter(cache)
+    :map(function(item)
       return {
-        { picker_icons[item.nodeType], "SnacksPickerIcon" },
-        { " " },
-        { item.label },
-        { " " },
-        { item.picker_path, "SnacksPickerComment" },
+        id = item.nodePath or item.text,
+        label = item.label,
+        path = item.picker_path or "",
+        icon = picker_icons[item.nodeType] or "",
+        object = public_object(item),
+        _source = item,
       }
-    end,
-    confirm = function(picker, item)
-      picker:close()
-      coroutine.resume(co, item)
-    end,
-    cancel = function(picker)
-      picker:close()
-      coroutine.resume(co, nil)
-    end,
-  })
-  return coroutine.yield()
+    end)
+    :totable()
+
+  local ok, err = pcall(object_selector, { title = title, items = items }, function(selected)
+    if completed then
+      return
+    end
+    completed = true
+    vim.schedule(function()
+      utils.try_resume(co, selected)
+    end)
+  end)
+  if not ok then
+    error(err, 0)
+  end
+  local selected = coroutine.yield()
+  return selected and selected._source or nil
 end
 
-local find_async = function(connection_options, lsp_client, owner_uri, intent)
+local select_async = function(connection_options, intent)
   local title = intent == "definition" and "Object Definition" or "Find Query"
   if connection_options and connection_options.database and connection_options.server then
     title = connection_options.server .. " | " .. connection_options.database
@@ -411,11 +530,7 @@ local find_async = function(connection_options, lsp_client, owner_uri, intent)
     cache = global_cache[key].cache
   end
 
-  local item = pick_item_async(cache, title)
-  if not item then
-    return
-  end
-  return generate_script_async(item, lsp_client, owner_uri, intent)
+  return pick_item_async(cache, title)
 end
 
 local function cached_items(connection_options)
@@ -442,7 +557,7 @@ local function list_objects(connection_options, filters)
     :totable()
 end
 
-local function script_object_async(connection_options, client, owner_uri, opts)
+local function script_object_async(connection_options, client, owner_uri, opts, control)
   local target = opts.object or opts
   local item = vim.iter(cached_items(connection_options)):find(function(candidate)
     local object = public_object(candidate)
@@ -456,7 +571,7 @@ local function script_object_async(connection_options, client, owner_uri, opts)
   if not item then
     error("SQL Server object was not found in the current metadata cache", 0)
   end
-  return generate_script_async(item, client, owner_uri, opts.intent or "definition")
+  return generate_script_async(item, client, owner_uri, opts.intent or "definition", control)
 end
 
 local function delete_unused_cache(in_use_connections)
@@ -478,14 +593,19 @@ local function delete_unused_cache(in_use_connections)
 end
 
 return {
-  setup = function(timeouts)
+  setup = function(timeouts, selector)
     object_explorer_timeout = timeouts.object_explorer
+    explorer_adapter.setup(timeouts)
+    object_selector = selector or object_selector
   end,
   initialise_cache_async = initialise_cache_async,
   delete_unused_cache = delete_unused_cache,
   is_refreshing = is_refreshing,
   has_cache = has_cache,
-  find_async = find_async,
+  select_async = select_async,
+  generate_script_async = generate_script_async,
   list = list_objects,
   script_async = script_object_async,
+  list_children_async = list_children_async,
+  open_explorer_async = open_explorer_async,
 }

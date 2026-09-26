@@ -116,22 +116,36 @@ fresh Neovim data directory:
 1. Start Neovim and confirm the pinned SQL Tools Service installs once without
    replacing a valid installation on the next start.
 2. Create a query buffer and connect with a profile whose password comes from
-   an environment variable. Confirm status reaches `Ready` and no secret is
-   present in `:messages`, the activity panel, or the LSP log.
-3. Verify completion, diagnostics, hover, signature help, definition lookup,
+   an environment variable. Confirm status reaches `Ready`, the winbar shows
+   the expected identity, long server names truncate cleanly in a narrow
+   window, and no secret is present in `:messages`, Activity, or the LSP log.
+3. Open Connection Information with its command and mapping. Verify its server
+   metadata, local mappings, adaptive height, database-switch update,
+   disconnected state, and cleanup when the owning SQL buffer is deleted.
+4. Open Activity and confirm it contains chronological operations, messages,
+   durations, warnings, and errors without duplicating connection metadata.
+5. Verify completion, diagnostics, hover, signature help, definition lookup,
    and formatting in the connected database.
-4. Execute the current statement, a visual selection, and the complete buffer.
+6. Execute the current statement, a visual selection, and the complete buffer.
    Confirm multiple result sets, SQL messages, partial success, zero-row
    results, truncation indicators, and result navigation.
-5. Export a result to CSV, JSON, XML, and XLSX. Verify their saved values and
+7. Exercise slow and failed connection, query, result-loading, object-script,
+   and export operations. Confirm progress remains accurate and no empty or
+   partially initialized buffer is displayed.
+8. Export a result to CSV, JSON, XML, and XLSX. Verify their saved values and
    the XLSX archive integrity.
-6. Start and cancel a long-running query. Confirm the server operation stops
+9. Start and cancel a long-running query. Confirm the server operation stops
    and the workspace returns to `Ready`.
-7. Search tables, views, procedures, scalar functions, and table-valued
-   functions. Open both runnable queries and editable definitions.
-8. Switch databases, disconnect, reconnect, delete a connected buffer, and exit
-   Neovim. Confirm no SQL Tools Service process remains.
-9. Exercise invalid credentials, TLS rejection, an unreachable server, and an
+10. Exercise Find Query and Object Definition with both the default selector
+    and Snacks. Search tables, views, procedures, scalar functions, and
+    table-valued functions, then open runnable queries and editable definitions.
+11. In Object Explorer, expand and collapse nodes, preserve the cursor while
+    navigating, search loaded nodes, run and cancel Search All, use contextual
+    query and definition actions, and verify permission-limited nodes fail
+    without corrupting the tree.
+12. Switch databases, disconnect, reconnect, delete a connected buffer, and
+    exit Neovim. Confirm no SQL Tools Service process remains. Exercise invalid
+    credentials, TLS rejection, an unreachable server, and an
    invalid service executable. Confirm each produces a distinct, secret-safe
    error and leaves Neovim usable.
 

@@ -1,18 +1,90 @@
 local M = {}
 
 local configured_suffixes = { "s", "n", "p", "d", "y" }
+local cell_navigation = true
+local cell_motion_keys = { "h", "j", "k", "l" }
+local cell_motion_descriptions = {
+  ["Previous SQL result cell"] = true,
+  ["Next SQL result row"] = true,
+  ["Previous SQL result row"] = true,
+  ["Next SQL result cell"] = true,
+}
+
+local function remove_cell_motions(bufnr)
+  for _, mode in ipairs({ "n", "x" }) do
+    local mappings = {}
+    for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(bufnr, mode)) do
+      mappings[mapping.lhs] = mapping
+    end
+    for _, key in ipairs(cell_motion_keys) do
+      local mapping = mappings[key]
+      if mapping and cell_motion_descriptions[mapping.desc] then
+        pcall(vim.keymap.del, mode, key, { buffer = bufnr })
+      end
+    end
+  end
+end
+
+local function attach_cell_motions(bufnr, view)
+  remove_cell_motions(bufnr)
+  if not cell_navigation then
+    return
+  end
+  local motions = {
+    { "h", view.previous_cell, "Previous SQL result cell" },
+    { "j", view.next_row, "Next SQL result row" },
+    { "k", view.previous_row, "Previous SQL result row" },
+    { "l", view.next_cell, "Next SQL result cell" },
+  }
+  for _, motion in ipairs(motions) do
+    vim.keymap.set("n", motion[1], function()
+      motion[2](vim.v.count1)
+    end, { buffer = bufnr, desc = motion[3] })
+  end
+end
 
 function M.attach(bufnr)
   local view = require("sqlserver.results.ui.view")
   local mappings = {
     { "]r", view.next_result, "Next SQL result" },
     { "[r", view.previous_result, "Previous SQL result" },
-    { "]c", view.next_column, "Next SQL result column" },
-    { "[c", view.previous_column, "Previous SQL result column" },
+    {
+      "]c",
+      function()
+        view.next_column(vim.v.count1)
+      end,
+      "Next SQL result column",
+    },
+    {
+      "[c",
+      function()
+        view.previous_column(vim.v.count1)
+      end,
+      "Previous SQL result column",
+    },
     { "K", view.show_column_info, "Show SQL result column type" },
+    { "yic", view.copy_cell, "Yank complete SQL result cell" },
   }
   for _, mapping in ipairs(mappings) do
     vim.keymap.set("n", mapping[1], mapping[2], { buffer = bufnr, desc = mapping[3] })
+  end
+  vim.keymap.set("x", "]c", function()
+    view.next_column(vim.v.count1)
+  end, { buffer = bufnr, desc = "Next SQL result column" })
+  vim.keymap.set("x", "[c", function()
+    view.previous_column(vim.v.count1)
+  end, { buffer = bufnr, desc = "Previous SQL result column" })
+  vim.keymap.set("x", "ic", view.select_cell, { buffer = bufnr, desc = "Select SQL result cell contents" })
+  attach_cell_motions(bufnr, view)
+end
+
+function M.configure(opts)
+  cell_navigation = opts.cell_navigation ~= false
+  local view = require("sqlserver.results.ui.view")
+  for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
+    if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].filetype == "sqlserver-result" then
+      attach_cell_motions(bufnr, view)
+    end
   end
 end
 

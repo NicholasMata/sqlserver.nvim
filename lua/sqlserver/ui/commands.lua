@@ -8,6 +8,7 @@ local M = {}
 local function available_commands(handlers)
   return {
     Activity = handlers.toggle_activity,
+    ConnectionInfo = handlers.show_connection_info,
     Connect = handlers.connect,
     Reconnect = handlers.reconnect,
     Disconnect = handlers.disconnect,
@@ -30,6 +31,8 @@ local function available_commands(handlers)
     CopyResultCell = handlers.copy_result_cell,
     Find = handlers.find_object,
     ObjectDefinition = handlers.show_object_definition,
+    ObjectExplorer = handlers.object_explorer,
+    CancelOperation = handlers.cancel_operation,
     CancelQuery = handlers.cancel_query,
   }
 end
@@ -66,9 +69,10 @@ local function completion_items()
   if state == states.connecting then
     return with_activity({ "NewQuery", "NewDefaultQuery", "EditConnections" })
   elseif state == states.executing then
-    return with_activity({ "NewQuery", "NewDefaultQuery", "EditConnections", "CancelQuery" })
+    return with_activity({ "NewQuery", "NewDefaultQuery", "EditConnections", "CancelOperation" })
   elseif state == states.connected then
     local items = {
+      "ConnectionInfo",
       "NewQuery",
       "NewDefaultQuery",
       "EditConnections",
@@ -81,9 +85,14 @@ local function completion_items()
       "RestoreDatabase",
       "Find",
       "ObjectDefinition",
+      "ObjectExplorer",
     }
     if query_results.has_results(workspace.bufnr) then
       table.insert(items, "ShowResults")
+    end
+    local operation = workspace.get_active_operation()
+    if operation and operation.kind == "object" then
+      table.insert(items, "CancelOperation")
     end
     return with_activity(items)
   elseif state == states.disconnected then

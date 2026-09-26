@@ -38,16 +38,25 @@ executions is the query buffer's result history.
 | Normal | `<keymap_prefix>x` | `ExecuteQuery` | Execute the statement under the cursor |
 | Visual | `<keymap_prefix>x` | `ExecuteQuery` | Execute the selected text |
 | Normal | `<keymap_prefix>X` | `ExecuteBuffer` | Execute the complete buffer |
-| Normal | `<keymap_prefix>l` | `CancelQuery` | Cancel the active query |
+| Normal | `<keymap_prefix>l` | `CancelOperation` | Cancel the active query or object script |
 | Normal | `<keymap_prefix>v` | `ShowResults` | Reopen the active retained execution |
 | Normal | `<keymap_prefix>f` | `Find` | Build a query for a selected database object |
 | Normal | `<keymap_prefix>o` | `ObjectDefinition` | Open a selected database object's definition |
+| Normal | `<keymap_prefix>b` | `ObjectExplorer` | Browse database objects in a hierarchical Snacks sidebar |
 | Normal | `<keymap_prefix>r` | `RefreshCache` | Refresh object and IntelliSense metadata |
 | Normal | `<keymap_prefix>a` | `Activity` | Toggle workspace activity |
+| Normal | `<keymap_prefix>i` | `ConnectionInfo` | Show connection and server information |
 
 If a disconnected query is executed, the plugin attempts to use the connection
 profile named `default`. Current-statement parsing is delegated to SQL Tools
 Service.
+
+The workspace winbar and activity stream show background phases such as
+`Starting SQL Tools Service`, `Connecting`, `Loading database objects`,
+`Executing query`, `Loading query results`, and `Rendering query results`.
+Interactive prompts and object pickers do not start a timer; timing begins only
+when backend work starts. Generated buffers are displayed after their contents
+are ready, so the current window remains unchanged when preparation fails.
 
 ## Result view workflow
 
@@ -56,20 +65,76 @@ Each execution can contain one or more `sqlserver-result` buffers, displayed in
 a reusable results window. Unless noted otherwise, these mappings run from a
 result buffer:
 
+<p align="center">
+  <img src="assets/result-cell-navigation.png" alt="Result view with semantic cell navigation" width="1000">
+</p>
+
+Column headers use colored Nerd Font icons to identify text, number, boolean,
+temporal, JSON, UUID, binary, and unknown SQL type families. These icons are
+display-only: column names, copied values, and exported data remain unchanged.
+Nullable columns add a compact `ˀ` marker beside the type icon.
+Disable or customize them with `results.column_icons`. When spell checking is
+enabled, result values remain checked while the column header is excluded.
+
 | Vim Mode | Mapping | Command | Behavior |
 | --- | --- | --- | --- |
+| Normal | `h` / `l` | — | Move to the previous or next cell, wrapping between columns |
+| Normal | `j` / `k` | — | Move within the same column on the next or previous row |
 | Normal | `]r` | `NextResult` | Show the next result set in the execution |
 | Normal | `[r` | `PreviousResult` | Show the previous result set in the execution |
 | Normal | `<keymap_prefix>n` | `NextExecution` | Show the next retained execution |
 | Normal | `<keymap_prefix>p` | `PreviousExecution` | Show the previous retained execution |
-| Normal | `]c` | — | Move to the next result column |
-| Normal | `[c` | — | Move to the previous result column |
+| Normal, Visual | `]c` | — | Move to the next result column |
+| Normal, Visual | `[c` | — | Move to the previous result column |
 | Normal | `K` | — | Inspect the current column's SQL type and metadata |
+| Normal | `yic` | `CopyResultCell` | Yank the complete value under the cursor |
 | Normal | `<keymap_prefix>d` | `RemoveResult` | Remove the current result after confirmation |
 | Normal | `<keymap_prefix>s` | `ExportQueryResults` | Export the complete result set |
 | Visual | `<keymap_prefix>s` | `ExportQueryResults` | Export the selected rows and columns |
 | Visual | `<keymap_prefix>y` | — | Copy the selected cells as a rich HTML table |
-| Normal | — | `CopyResultCell` | Copy the complete value under the cursor; command only |
+| Normal | `vic` | — | Select the current cell's rendered contents |
+| Normal | — | `CopyResultCell` | Copy the complete value under the cursor |
+
+Normal-mode cell motions accept Vim counts, keep the current column while
+moving between rows, and skip the rendered header divider. Vertical movement
+stops at the header or final data row; horizontal movement wraps to match
+`[c` and `]c`. Visual-mode `h`, `j`, `k`, and `l` retain native text selection;
+use Visual `[c` and `]c` to jump between columns while selecting cells. Arrow
+keys retain native character and line movement. Set
+`results.cell_navigation = false` to leave Normal-mode `h`, `j`, `k`, and `l`
+unmapped.
+
+`yic` reads from the result model, so it preserves complete multiline values
+even when the displayed cell is truncated. It follows normal Vim register
+selection: use `"+yic` for the system clipboard, `"*yic` for the primary
+selection, or a prefix such as `"ayic` for a named register. Plain `yic` uses
+the unnamed register and follows the user's `clipboard` option.
+
+In contrast, `vic` selects only the rendered text, without column padding or
+separators; an empty cell selects its first padding space because Visual mode
+cannot represent a zero-width selection. The result buffer remains read-only,
+so `vic` is for selection, not editing.
+
+The default `true` value is equivalent to `{ wrap = true }`; use
+`results.cell_navigation = { wrap = false }` to stop `h`, `l`, `[c`, and `]c`
+at the first and last columns instead.
+
+Set `results.highlight_current_cell = true` to highlight the current semantic
+cell, including header cells. The opt-in highlight is hidden during Visual mode
+so it does not obscure the selected range. It includes the padding beside each
+cell while leaving the vertical separators unhighlighted. By default,
+`SqlServerResultCurrentCell` links to `Search`; customize it through the normal
+Neovim highlight API:
+
+```lua
+vim.api.nvim_set_hl(0, "SqlServerResultCurrentCell", { link = "CursorColumn" })
+```
+
+For a more subdued highlight, link it to `CursorColumn`. Some color schemes
+give `CursorColumn` and `CursorLine` the same background, which makes that
+combination indistinguishable while result row highlighting is enabled.
+Result windows disable Neovim's `list` option so alignment padding does not
+appear as trailing-whitespace markers; other windows retain their own setting.
 
 ### Result history
 
@@ -112,7 +177,9 @@ needed and use Neovim's normal `:write` command to save them. Binary Excel
 `.xlsx` exports ask for a destination and write directly. Visual exports use
 the rectangular range covered by the selection; linewise selections include
 every column. Result mappings that use `keymap_prefix` are omitted when no
-prefix is configured.
+prefix is configured. Export progress covers SQL Tools Service serialization
+and buffer preparation; successful text exports rely on the opened buffer and
+do not produce an additional notification.
 
 ### Limits and value fidelity
 
@@ -155,8 +222,40 @@ leaving Neovim stops plugin-owned SQL Tools Service clients.
 | --- | --- | --- | --- |
 | Normal | `q` | — | Close the activity view |
 
+The Activity view contains chronological plugin operations, progress, SQL
+messages, warnings, and errors. Connection metadata is kept in its own view so
+the activity stream remains focused on what is happening.
+
 A mixed query outcome uses a warning state while each underlying SQL error
 remains an error; an error-only execution uses the failed state.
+Each activity row includes its source, such as `Object Explorer · ApplicationDb
+› Tables › dbo.Person › Columns · Loading` or `Query · Query completed`,
+so concurrent asynchronous work remains distinguishable. Object Explorer
+activity uses tree breadcrumbs while the winbar deliberately keeps the compact
+`Loading database object` status.
+
+## Connection information
+
+Run `:SQLServer ConnectionInfo` from a connected SQL buffer to open a reusable,
+read-only view of the current connection and the server metadata reported by
+SQL Tools Service.
+
+<p align="center">
+  <img src="assets/connection-information.png" alt="SQL Server Connection Information view" width="1000">
+</p>
+
+| Vim Mode | Mapping | Command | Description |
+| --- | --- | --- | --- |
+| Normal | `r` | — | Refresh the view from the latest workspace connection state |
+| Normal | `q` | — | Close the connection information view |
+| Normal | `?` | — | Show the connection information mappings |
+
+The view includes the resolved username, server, database, SQL Server session
+ID, SQL Tools Service connection ID, supported-version status, server version,
+edition, engine information, and available host details. It never displays a
+password, access token, or connection string. Non-applicable server fields are
+omitted, empty values render as `—`, and a visible view updates when connection
+state changes.
 
 ## Language features
 
@@ -189,26 +288,37 @@ Generated table and view queries execute immediately by default. Procedure
 calls are inserted but never executed automatically because they may have side
 effects. Definitions use `CREATE` scripting and open in dedicated editable SQL
 buffers named `<schema>.<object>.sql`. If that name is already open, choose to
-focus it or create a numbered buffer such as `dbo.Person (2).sql`.
+use the existing visible or hidden buffer, or create a numbered buffer such as
+`dbo.Person (2).sql`. A deleted buffer is generated again without a collision
+prompt.
 Individual-node refresh and generic `ALTER`/`DROP` actions are outside the 1.0
 scope.
+
+When `snacks.nvim` is installed with its picker enabled,
+`:SQLServer ObjectExplorer` opens a persistent, lazily loaded sidebar for the
+current connection. See [Object Explorer](object-explorer.md) for its hierarchy,
+mappings, search and cancellation behavior, contextual actions, supported
+scope, screenshot, and configuration.
 
 ## Command reference
 
 | Command | Purpose |
 | --- | --- |
 | `Activity` | Toggle workspace activity |
+| `ConnectionInfo` | Show connection and server information |
 | `Connect` | Connect the current query buffer |
 | `Reconnect` | Retry the query buffer's previous connection |
 | `Disconnect` | Disconnect the current query buffer |
 | `ExecuteQuery` | Execute the statement under the cursor or selected text |
 | `ExecuteBuffer` | Execute the complete buffer |
-| `CancelQuery` | Cancel the active query |
+| `CancelOperation` | Cancel the active query or object script |
+| `CancelQuery` | Compatibility alias for `CancelOperation` |
 | `NewQuery` | Open a query buffer |
 | `NewDefaultQuery` | Open a query using the `default` profile |
 | `SwitchDatabase` | Change database on the current server |
 | `Find` | Build a runnable query for a database object |
 | `ObjectDefinition` | Script a database object's definition |
+| `ObjectExplorer` | Browse the current database in a hierarchical Snacks sidebar |
 | `RefreshCache` | Refresh metadata and IntelliSense caches |
 | `EditConnections` | Edit connection profiles |
 | `ExportQueryResults` | Export the current result set |

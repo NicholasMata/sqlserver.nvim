@@ -36,6 +36,8 @@
 - Generate a runnable `query` or editable `definition` through SQL Tools
   Service.
 - Open generated queries and definitions in editable SQL buffers.
+- Browse the SQL Tools Service server, database, folder, and object hierarchy
+  when the optional Snacks picker is available.
 
 ## Phase 3: Language Intelligence
 
@@ -97,9 +99,9 @@ architecture, delivery stages, and acceptance criteria.
 
 ## Later
 
-- Result-cell text objects and operators, including `yiC` for copying the
-  complete underlying value of the cell under the cursor.
-- Hierarchical object browsing and individual-node refresh.
+- General result-cell text objects and operators beyond the dedicated `yic`
+  and `vic` mappings.
+- Individual object-tree node refresh.
 - Explicit `ALTER` and `DROP` scripting actions with destructive-operation UX.
 - Execution-plan capture and readable summaries.
 - Optional MCP integration.

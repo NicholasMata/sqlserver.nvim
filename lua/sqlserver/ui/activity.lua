@@ -1,5 +1,3 @@
-local status = require("sqlserver.ui.status")
-
 local M = {}
 local uv = vim.uv or vim.loop
 
@@ -98,7 +96,9 @@ end
 local function format_event(event)
   local icon = event_icons[event.status] or "·"
   local message = tostring(event.message):gsub("\r?\n", "  ")
-  local line = string.format("%s  %s  %s", event.time, icon, message)
+  local source = tostring(event.title or event.kind or "Activity"):gsub("^SQL Server%s+", "")
+  source = source:gsub("^%l", string.upper)
+  local line = string.format("%s  %s  %s · %s", event.time, icon, source, message)
   if event.duration_ms then
     if event.server_duration_ms then
       line = line .. string.format("  server %.0f ms · total %.0f ms", event.server_duration_ms, event.duration_ms)
@@ -114,13 +114,8 @@ function M.render()
     return
   end
 
-  local connection = target_workspace.get_connection() or {}
   local lines = {
     "SQL Server Activity",
-    "",
-    "Status    " .. status.render(target_workspace),
-    "Server    " .. (connection.server or "—"),
-    "Database  " .. (connection.database or "—"),
     "",
     "Recent activity",
   }

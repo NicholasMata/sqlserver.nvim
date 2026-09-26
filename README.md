@@ -24,8 +24,9 @@ execution while keeping protocol, workspace, result, and UI concerns separate.
 - Connect query buffers to SQL Server and Azure SQL profiles.
 - Complete, diagnose, format, hover, navigate, and inspect T-SQL signatures
   through Neovim's built-in LSP support and SQL Tools Service.
-- Search and script tables, views, procedures, and functions in the connected
-  database.
+- Search, browse, and script tables, views, procedures, and functions in the
+  connected database. The hierarchical Object Explorer is available when
+  `snacks.nvim` is installed with its picker enabled.
 - Execute the statement under the cursor, a visual selection, or the complete
   buffer.
 - Cancel active queries and inspect persistent workspace activity.
@@ -46,7 +47,7 @@ Requires Neovim 0.11.7 or newer. With [lazy.nvim](https://github.com/folke/lazy.
 ```lua
 {
   "NicholasMata/sqlserver.nvim",
-  -- version = "v1.0.0-rc.4", -- Pin a release
+  -- version = "v1.0.0-rc.5", -- Pin a release
   -- branch = "next", -- Follow unreleased development
   opts = {
     keymap_prefix = "<leader>s",
@@ -57,6 +58,7 @@ Requires Neovim 0.11.7 or newer. With [lazy.nvim](https://github.com/folke/lazy.
 The tested SQL Tools Service release is pinned and installed automatically on
 first setup unless `tools_file` points to an existing executable. Override
 `tools_version` only when intentionally testing another upstream release.
+`snacks.nvim` is optional; only `:SQLServer ObjectExplorer` requires it.
 Create or edit connection profiles with:
 
 ```vim
@@ -77,6 +79,7 @@ require("sqlserver").setup({
   open_results_in = "split",
   view_messages_in = "activity",
   results = {
+    column_icons = true,
     sticky_header = true,
     history_limit = 10,
     max_rows = 1000,
@@ -93,7 +96,12 @@ require("sqlserver").setup({
     presenter = "default",
     winbar = true,
     native_progress = true,
-    height = 12,
+    activity = {
+      height = 12,
+    },
+    connection_info = {
+      height = "auto",
+    },
   },
 })
 ```
@@ -116,7 +124,7 @@ available through `:SQLServer`.
            │                    │                    │
       ✅ IntelliSense       🔵 SQL Agent          ⚪ Profiler
       ✅ Query              ⚪ Backup             ⚪ Query Store
-      🟡 Objects            ⚪ Restore            🔵 Query Plans
+      ✅ Objects            ⚪ Restore            🔵 Query Plans
       ⚪ Schema Compare     ⚪ Edit Data          ⚪ Assessment
       ⚪ Table Design       ⚪ Security
 ```
@@ -128,6 +136,7 @@ available through `:SQLServer`.
 | Install and configure the plugin | [Configuration](docs/configuration.md) |
 | Create secure connection profiles | [Connection profiles](docs/connections-json.md) |
 | Execute queries and work with results | [Usage](docs/usage.md) |
+| Browse the SQL Tools Service hierarchy | [Object Explorer](docs/object-explorer.md) |
 | Configure SQL formatting and IntelliSense | [SQL Tools Service settings](docs/lsp-settings.md) |
 | Automate the plugin from Lua | [Public Lua API](docs/public-api.md) |
 | Move from `mssql.nvim` | [Migrating from mssql.nvim](docs/migrating-from-mssql.md) |

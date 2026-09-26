@@ -83,10 +83,19 @@ require("sqlserver").setup({
     presenter = "default",
     winbar = true,
     native_progress = true,
-    height = 12,
+    activity = {
+      height = 12,
+    },
+    connection_info = {
+      height = "auto",
+    },
   },
 })
 ```
+
+The former `ui.height` option is now `ui.activity.height`. Connection
+Information uses its own `ui.connection_info.height` setting and defaults to
+adaptive sizing.
 
 `ui.winbar` may be `false`, `true`, or an object with `layout` and `alignment`.
 A presenter may be replaced with a function that receives structured workspace

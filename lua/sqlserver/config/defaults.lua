@@ -28,13 +28,26 @@ return {
   -- Persistent workspace status and expandable activity UI.
   ui = {
     presenter = "default",
+    object_picker = "auto",
+    object_explorer = {},
     winbar = true,
     native_progress = true,
-    height = 12,
+    activity = {
+      height = 12,
+    },
+    connection_info = {
+      height = "auto",
+    },
   },
 
   -- Result retrieval and rendering limits.
   results = {
+    -- Prefix result headers with a colored icon representing the SQL type family.
+    column_icons = true,
+    -- Treat h/j/k/l as semantic cell motions in result buffers.
+    cell_navigation = true,
+    -- Highlight the semantic cell under the cursor using SqlServerResultCurrentCell.
+    highlight_current_cell = false,
     -- Keep the table header visible while scrolling through result rows.
     sticky_header = true,
     -- Number of successful executions retained for each SQL source buffer.

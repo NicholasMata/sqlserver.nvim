@@ -4,9 +4,85 @@ All notable changes to `sqlserver.nvim` will be documented in this file. The
 format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and
 releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-Ongoing development for the next release is recorded in the
-[`next` branch changelog](https://github.com/NicholasMata/sqlserver.nvim/blob/next/CHANGELOG.md).
-This `main` changelog contains released versions only.
+## [Unreleased]
+
+## [1.0.0-rc.5] - 2026-09-25
+
+### Added
+
+- Add configurable Vim-style `h`, `j`, `k`, and `l` cell navigation to result
+  buffers, including counts in Normal mode.
+- Add an opt-in current-cell highlight using a color-scheme-aware,
+  user-overridable Neovim highlight group.
+- Add configurable, color-scheme-aware SQL type icons to result column
+  headers without changing semantic column names or exported data.
+- Add a register-aware, result-local `yic` mapping that yanks the complete
+  underlying cell value without rendered truncation or padding.
+- Add `vic` to select a result cell's rendered contents without changing the
+  full-value `yic` mapping.
+- Add a shared asynchronous operation model for SQL Tools Service startup,
+  connections, queries, metadata, object scripting, and result exports.
+- Add configurable object selection with automatic Snacks integration,
+  `vim.ui.select`, and custom picker providers.
+- Add an optional Snacks-backed Object Explorer that preserves SQL Tools
+  Service folder paths and lazily loads object details. Search covers loaded
+  nodes while preserving their hierarchy, and can traverse and cache the
+  remaining tree with a cancellable `Search all objects…` action. Actions
+  expand or collapse the tree, and `K` offers contextual query, definition,
+  copy-name, and detail-refresh operations while `<CR>` retains its default
+  behavior.
+- Add a dedicated connection information view for SQL Tools Service connection
+  and server metadata, with buffer-local refresh, close, and help mappings.
+- Surface SQL Tools Service Object Explorer node subtypes, statuses, and errors
+  as searchable tree annotations.
+
+### Changed
+
+- Keep Visual-mode `h`, `j`, `k`, and `l` as native text-selection motions in
+  result buffers, with `[c` and `]c` available for explicit column jumps.
+- Show the SQL Tools Service connection username in the workspace winbar and
+  public connection snapshot. Shorten long server names first, and allow the
+  displayed winbar identity fields to be configured.
+- Keep the Activity view focused on chronological operations and messages by
+  moving its connection summary into the connection information view.
+- Scope the Activity split height under `ui.activity.height` and size Connection
+  Information adaptively through its independent `ui.connection_info.height`.
+- Keep connection status active until initial database metadata is ready, and
+  show distinct startup, result-loading, rendering, scripting, and export
+  phases through the winbar, activity stream, and native progress messages.
+- Keep Object Explorer visible while object scripts are generated, then present
+  fully populated query or definition buffers in the source workspace window.
+- Show complete Object Explorer ancestry in activity entries while keeping the
+  corresponding winbar status compact.
+- End pending Object Explorer expansion immediately when SQL Tools Service
+  disconnects its session, and ignore late callbacks after the source workspace
+  or explorer closes.
+- Treat visible and hidden definition buffers consistently by offering to use
+  the existing buffer or open a numbered copy, while regenerating deleted
+  buffers without a collision prompt.
+- Prepare generated SQL, query-result, and text-export buffers outside the
+  current window and display them only after their contents are complete.
+- Continue serving the previous object cache while an explicit metadata
+  refresh is running and coordinate initial refreshes shared by workspaces.
+- Let `cancel()` and `CancelOperation` stop either the active query or object
+  script while retaining `CancelQuery` as a compatibility alias.
+
+### Fixed
+
+- Exclude result column headers from inherited spell checking while continuing
+  to check result values.
+- Keep a visible Connection Information view synchronized with database and
+  connection lifecycle changes, hide non-applicable Azure metadata, and render
+  empty server options without exposing Lua implementation details.
+- Provide searchable text for Snacks object-picker items so Find Query and
+  Object Definition remain compatible with the Snacks matcher.
+- Prevent slow, cancelled, or failed asynchronous work from opening empty or
+  partially initialized query, result, definition, and export buffers.
+- Roll back partially initialized connections, suppress late callbacks after
+  workspace or result disposal, and clean up plugin-owned export files.
+- Send protocol-level object-scripting cancellation on user cancellation,
+  timeout, or workspace disposal and report scripting progress through the
+  shared operation lifecycle.
 
 ## [1.0.0-rc.4] - 2026-09-13
 
@@ -138,6 +214,8 @@ This `main` changelog contains released versions only.
 - Inherited public API and configuration compatibility that conflicted with the
   `sqlserver.nvim` architecture.
 
+[Unreleased]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.5...HEAD
+[1.0.0-rc.5]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.4...v1.0.0-rc.5
 [1.0.0-rc.4]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.3...v1.0.0-rc.4
 [1.0.0-rc.3]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.2...v1.0.0-rc.3
 [1.0.0-rc.2]: https://github.com/NicholasMata/sqlserver.nvim/compare/v1.0.0-rc.1...v1.0.0-rc.2
