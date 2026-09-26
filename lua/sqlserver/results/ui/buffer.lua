@@ -35,10 +35,8 @@ function M.setup(bufnr)
     "silent! nunmap <buffer> j",
     "silent! nunmap <buffer> k",
     "silent! nunmap <buffer> l",
-    "silent! xunmap <buffer> h",
-    "silent! xunmap <buffer> j",
-    "silent! xunmap <buffer> k",
-    "silent! xunmap <buffer> l",
+    "silent! xunmap <buffer> ]c",
+    "silent! xunmap <buffer> [c",
   }, " | ")
 end
 

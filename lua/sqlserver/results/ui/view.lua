@@ -424,12 +424,12 @@ local function move_row(offset, count)
   return true
 end
 
-function M.next_column()
-  return move_column(1)
+function M.next_column(count)
+  return move_column(1, count)
 end
 
-function M.previous_column()
-  return move_column(-1)
+function M.previous_column(count)
+  return move_column(-1, count)
 end
 
 function M.next_cell(count)

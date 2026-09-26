@@ -60,10 +60,11 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
   for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(result_buffer, "x")) do
     visual_cell_mappings[mapping.lhs] = mapping.desc
   end
-  assert(visual_cell_mappings["h"] == "Previous SQL result cell")
-  assert(visual_cell_mappings["j"] == "Next SQL result row")
-  assert(visual_cell_mappings["k"] == "Previous SQL result row")
-  assert(visual_cell_mappings["l"] == "Next SQL result cell")
+  for _, key in ipairs({ "h", "j", "k", "l" }) do
+    assert(not visual_cell_mappings[key], "Visual " .. key .. " should retain its native motion")
+  end
+  assert(visual_cell_mappings["]c"] == "Next SQL result column")
+  assert(visual_cell_mappings["[c"] == "Previous SQL result column")
 
   local noop = function() end
   local handlers = setmetatable({ export_query_results = noop }, {

@@ -36,12 +36,10 @@ local function attach_cell_motions(bufnr, view)
     { "k", view.previous_row, "Previous SQL result row" },
     { "l", view.next_cell, "Next SQL result cell" },
   }
-  for _, mode in ipairs({ "n", "x" }) do
-    for _, motion in ipairs(motions) do
-      vim.keymap.set(mode, motion[1], function()
-        motion[2](vim.v.count1)
-      end, { buffer = bufnr, desc = motion[3] })
-    end
+  for _, motion in ipairs(motions) do
+    vim.keymap.set("n", motion[1], function()
+      motion[2](vim.v.count1)
+    end, { buffer = bufnr, desc = motion[3] })
   end
 end
 
@@ -50,14 +48,32 @@ function M.attach(bufnr)
   local mappings = {
     { "]r", view.next_result, "Next SQL result" },
     { "[r", view.previous_result, "Previous SQL result" },
-    { "]c", view.next_column, "Next SQL result column" },
-    { "[c", view.previous_column, "Previous SQL result column" },
+    {
+      "]c",
+      function()
+        view.next_column(vim.v.count1)
+      end,
+      "Next SQL result column",
+    },
+    {
+      "[c",
+      function()
+        view.previous_column(vim.v.count1)
+      end,
+      "Previous SQL result column",
+    },
     { "K", view.show_column_info, "Show SQL result column type" },
     { "yic", view.copy_cell, "Yank complete SQL result cell" },
   }
   for _, mapping in ipairs(mappings) do
     vim.keymap.set("n", mapping[1], mapping[2], { buffer = bufnr, desc = mapping[3] })
   end
+  vim.keymap.set("x", "]c", function()
+    view.next_column(vim.v.count1)
+  end, { buffer = bufnr, desc = "Next SQL result column" })
+  vim.keymap.set("x", "[c", function()
+    view.previous_column(vim.v.count1)
+  end, { buffer = bufnr, desc = "Previous SQL result column" })
   attach_cell_motions(bufnr, view)
 end
 
