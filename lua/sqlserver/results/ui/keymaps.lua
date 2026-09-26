@@ -74,6 +74,7 @@ function M.attach(bufnr)
   vim.keymap.set("x", "[c", function()
     view.previous_column(vim.v.count1)
   end, { buffer = bufnr, desc = "Previous SQL result column" })
+  vim.keymap.set("x", "ic", view.select_cell, { buffer = bufnr, desc = "Select SQL result cell contents" })
   attach_cell_motions(bufnr, view)
 end
 

@@ -65,6 +65,7 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
   end
   assert(visual_cell_mappings["]c"] == "Next SQL result column")
   assert(visual_cell_mappings["[c"] == "Previous SQL result column")
+  assert(visual_cell_mappings["ic"] == "Select SQL result cell contents")
 
   local noop = function() end
   local handlers = setmetatable({ export_query_results = noop }, {

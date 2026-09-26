@@ -18,6 +18,8 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   to check result values.
 - Add a register-aware, result-local `yic` mapping that yanks the complete
   underlying cell value without rendered truncation or padding.
+- Add `vic` to select a result cell's rendered contents without changing the
+  full-value `yic` mapping.
 
 ### Changed
 

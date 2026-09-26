@@ -55,7 +55,7 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
       },
       {
         result_cell.create({ display_value = "2" }),
-        result_cell.create({ display_value = "β" }),
+        result_cell.create({ display_value = "" }),
         result_cell.create({ display_value = "second" }),
       },
       {
@@ -138,6 +138,25 @@ T["Result column navigation follows rendered cell boundaries"] = require("tests.
   vim.fn.setreg("a", "previous")
   vim.cmd('normal "ayic')
   assert(vim.fn.getreg("a") == "long\nvalue", "yic should honor an explicitly selected Vim register")
+
+  vim.api.nvim_win_set_cursor(0, { 3, 8 })
+  vim.cmd("normal vic")
+  assert(vim.fn.mode() == "v", "vic should leave the visible cell selected")
+  vim.cmd("normal! y")
+  assert(vim.fn.getreg('"') == "😀", "vic should select Unicode content without cell padding")
+
+  vim.api.nvim_win_set_cursor(0, { 3, 16 })
+  vim.cmd("normal vic")
+  vim.cmd("normal! y")
+  assert(vim.fn.getreg('"') == "lon…", "vic should select the rendered, truncated value")
+
+  vim.api.nvim_win_set_cursor(0, { 4, 8 })
+  vim.cmd("normal vic")
+  vim.cmd("normal! y")
+  assert(vim.fn.getreg('"') == " ", "An empty cell should select its first padding space")
+
+  vim.api.nvim_win_set_cursor(0, { 2, 0 })
+  assert(not view.select_cell(), "The divider cannot be selected as a cell")
 
   vim.api.nvim_win_set_cursor(0, { 3, 7 })
 
