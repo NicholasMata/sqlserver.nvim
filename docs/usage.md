@@ -92,6 +92,7 @@ enabled, result values remain checked while the column header is excluded.
 | Normal | `<keymap_prefix>s` | `ExportQueryResults` | Export the complete result set |
 | Visual | `<keymap_prefix>s` | `ExportQueryResults` | Export the selected rows and columns |
 | Visual | `<keymap_prefix>y` | — | Copy the selected cells as a rich HTML table |
+| Normal | `vic` | — | Select the current cell's rendered contents |
 | Normal | — | `CopyResultCell` | Copy the complete value under the cursor |
 
 Normal-mode cell motions accept Vim counts, keep the current column while
@@ -108,6 +109,11 @@ even when the displayed cell is truncated. It follows normal Vim register
 selection: use `"+yic` for the system clipboard, `"*yic` for the primary
 selection, or a prefix such as `"ayic` for a named register. Plain `yic` uses
 the unnamed register and follows the user's `clipboard` option.
+
+In contrast, `vic` selects only the rendered text, without column padding or
+separators; an empty cell selects its first padding space because Visual mode
+cannot represent a zero-width selection. The result buffer remains read-only,
+so `vic` is for selection, not editing.
 
 The default `true` value is equivalent to `{ wrap = true }`; use
 `results.cell_navigation = { wrap = false }` to stop `h`, `l`, `[c`, and `]c`

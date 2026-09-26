@@ -37,6 +37,7 @@ function M.setup(bufnr)
     "silent! nunmap <buffer> l",
     "silent! xunmap <buffer> ]c",
     "silent! xunmap <buffer> [c",
+    "silent! xunmap <buffer> ic",
   }, " | ")
 end
 

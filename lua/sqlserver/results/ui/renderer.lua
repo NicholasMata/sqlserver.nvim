@@ -68,7 +68,11 @@ function M.render(result_set, opts)
     local byte_col = 0
     for index, width in ipairs(widths) do
       local cell = pad(values[index] or "", width)
-      ranges[index] = { start_col = byte_col, end_col = byte_col + #cell }
+      ranges[index] = {
+        start_col = byte_col,
+        content_end_col = byte_col + #(values[index] or ""),
+        end_col = byte_col + #cell,
+      }
       table.insert(parts, cell)
       byte_col = byte_col + #cell
       if index < #widths then

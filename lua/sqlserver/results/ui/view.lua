@@ -490,6 +490,34 @@ function M.copy_cell()
   return true
 end
 
+function M.select_cell()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local session = result_sessions[bufnr]
+  if not session then
+    return false
+  end
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local ranges = session.cell_ranges and session.cell_ranges[cursor[1]]
+  if not ranges or cursor[1] == 2 or #ranges == 0 then
+    return false
+  end
+  local range = ranges[current_column(ranges, cursor[2])]
+  if range.end_col <= range.start_col then
+    return false
+  end
+  local end_col = range.start_col
+  if range.content_end_col > range.start_col then
+    local line = vim.api.nvim_get_current_line()
+    local content = line:sub(range.start_col + 1, range.content_end_col)
+    end_col = range.start_col + vim.fn.byteidx(content, vim.fn.strchars(content) - 1)
+  end
+  vim.cmd("normal! \27")
+  vim.api.nvim_win_set_cursor(0, { cursor[1], range.start_col })
+  vim.cmd("normal! v")
+  vim.api.nvim_win_set_cursor(0, { cursor[1], end_col })
+  return true
+end
+
 function M.visual_selection()
   local session = result_sessions[vim.api.nvim_get_current_buf()]
   if not session then
