@@ -78,6 +78,12 @@ Developer container:
 make test-integration-local
 ```
 
+The SQL Agent integration fixture runs in the Developer container. To check
+the pinned service's unavailable-Agent response against a separate SQL Server
+Express container, run `make test-agent-unavailable-local`. It uses port 1434
+by default; set `SQLSERVER_NO_AGENT_PORT` to change that port. Both fixtures
+use isolated Neovim state under `.tests/`.
+
 This requires Docker with the Compose plugin. The target starts SQL Server,
 waits for it to become healthy, recreates fixture databases, downloads SQL
 Tools Service into `.tests/`, and runs the integration suite.
@@ -93,7 +99,7 @@ make test-integration-shard SHARD=objects
 Every integration spec is assigned to exactly one shard. A unit test fails when
 a spec is unassigned, assigned more than once, or no longer exists.
 
-Stop and remove the test database and its volumes with:
+Stop and remove both test containers and their volumes with:
 
 ```sh
 make test-env-down
