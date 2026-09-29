@@ -37,7 +37,7 @@ local function available_commands(handlers)
   }
 end
 
-local function completion_items()
+local function get_items()
   local workspace = workspace_registry.get()
   if vim.b.query_result_info then
     return {
@@ -109,6 +109,24 @@ local function completion_items()
   end
   utils.log_error("Entered unrecognised query state: " .. state)
   return {}
+end
+
+local function completion_items(arg_lead, _, _)
+  local items = get_items()
+  if not arg_lead or arg_lead == "" then
+    return items
+  end
+
+  local matched = {}
+  local wordln = #arg_lead
+  arg_lead = arg_lead:lower()
+
+  for _, item in ipairs(items) do
+    if item:sub(1, wordln):lower() == arg_lead then
+      table.insert(matched, item)
+    end
+  end
+  return matched
 end
 
 function M.setup(handlers)
