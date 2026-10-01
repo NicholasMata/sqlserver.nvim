@@ -29,6 +29,7 @@ M.connected = {
     "non_ascii_spec",
     "cancel_query_spec",
     "agent_fixture_protocol_spec",
+    "agent_adapter_integration_spec",
   },
   objects = {
     "dbo_completion_spec",
