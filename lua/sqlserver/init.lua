@@ -10,6 +10,7 @@ local finder = require("sqlserver.objects.ui.picker")
 local object_explorer = require("sqlserver.objects.ui.explorer")
 local sql_tools_service = require("sqlserver.adapters.sql_tools_service.client")
 local query_backend = require("sqlserver.adapters.sql_tools_service.query")
+local agent_backend = require("sqlserver.adapters.sql_tools_service.agent")
 local backend_proxy = require("sqlserver.adapters.sql_tools_service.backend_proxy")
 local workspace_module = require("sqlserver.workspace")
 local workspace_registry = require("sqlserver.workspace.registry")
@@ -131,6 +132,7 @@ local function enable_lsp(opts)
       local proxy = pending_backends[bufnr]
       if workspace and proxy then
         proxy.bind(query_backend.create(bufnr, client, opts.timeouts))
+        workspace.set_agent_backend(agent_backend.create(client, workspace))
         pending_backends[bufnr] = nil
         workspace_clients[bufnr] = client.id
         workspace.service_ready()
@@ -140,7 +142,9 @@ local function enable_lsp(opts)
           backend = query_backend.create(bufnr, client, opts.timeouts),
           objects = finder,
           activity_stream = activity_stream,
+          agent_timeout = opts.timeouts.agent,
         })
+        workspace.set_agent_backend(agent_backend.create(client, workspace))
         workspace_registry.attach(bufnr, workspace)
         workspace_clients[bufnr] = client.id
         apply_winbar(bufnr, opts)
@@ -209,6 +213,7 @@ local function set_auto_commands(opts)
           objects = finder,
           activity_stream = activity_stream,
           service_pending = true,
+          agent_timeout = opts.timeouts.agent,
         })
       )
       apply_winbar(bufnr, opts)

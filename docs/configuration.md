@@ -44,6 +44,7 @@ require("sqlserver").setup({
     connection = 10000,
     export = 10000,
     object_explorer = 10000,
+    agent = 10000,
     query = false,
   },
 
@@ -105,6 +106,7 @@ indefinitely.
 | `timeouts.connection` | `10000` | Maximum wait for a connection or disconnection operation. |
 | `timeouts.export` | `10000` | Maximum wait for SQL Tools Service to finish writing an exported result. |
 | `timeouts.object_explorer` | `10000` | Maximum wait for an object metadata refresh or scripting request. |
+| `timeouts.agent` | `10000` | Maximum wait for a SQL Agent jobs, details, or alerts request. |
 | `timeouts.query` | `false` | Maximum query duration before server-side cancellation is requested. |
 | `execute_generated_select_statements` | `true` | Immediately executes generated table and view queries. Procedures are never executed automatically. |
 | `lsp_settings` | See defaults above | Settings passed directly to SQL Tools Service. |

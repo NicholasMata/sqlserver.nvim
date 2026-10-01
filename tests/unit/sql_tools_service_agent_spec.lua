@@ -251,4 +251,31 @@ T["Unproven no-history and disconnected requests fail safely"] = function()
   assert(not ok and err.code == "agent_not_connected")
 end
 
+T["Agent request timeout cancels LSP request and ignores a late reply"] = require("tests.helpers").async(function()
+  local reply
+  local cancelled
+  local client = {
+    request = function(_, method, _, callback)
+      assert(method == "agent/jobs")
+      reply = callback
+      return true, 42
+    end,
+    cancel_request = function(_, id)
+      cancelled = id
+    end,
+  }
+  local adapter = agent.create(client, {
+    owner_uri = "file:///agent.sql",
+    bufnr = 17,
+    get_connection = function()
+      return {}
+    end,
+  })
+  local control = {}
+  local ok, err = pcall(adapter.list_jobs_async, control, 10)
+  assert(not ok and err.code == "agent_timeout")
+  assert(cancelled == 42 and control.cancel == nil)
+  reply(nil, { success = true, jobs = {} })
+end)
+
 return T

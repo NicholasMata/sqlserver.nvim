@@ -109,6 +109,7 @@ require("sqlserver").setup({
     connection = 10000,
     export = 10000,
     object_explorer = 10000,
+    agent = 10000,
     query = false,
   },
   ui = {

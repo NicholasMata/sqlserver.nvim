@@ -40,6 +40,7 @@ local modules = {
   "query_selection_spec",
   "sql_tools_service_query_spec",
   "sql_tools_service_agent_spec",
+  "agent_lifecycle_spec",
   "sql_tools_service_scripting_spec",
   "query_summary_spec",
   "object_script_spec",
