@@ -8,10 +8,33 @@ services:
       ACCEPT_EULA: "Y"
       MSSQL_PID: Developer
       MSSQL_SA_PASSWORD: ${DbPassword:-Test_Password_123}
+      MSSQL_AGENT_ENABLED: "true"
     ports:
       - "${SQLSERVER_PORT:-1433}:1433"
     volumes:
       - ./seed.sql:/fixtures/seed.sql:ro
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - >-
+          /opt/mssql-tools18/bin/sqlcmd -S localhost -U sa
+          -P "$$MSSQL_SA_PASSWORD" -C -Q "SELECT 1" || exit 1
+      interval: 2s
+      timeout: 5s
+      retries: 60
+      start_period: 15s
+
+  sqlserver-no-agent:
+    profiles: [agent-unavailable]
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    platform: ${SQLSERVER_PLATFORM:-linux/amd64}
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Express
+      MSSQL_SA_PASSWORD: ${DbPassword:-Test_Password_123}
+      MSSQL_AGENT_ENABLED: "false"
+    ports:
+      - "${SQLSERVER_NO_AGENT_PORT:-1434}:1433"
     healthcheck:
       test:
         - CMD-SHELL

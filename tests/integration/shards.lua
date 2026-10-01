@@ -28,6 +28,7 @@ M.connected = {
     "file_with_space_spec",
     "non_ascii_spec",
     "cancel_query_spec",
+    "agent_fixture_protocol_spec",
   },
   objects = {
     "dbo_completion_spec",
