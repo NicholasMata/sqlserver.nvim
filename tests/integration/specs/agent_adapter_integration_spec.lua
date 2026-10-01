@@ -64,4 +64,82 @@ T["Agent adapter hides restricted-login error details"] = require("tests.helpers
   assert(err.diagnostic == nil)
 end)
 
+T["Workspace tracks Agent loads and preserves a failed refresh"] = require("tests.helpers").async(function()
+  local bufnr = vim.api.nvim_get_current_buf()
+  local workspace = assert(registry.get(bufnr))
+  local jobs = assert(workspace.list_agent_jobs_async())
+  local job = assert(find_named(jobs, "sqlserver.nvim fixture history"))
+  assert(workspace.get_agent_state("jobs").status == "ready")
+  local details = assert(workspace.get_agent_job_details_async(job))
+  assert(details.job_id == job.id and workspace.get_agent_state("details").job.id == job.id)
+  local alerts = assert(workspace.list_agent_alerts_async())
+  assert(find_named(alerts, "sqlserver.nvim fixture independent alert"))
+  assert(workspace.get_active_operation() == nil)
+
+  workspace.set_agent_backend({
+    list_jobs_async = function()
+      error({ code = "agent_request_failed", message = "Could not load SQL Agent jobs" }, 0)
+    end,
+  })
+  local refreshed, err = workspace.list_agent_jobs_async()
+  assert(refreshed == nil and err.code == "agent_request_failed")
+  assert(workspace.get_agent_state("jobs").data[1].id == jobs[1].id)
+  assert(workspace.get_active_operation() == nil)
+  workspace.set_agent_backend(adapter(bufnr))
+end)
+
+T["Disconnect cancels a pending Agent request on a live workspace"] = require("tests.helpers").async(function()
+  local bufnr = integration.new_query_buffer()
+  integration.connect(bufnr)
+  local workspace = assert(registry.get(bufnr))
+  local reply
+  local cancelled
+  workspace.set_agent_backend(agent.create({
+    request = function(_, _, _, callback)
+      reply = callback
+      return true, 91
+    end,
+    cancel_request = function(_, id)
+      cancelled = id
+    end,
+  }, workspace))
+  local done = false
+  local thread = coroutine.create(function()
+    assert(workspace.list_agent_jobs_async() == nil)
+    done = true
+  end)
+  assert(coroutine.resume(thread))
+  assert(workspace.get_agent_state("jobs").loading)
+  workspace.disconnect_async()
+  assert(vim.wait(1000, function()
+    return done
+  end, 10))
+  reply(nil, { success = true, jobs = {} })
+  assert(cancelled == 91 and workspace.get_agent_state("jobs").data == nil)
+  assert(workspace.get_active_operation() == nil)
+end)
+
+T["Agent timeout ends its workspace operation and releases the request"] = require("tests.helpers").async(function()
+  local bufnr = integration.new_query_buffer()
+  integration.connect(bufnr)
+  local workspace = assert(registry.get(bufnr))
+  local cancelled
+  workspace.set_agent_backend(
+    agent.create({
+      request = function()
+        return true, 92
+      end,
+      cancel_request = function(_, id)
+        cancelled = id
+      end,
+    }, workspace),
+    10
+  )
+  local jobs, err = workspace.list_agent_jobs_async()
+  assert(jobs == nil and err.code == "agent_timeout")
+  assert(cancelled == 92 and workspace.get_agent_state("jobs").status == "error")
+  assert(workspace.get_active_operation() == nil)
+  workspace.disconnect_async()
+end)
+
 return T
