@@ -26,3 +26,22 @@ test-env-down` removes both containers and their volumes.
 A stopped Agent on an otherwise supported SQL Server edition is not covered
 by these Linux fixtures. The adapter must classify that state only when a
 future observed service response provides enough evidence.
+
+## Read-only adapter model
+
+The adapter in `lua/sqlserver/adapters/sql_tools_service/agent.lua` sends the
+three read-only requests with the connected workspace's owner URI. It returns
+plugin-owned fields with `snake_case` names and named enum values. Jobs retain
+their GUID as `id`, execution status, last run outcome and time, and next run
+time when available. Selected job details have separate `histories`, `steps`,
+`schedules`, and `linked_alerts` lists. The server-wide alert operation returns
+all visible alerts, including alerts with no associated job.
+
+Service nulls, empty optional strings, and SQL Server's year-one date sentinel
+become absent fields. Unknown enum values are omitted rather than exposed as
+protocol numbers. The proven never-run response has
+`history_state = "empty"` with its steps and schedules intact. Permission and
+unsupported-edition failures receive stable error codes and safe messages.
+Raw service errors and stack traces never enter the model. Request
+cancellation, timeout, refresh, and disconnect ownership belong to the
+workspace work in #26.
