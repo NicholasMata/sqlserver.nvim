@@ -164,6 +164,17 @@ Rich clipboard export is a presentation concern rather than a SQL Tools Service
 file export. The result layer creates semantic HTML from the complete normalized
 cell model, and a platform adapter publishes the native HTML clipboard format.
 
+Execution-plan capture is a query intent translated by the adapter. The
+workspace remains executing through plan and row collection, so the next
+execution cannot replace live service storage during capture. Plan results
+are excluded from table collections and row counts. Original XML, document
+identity, batch range, and source context cross the adapter/API boundary as
+plugin-owned snapshots. Retained XML views participate in the source's
+bounded execution history, including executions with no table result.
+Plan export writes the snapshot itself and does not depend on a live service
+locator or connection. XML presentation and file writing live under
+`plans/`; operator parsing and graphical rendering remain future work.
+
 The SQL Tools Service adapter translates protocol cells into plugin-owned result
 cells. Models preserve display values, invariant-culture values, and database
 null identity so renderers do not infer SQL semantics from formatted text.

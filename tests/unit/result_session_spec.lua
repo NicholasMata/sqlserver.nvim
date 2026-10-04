@@ -120,10 +120,11 @@ T["Result sessions should dispose released query storage"] = require("tests.help
   assert(view.show({ result("first", 1) }, options(1, opened), source, disposal("first")))
   local first_buffer = opened.bufnr
   assert(view.show({ result("second", 1) }, options(1, opened), source, disposal("second")))
+  local second_buffer = vim.api.nvim_get_current_buf()
   assert(disposed.first == 1, "History eviction should dispose its query")
   assert(not vim.api.nvim_buf_is_valid(first_buffer))
 
-  assert(view.remove_result(opened.bufnr))
+  assert(view.remove_result(second_buffer))
   assert(disposed.second == 1, "Removing the final result should dispose its query")
   view.clear(source)
   assert(disposed.second == 1, "Clearing an empty source should not dispose twice")

@@ -50,6 +50,8 @@ execution while keeping protocol, workspace, result, and UI concerns separate.
   is available when `snacks.nvim` is installed with its picker enabled.
 - Execute the statement under the cursor, a visual selection, or the complete
   buffer.
+- Capture estimated or actual execution plans, inspect their XML, and save
+  original `.sqlplan` files from retained execution history.
 - Cancel active queries and inspect persistent workspace activity.
 - Revisit recent executions and navigate their result sets in dedicated
   `sqlserver-result` buffers.
@@ -149,7 +151,7 @@ available through `:SQLServer`.
            │                    │                    │
       ✅ Connections        🔵 SQL Agent          ⚪ Profiler
       ✅ IntelliSense       ⚪ Backup             ⚪ Query Store
-      ✅ Query              ⚪ Restore            🔵 Query Plans
+      ✅ Query              ⚪ Restore            🟡 Query Plans
       ✅ Objects            🔵 Edit Data          ⚪ Assessment
       ⚪ Schema Compare     ⚪ Security
       ⚪ Table Design
@@ -159,6 +161,11 @@ The [coverage definitions](docs/sql-tools-service-coverage.md) explain each
 term and status. GitHub [issues](https://github.com/NicholasMata/sqlserver.nvim/issues)
 and [release milestones](https://github.com/NicholasMata/sqlserver.nvim/milestones)
 track planned scope and delivery.
+
+Execution-plan capture, XML inspection, and `.sqlplan` export are part of
+[1.1.0](https://github.com/NicholasMata/sqlserver.nvim/issues/39). Native
+operator exploration and graphical viewing/comparison are tracked for
+[1.2.0](https://github.com/NicholasMata/sqlserver.nvim/issues/40).
 
 ## Contributing
 

@@ -21,6 +21,11 @@ later releases.
   `<keymap_prefix>o` to return to it.
 - Restore a hidden source query in its original window with `ShowQuery`, or
   recreate the window opposite the preferred result split if it has closed.
+- Capture estimated and actual execution plans for statements, selections,
+  and complete SQL buffers. Retain original XML with execution history, open
+  syntax-highlighted XML views, and save byte-preserving `.sqlplan` files.
+- Add plan capture options to `execute()` and `open_plan()`/`export_plan()`
+  public API workflows.
 
 ### Fixed
 

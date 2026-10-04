@@ -18,6 +18,22 @@ GO
 CREATE DATABASE TestDbA;
 GO
 USE TestDbA;
+CREATE TABLE dbo.PlanCapture (ID INT PRIMARY KEY, Value INT NOT NULL);
+INSERT dbo.PlanCapture VALUES (1, 0), (2, 0);
+GO
+CREATE PROCEDURE dbo.GetPlanCapture @ID INT AS
+SELECT Value FROM dbo.PlanCapture WHERE ID = @ID;
+GO
+USE master;
+IF EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'sqlserver_nvim_plan_limited')
+  DROP LOGIN [sqlserver_nvim_plan_limited];
+CREATE LOGIN [sqlserver_nvim_plan_limited] WITH PASSWORD = 'Test_Plan_Limited_123', CHECK_POLICY = OFF;
+GO
+USE TestDbA;
+CREATE USER [sqlserver_nvim_plan_limited] FOR LOGIN [sqlserver_nvim_plan_limited];
+GRANT SELECT ON dbo.PlanCapture TO [sqlserver_nvim_plan_limited];
+DENY SHOWPLAN TO [sqlserver_nvim_plan_limited];
+GO
 CREATE TABLE Person
 (
   ID INT IDENTITY(1,1) PRIMARY KEY,

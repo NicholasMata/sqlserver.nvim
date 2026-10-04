@@ -247,6 +247,11 @@ search behavior, supported object scope, and screenshot.
 
 ## SQL Tools Service
 
+Execution-plan capture uses `timeouts.query` while SQL runs and
+`timeouts.export` while each plan document is retrieved. Plan views share
+`results.history_limit` with table results. Saving a retained `.sqlplan`
+snapshot requires no SQL Tools Service request.
+
 `lsp_settings` is passed directly to SQL Tools Service. See
 [LSP Settings](lsp-settings.md) for the available formatting configuration.
 Neovim options in `sql_buffer_options` are applied to every SQL buffer.

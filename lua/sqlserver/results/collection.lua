@@ -13,7 +13,9 @@ function M.describe(result, max_rows)
   for batch_index, batch in ipairs(result.batchSummaries or {}) do
     for result_set_index, result_set in ipairs(batch.resultSetSummaries or {}) do
       ordinal = ordinal + 1
-      if #(result_set.columnInfo or {}) > 0 and not (batch.hasError and result_set.rowCount == 0) then
+      local is_plan = type(result_set.specialAction) == "table"
+        and result_set.specialAction.expectYukonXMLShowPlan == true
+      if not is_plan and #(result_set.columnInfo or {}) > 0 and not (batch.hasError and result_set.rowCount == 0) then
         local column_metadata = vim.iter(result_set.columnInfo or {}):map(result_column.from_protocol):totable()
         table.insert(descriptors, {
           columns = vim

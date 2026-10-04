@@ -16,6 +16,12 @@ local function available_commands(handlers)
     RestoreDatabase = handlers.restore_database,
     ExecuteQuery = handlers.execute_query,
     ExecuteBuffer = handlers.execute_buffer,
+    EstimatedPlan = handlers.estimated_plan,
+    EstimatedPlanBuffer = handlers.estimated_plan_buffer,
+    ActualPlan = handlers.actual_plan,
+    ActualPlanBuffer = handlers.actual_plan_buffer,
+    ShowPlans = handlers.show_plans,
+    SavePlan = handlers.save_plan,
     RefreshCache = handlers.refresh_cache,
     EditConnections = handlers.edit_connections,
     SwitchDatabase = handlers.switch_database,
@@ -40,7 +46,18 @@ end
 
 local function get_items()
   local workspace = workspace_registry.get()
-  if vim.b.query_result_info then
+  if vim.b.sqlserver_plan_info then
+    return {
+      "ShowPlans",
+      "SavePlan",
+      "ShowResults",
+      "NextResult",
+      "PreviousResult",
+      "NextExecution",
+      "PreviousExecution",
+      "RemoveResult",
+    }
+  elseif vim.b.query_result_info then
     return {
       "NewQuery",
       "NewDefaultQuery",
@@ -53,6 +70,7 @@ local function get_items()
       "RemoveResult",
       "CopyResultCell",
       "ShowQuery",
+      "ShowPlans",
     }
   elseif not workspace then
     local items = { "NewQuery", "NewDefaultQuery", "EditConnections" }
@@ -81,6 +99,11 @@ local function get_items()
       "RefreshCache",
       "ExecuteQuery",
       "ExecuteBuffer",
+      "EstimatedPlan",
+      "EstimatedPlanBuffer",
+      "ActualPlan",
+      "ActualPlanBuffer",
+      "ShowPlans",
       "Disconnect",
       "SwitchDatabase",
       "BackupDatabase",
@@ -104,6 +127,7 @@ local function get_items()
     end
     if query_results.has_results(workspace.bufnr) then
       table.insert(items, "ShowResults")
+      table.insert(items, "ShowPlans")
     end
     return with_activity(items)
   elseif state == states.cancelling then
@@ -138,8 +162,23 @@ function M.setup(handlers)
     if not command then
       error("No such command " .. args.args, 0)
     end
+    if args.range > 0 and (args.args == "EstimatedPlan" or args.args == "ActualPlan") then
+      local last_line = vim.api.nvim_buf_get_lines(0, args.line2 - 1, args.line2, false)[1] or ""
+      command({
+        request = {
+          kind = "selection",
+          range = {
+            startLine = args.line1 - 1,
+            startColumn = 0,
+            endLine = args.line2 - 1,
+            endColumn = vim.str_utfindex(last_line, "utf-16"),
+          },
+        },
+      })
+      return
+    end
     command()
-  end, { nargs = 1, complete = completion_items })
+  end, { nargs = 1, range = true, complete = completion_items })
 end
 
 return M

@@ -77,6 +77,54 @@ Interactive prompts and object pickers do not start a timer; timing begins only
 when backend work starts. Generated buffers are displayed after their contents
 are ready, so the current window remains unchanged when preparation fails.
 
+## Execution plans
+
+Capture plans from a connected SQL query buffer:
+
+| Command | Behavior |
+| --- | --- |
+| `EstimatedPlan` | Capture the statement under the cursor or current visual selection without executing SQL |
+| `EstimatedPlanBuffer` | Capture the complete buffer without executing SQL |
+| `ActualPlan` | Execute the statement or selection once and capture runtime plans alongside ordinary results |
+| `ActualPlanBuffer` | Execute the complete buffer once with runtime plans |
+| `ShowPlans` | Select and open a captured plan from the active retained execution |
+| `SavePlan` | Save the current plan, or select one from the active execution, as a `.sqlplan` file |
+
+These commands have no default prefix mapping. Run them as
+`:SQLServer EstimatedPlan`, for example, or map the corresponding functions
+under `require("sqlserver").commands`. An actual capture executes the SQL,
+including any writes; an estimated capture does not.
+An explicit Ex range such as `:1,3SQLServer EstimatedPlan` captures those
+complete lines. A visual mapping to `commands.estimated_plan` or
+`commands.actual_plan` preserves the exact selection, including block mode.
+SQL Server requires SHOWPLAN permission for the referenced databases.
+
+Plan XML opens in a separate, read-only buffer with XML syntax highlighting.
+The winbar identifies plan kind, ordinal, batch, source connection/database,
+and execution. Actual capture initially shows ordinary rows when available;
+use `ShowPlans` or `]r`/`[r` to move between result and XML buffers.
+`NextExecution`/`PreviousExecution` also work from a plan buffer.
+
+An estimated document may contain multiple statements. Actual plans can
+arrive as separate documents per executed statement, and each is selectable.
+Some statements, such as PRINT and trivial constant SELECTs, may produce no
+actual plan. A no-plan outcome is reported separately from permission or
+retrieval errors; server messages remain in Activity.
+
+Plans share the source buffer's bounded `results.history_limit` with table
+results, including executions containing only plans. They remain viewable and
+saveable after a new query replaces service-side results or the connection
+is disconnected. Removing a plan buffer, evicting its execution, or deleting
+the source clears its retained view.
+
+`SavePlan` prompts for a filename ending in `.sqlplan` and confirms replacement
+of an existing file. Export writes the original captured XML as UTF-8 without
+formatting, table serialization, or truncation, and never reruns SQL.
+Retrieval uses `timeouts.export`; query execution uses `timeouts.query`.
+`CancelOperation` cancels execution or plan collection.
+
+Operator trees, graphical viewing, and comparison are planned for 1.2.0.
+
 ## Result view workflow
 
 Every SQL source buffer retains its own recent successful executions in memory.
