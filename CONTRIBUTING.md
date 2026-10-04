@@ -80,13 +80,28 @@ make test-integration-local
 
 The SQL Agent integration fixture runs in the Developer container. To check
 the pinned service's unavailable-Agent response against a separate SQL Server
-Express container, run `make test-agent-unavailable-local`. It uses port 1434
-by default; set `SQLSERVER_NO_AGENT_PORT` to change that port. Both fixtures
-use isolated Neovim state under `.tests/`.
+Express container, run `make test-agent-unavailable-local`. Docker assigns it
+another available host port. Set `SQLSERVER_NO_AGENT_PORT` to request a
+particular port. Both fixtures use isolated Neovim state under `.tests/`.
 
 This requires Docker with the Compose plugin. The target starts SQL Server,
 waits for it to become healthy, recreates fixture databases, downloads SQL
 Tools Service into `.tests/`, and runs the integration suite.
+
+For concurrent work, give each agent a separate Git worktree and feature
+branch. Local test targets derive a Compose project name from the worktree
+path, ask Docker for an available host port, and pass that port to the test
+client. This separates containers, fixture databases, and `.tests/` state
+between worktrees. `make test-all` runs unit, platform, and database tests in
+that worktree. Stop only that worktree's containers with:
+
+```sh
+make test-env-down
+```
+
+The same defaults apply to `make test-env-up`, `make test-env-seed`, and local
+coverage runs. `COMPOSE_PROJECT_NAME` and `SQLSERVER_PORT` can be set explicitly
+when needed. Docker images and the host's CPU and memory remain shared.
 
 The local commands remain unsharded. To reproduce one CI shard against an
 already seeded test environment, run either:
@@ -98,12 +113,6 @@ make test-integration-shard SHARD=objects
 
 Every integration spec is assigned to exactly one shard. A unit test fails when
 a spec is unassigned, assigned more than once, or no longer exists.
-
-Stop and remove both test containers and their volumes with:
-
-```sh
-make test-env-down
-```
 
 The integration target waits briefly for shutdown and fails if its headless
 Neovim or SQL Tools Service process remains. Run the assertion independently
@@ -129,9 +138,9 @@ DbPassword='your-password' \
 make test-integration
 ```
 
-Set `SQLSERVER_PORT` for a non-default local container port. Also set
-`DbServer` to the server value expected by SQL Server clients, such as
-`localhost,14330`.
+For a local container, Docker assigns the host port and the tests discover it.
+Set `SQLSERVER_PORT` to request a particular local port; `DbServer` can still
+override the detected connection address.
 
 ## Architecture and tests
 

@@ -2,6 +2,7 @@ NVIM ?= nvim
 STYLUA ?= stylua
 LUA_SOURCES := lua ftplugin tests scripts
 COMPOSE := docker compose -f tests/integration/compose.yaml
+TEST_PROJECT_ID := $(shell pwd -P | cksum | awk '{ print $$1 }')
 TEST_ROOT := $(CURDIR)/.tests
 MINI_NVIM_DIR := $(TEST_ROOT)/deps/mini.nvim
 MINI_NVIM_COMMIT := 1345d191bb3da9c7b0e977f4387c5761f9bff68d
@@ -15,12 +16,12 @@ TEST_ENV := XDG_CONFIG_HOME=$(TEST_ROOT)/config \
 	XDG_STATE_HOME=$(TEST_ROOT)/state \
 	XDG_CACHE_HOME=$(TEST_ROOT)/cache
 
-export DbServer ?= localhost
 export DbDatabase ?= master
 export DbUser ?= sa
 export DbPassword ?= Test_Password_123
-export SQLSERVER_PORT ?= 1433
-export SQLSERVER_NO_AGENT_PORT ?= 1434
+export COMPOSE_PROJECT_NAME ?= sqlserver-nvim-$(TEST_PROJECT_ID)
+export SQLSERVER_PORT ?= 0
+export SQLSERVER_NO_AGENT_PORT ?= 0
 
 .NOTPARALLEL: test-all test-integration-local coverage coverage-unit coverage-platform coverage-integration
 
@@ -67,28 +68,31 @@ coverage-deps: test-deps
 
 test-unit: test-deps
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=unit \
-		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+		$(NVIM) --headless --clean -u $(CURDIR)/tests/minimal-init.lua -c "lua MiniTest.run()"
 
 test-platform: test-deps
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=platform \
-		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+		$(NVIM) --headless --clean -u $(CURDIR)/tests/minimal-init.lua -c "lua MiniTest.run()"
 
 test-integration: test-deps test-snacks-deps
-	$(TEST_ENV) SQLSERVER_TEST_SUITE=integration \
-		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+	@server=$$(tests/resolve-db-server.sh) || exit; \
+	$(TEST_ENV) DbServer="$$server" SQLSERVER_TEST_SUITE=integration \
+		$(NVIM) --headless --clean -u $(CURDIR)/tests/minimal-init.lua -c "lua MiniTest.run()"
 	$(MAKE) assert-no-process-leaks
 
 test-integration-shard: test-deps $(if $(filter objects,$(SHARD)),test-snacks-deps)
 	@test -n "$(SHARD)" || { printf 'SHARD is required (core or objects)\n' >&2; exit 1; }
-	$(TEST_ENV) SQLSERVER_TEST_SUITE=integration SQLSERVER_INTEGRATION_SHARD=$(SHARD) \
-		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+	@server=$$(tests/resolve-db-server.sh) || exit; \
+	$(TEST_ENV) DbServer="$$server" SQLSERVER_TEST_SUITE=integration SQLSERVER_INTEGRATION_SHARD=$(SHARD) \
+		$(NVIM) --headless --clean -u $(CURDIR)/tests/minimal-init.lua -c "lua MiniTest.run()"
 	$(MAKE) assert-no-process-leaks
 
 test-integration-local: test-env-seed test-integration
 
 test-agent-unavailable-local: test-deps test-env-no-agent-up
-	$(TEST_ENV) DbServer=localhost,$(SQLSERVER_NO_AGENT_PORT) DbDatabase=master SQLSERVER_TEST_SUITE=agent_unavailable \
-		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+	@server=$$(tests/resolve-db-server.sh sqlserver-no-agent) || exit; \
+	$(TEST_ENV) DbServer="$$server" DbDatabase=master SQLSERVER_TEST_SUITE=agent_unavailable \
+		$(NVIM) --headless --clean -u $(CURDIR)/tests/minimal-init.lua -c "lua MiniTest.run()"
 	$(MAKE) assert-no-process-leaks
 
 test-all: test-unit test-platform test-integration-local test-agent-unavailable-local
@@ -100,24 +104,26 @@ coverage-clean:
 coverage-run-unit: coverage-deps
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=unit SQLSERVER_COVERAGE=1 \
 		LUACOV_CONFIG=$(CURDIR)/.luacov \
-		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+		$(NVIM) --headless --clean -u $(CURDIR)/tests/minimal-init.lua -c "lua MiniTest.run()"
 
 coverage-run-platform: coverage-deps
 	$(TEST_ENV) SQLSERVER_TEST_SUITE=platform SQLSERVER_COVERAGE=1 \
 		LUACOV_CONFIG=$(CURDIR)/.luacov \
-		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+		$(NVIM) --headless --clean -u $(CURDIR)/tests/minimal-init.lua -c "lua MiniTest.run()"
 
 coverage-run-integration: coverage-deps test-snacks-deps
-	$(TEST_ENV) SQLSERVER_TEST_SUITE=integration SQLSERVER_COVERAGE=1 \
+	@server=$$(tests/resolve-db-server.sh) || exit; \
+	$(TEST_ENV) DbServer="$$server" SQLSERVER_TEST_SUITE=integration SQLSERVER_COVERAGE=1 \
 		LUACOV_CONFIG=$(CURDIR)/.luacov \
-		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+		$(NVIM) --headless --clean -u $(CURDIR)/tests/minimal-init.lua -c "lua MiniTest.run()"
 	$(MAKE) assert-no-process-leaks
 
 coverage-run-integration-shard: coverage-deps $(if $(filter objects,$(SHARD)),test-snacks-deps)
 	@test -n "$(SHARD)" || { printf 'SHARD is required (core or objects)\n' >&2; exit 1; }
-	$(TEST_ENV) SQLSERVER_TEST_SUITE=integration SQLSERVER_INTEGRATION_SHARD=$(SHARD) SQLSERVER_COVERAGE=1 \
+	@server=$$(tests/resolve-db-server.sh) || exit; \
+	$(TEST_ENV) DbServer="$$server" SQLSERVER_TEST_SUITE=integration SQLSERVER_INTEGRATION_SHARD=$(SHARD) SQLSERVER_COVERAGE=1 \
 		LUACOV_CONFIG=$(CURDIR)/.luacov \
-		$(NVIM) --headless --clean -u tests/minimal-init.lua -c "lua MiniTest.run()"
+		$(NVIM) --headless --clean -u $(CURDIR)/tests/minimal-init.lua -c "lua MiniTest.run()"
 	$(MAKE) assert-no-process-leaks
 
 coverage-report: coverage-deps
