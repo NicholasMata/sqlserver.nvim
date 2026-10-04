@@ -153,11 +153,9 @@ available through `:SQLServer`.
 ```
 
 The [coverage definitions](docs/sql-tools-service-coverage.md) explain each
-term and status. For `1.1.0`, [Edit Data](https://github.com/NicholasMata/sqlserver.nvim/issues/22)
-means generating reviewable SQL from eligible result edits, alongside
-read-only SQL Agent Jobs and Alerts inspection. The
-[1.2.0 milestone](https://github.com/NicholasMata/sqlserver.nvim/milestone/2)
-tracks standalone Operators, Proxies, and Schedules inspection.
+term and status. GitHub [issues](https://github.com/NicholasMata/sqlserver.nvim/issues)
+and [release milestones](https://github.com/NicholasMata/sqlserver.nvim/milestones)
+track planned scope and delivery.
 
 ## Contributing
 

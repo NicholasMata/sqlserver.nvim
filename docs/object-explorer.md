@@ -1,9 +1,9 @@
 # Object Explorer
 
-Object Explorer presents the hierarchy returned by SQL Tools Service in a
-persistent Snacks sidebar. It belongs to the current SQL buffer's connection
-and preserves service-defined folders, ordering, and object relationships
-instead of flattening them into a plugin-specific structure.
+Object Explorer currently presents the hierarchy returned by SQL Tools Service
+in a persistent Snacks sidebar. It belongs to the current SQL buffer's
+connection and preserves service-defined folders, ordering, and object
+relationships instead of flattening them into a plugin-specific structure.
 
 <p align="center">
   <img src="assets/object-explorer.png" alt="SQL Server Object Explorer beside a connected SQL buffer" width="1000">
@@ -113,8 +113,8 @@ Use `<keymap_prefix>l`, `:SQLServer CancelOperation`, or `sqlserver.cancel()`
 while a script is being generated. Cancellation is sent to SQL Tools Service,
 and scripting plan and progress notifications update the existing operation.
 
-Server-administration branches such as Security, Storage, Service Broker, and
-SQL Server Agent are outside the current Object Explorer scope.
+The current Object Explorer does not show server-administration branches such
+as Security, Storage, Service Broker, or SQL Server Agent.
 
 ## Configuration
 

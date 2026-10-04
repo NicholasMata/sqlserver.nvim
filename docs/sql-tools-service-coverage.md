@@ -41,10 +41,10 @@ plans only read-only access to it.
 
 | Item | Scope in `sqlserver.nvim` |
 | --- | --- |
-| 🔵 SQL Agent | For `1.1.0`, browse jobs, inspect status, steps, schedules, and history, and browse alerts read-only. For `1.2.0`, add standalone read-only Operators, Proxies, and Schedules views. Mutating actions and notebooks remain later work. See the [Jobs and Alerts issue](https://github.com/NicholasMata/sqlserver.nvim/issues/21) and [1.2.0 issue](https://github.com/NicholasMata/sqlserver.nvim/issues/23). |
+| 🔵 SQL Agent | Browse instance-level Jobs and Alerts through Object Explorer, with read-only details and contextual actions. Operators, Proxies, and Schedules are related server-level resources. GitHub issues define the release boundaries and action scope: [Jobs and Alerts](https://github.com/NicholasMata/sqlserver.nvim/issues/21) and [Operators, Proxies, and Schedules](https://github.com/NicholasMata/sqlserver.nvim/issues/23). |
 | ⚪ Backup | A dedicated backup workflow with configuration and status tracking is not planned. `BackupDatabase` currently inserts a SQL command into a query buffer; it is not a backup-management UI. |
 | ⚪ Restore | A dedicated restore workflow with configuration and status tracking is not planned. `RestoreDatabase` currently inserts a SQL command into a query buffer; it is not a restore-management UI. |
-| 🔵 Edit Data | For `1.1.0`, update eligible cells, add and delete rows, and use SQL Tools Service to generate an unsaved SQL buffer for review and manual execution. The feature does not apply changes automatically. Arbitrary query results are not assumed writable. See the [feature issue](https://github.com/NicholasMata/sqlserver.nvim/issues/22). |
+| 🔵 Edit Data | Update eligible cells, add and delete rows, and use SQL Tools Service to generate an unsaved SQL buffer for review and manual execution. The feature does not apply changes automatically. Arbitrary query results are not assumed writable. See the [feature issue](https://github.com/NicholasMata/sqlserver.nvim/issues/22) for release scope. |
 | ⚪ Security | Administration of logins, users, roles, and permissions. Connecting with a configured identity is supported, but a security-management UI is not planned. |
 
 ## Diagnostics
@@ -56,5 +56,5 @@ messages, errors, and timings shown during ordinary query execution.
 | --- | --- |
 | ⚪ Profiler | Capturing and inspecting server event traces. No dedicated workflow is currently planned. |
 | ⚪ Query Store | Browsing Query Store performance history and reports. This is distinct from the plugin's query execution and result history; no dedicated workflow is currently planned. |
-| 🔵 Query Plans | Capture and present estimated or actual execution plans in a readable form. Planned for later; no release milestone is assigned. |
+| 🔵 Query Plans | Capture and present estimated or actual execution plans in a readable form. GitHub issues track implementation and release planning. |
 | ⚪ Assessment | Running database or server assessment checks and reviewing recommendations. No dedicated workflow is currently planned. |
