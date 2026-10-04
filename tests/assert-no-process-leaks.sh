@@ -2,6 +2,8 @@
 set -eu
 
 project_dir=${1:?project directory is required}
+test_init="$project_dir/tests/minimal-init.lua"
+test_data="$project_dir/.tests/"
 attempt=0
 
 find_leaks() {
@@ -9,9 +11,9 @@ find_leaks() {
     printf '%s\n' "Could not inspect processes" >&2
     exit 1
   }
-  printf '%s\n' "$processes" | awk -v project_dir="$project_dir" '
-    index($0, "MicrosoftSqlToolsServiceLayer") && index($0, project_dir) { print; next }
-    /nvim.*tests.*minimal-init[.]lua/ { print }
+  printf '%s\n' "$processes" | awk -v test_init="$test_init" -v test_data="$test_data" '
+    index($0, "MicrosoftSqlToolsServiceLayer") && index($0, test_data) { print; next }
+    /nvim/ && index($0, test_init) { print }
   '
 }
 
