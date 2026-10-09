@@ -100,6 +100,8 @@ complete lines. A visual mapping to `commands.estimated_plan` or
 SQL Server requires SHOWPLAN permission for the referenced databases.
 
 Plan XML opens in a separate, read-only buffer with XML syntax highlighting.
+Plan winbars use the same hidden-query `↗` indicator as result views;
+`:SQLServer ShowQuery` also returns to the source from a retained plan.
 `EstimatedPlan` and `EstimatedPlanBuffer` focus the first captured plan.
 `ShowPlans` focuses the selected plan. Split placement follows Neovim's
 `splitbelow` preference.

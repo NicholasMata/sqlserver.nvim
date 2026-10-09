@@ -328,6 +328,31 @@ T["Failed plan preparation rolls back and preserves previous history"] = functio
   vim.api.nvim_buf_delete(source, { force = true })
 end
 
+T["Plan winbar shares the source indicator and source navigation"] = function()
+  view.clear()
+  local source = vim.api.nvim_create_buf(false, true)
+  local opts = {
+    results = { max_cell_width = 100, history_limit = 2 },
+    open_results_in = function(bufnr)
+      vim.api.nvim_set_current_buf(bufnr)
+    end,
+  }
+  view.show({}, opts, source, nil, { plan() })
+  local plan_buffer = vim.api.nvim_get_current_buf()
+  local plan_window = vim.api.nvim_get_current_win()
+  assert(view.render_winbar():find("↗", 1, true))
+  assert(view.render_winbar():find("Plan 1/1", 1, true))
+  assert(view.show_query() and vim.api.nvim_get_current_buf() == source)
+  local source_window = vim.api.nvim_get_current_win()
+  assert(not view.render_winbar(plan_buffer):find("↗", 1, true))
+  assert(vim.b[plan_buffer].sqlserver_plan.xml == xml)
+  vim.api.nvim_set_current_win(plan_window)
+  assert(view.show_query() and vim.api.nvim_get_current_win() == source_window)
+  vim.api.nvim_win_close(source_window, true)
+  view.clear()
+  vim.api.nvim_buf_delete(source, { force = true })
+end
+
 T["Public plan viewing and export work without a connected workspace"] = function()
   api.configure({ results = { max_rows = 10 } })
   local path = vim.fn.tempname() .. ".sqlplan"

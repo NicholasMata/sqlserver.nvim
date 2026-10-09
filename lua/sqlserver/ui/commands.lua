@@ -48,6 +48,7 @@ local function get_items()
   local workspace = workspace_registry.get()
   if vim.b.sqlserver_plan_info then
     return {
+      "ShowQuery",
       "ShowPlans",
       "SavePlan",
       "ShowResults",

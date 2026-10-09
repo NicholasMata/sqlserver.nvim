@@ -160,6 +160,8 @@ T["Estimated plan commands focus the plan and respect split placement"] = h.asyn
     local source_row = vim.api.nvim_win_get_position(source_window)[1]
     assert((plan_row > source_row) == vim.o.splitbelow, "Plan ignored splitbelow")
     assert(vim.b.sqlserver_plan.xml and vim.bo.readonly)
+    vim.cmd("SQLServer ShowQuery")
+    assert(vim.api.nvim_get_current_win() == source_window, "ShowQuery did not focus the plan's source")
     vim.api.nvim_win_close(plan_window, true)
   end
   vim.o.splitbelow = original_splitbelow

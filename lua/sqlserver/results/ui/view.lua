@@ -204,7 +204,7 @@ function M.render_winbar(bufnr)
   source_name = source_name ~= "" and vim.fn.fnamemodify(source_name, ":t") or "[No Name]"
   local result_set = session.result_set
   if session.plan then
-    return source_name:gsub("%%", "%%%%")
+    return result_winbar.source_label(source_name, result_source.visible(session.source_bufnr))
       .. "  "
       .. require("sqlserver.plans.snapshot").title(session.plan):gsub("%%", "%%%%")
       .. string.format(
