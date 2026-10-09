@@ -23,7 +23,9 @@
   ·
   <a href="https://github.com/NicholasMata/sqlserver.nvim/milestones">Planned Releases</a>
   ·
-  <a href="CHANGELOG.md">Changelog</a>
+  <a href="https://github.com/NicholasMata/sqlserver.nvim/releases">Releases</a>
+  ·
+  <a href="https://github.com/NicholasMata/sqlserver.nvim/blob/next/CHANGELOG.md">Unreleased Changes</a>
 </p>
 
 <p align="center">
@@ -66,7 +68,7 @@ Requires Neovim 0.11.7 or newer. With [lazy.nvim](https://github.com/folke/lazy.
 ```lua
 {
   "NicholasMata/sqlserver.nvim",
-  -- version = "v1.0.0-rc.5", -- Pin a release
+  -- version = "v1.0.0", -- Pin a release
   -- branch = "next", -- Follow unreleased development
   opts = {
     keymap_prefix = "<leader>s",

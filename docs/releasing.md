@@ -4,7 +4,7 @@ This checklist defines the acceptance bar for `1.0.0`. Do not create the tag
 until every required item is complete.
 
 A release candidate may be published after the automated acceptance checks
-pass. Use the candidate period to complete and record the manual core-loop pass
+pass. Use the candidate period to complete the manual core-loop pass
 and to fix release-blocking defects. Promote the latest candidate to `1.0.0`
 only when the complete checklist passes.
 
@@ -14,15 +14,23 @@ only when the complete checklist passes.
 next release, and ordinary pull requests target `next`. The active
 `Unreleased` changelog is therefore maintained on `next`, not `main`.
 
-Prepare and validate a release on `next`. Once its changelog entries have been
-promoted to a dated version section and the release checklist passes, open a
-pull request from `next` to `main`. Tag the merge commit on `main`, publish the
-GitHub release, then restore an empty `Unreleased` section on `next` for the
-following release.
+Prepare and validate a release on `next`. Use its `Unreleased` changelog entries
+to draft GitHub release notes. Once the release checklist passes, open a pull
+request from `next` to `main`. Tag the merge commit on `main` and publish the
+GitHub release. Only after publication, remove the shipped entries from
+`CHANGELOG.md` on `next` and update its comparison link to the published tag.
+Keep entries intended for later releases and retain the `Unreleased` section.
 
 Complete the release pull request with a merge commit. Do not squash or rebase
 the promotion: `main` must retain the exact commits and pull request
 associations accumulated on `next`.
+
+When promoting a candidate already released from `main`, prepare the stable
+release on `main`. Review all changes since the candidate, update the release
+documentation, and tag the final clean commit after acceptance passes. If
+`next` already contains work for a later release, keep that work on `next`.
+After publication, merge `main` into `next` with a merge commit and preserve
+its pending changelog entries. Keep the candidate tag and GitHub prerelease.
 
 An urgent fix for the currently released version may target `main` directly.
 Release that fix promptly and merge `main` into `next` so the branches do not
@@ -40,8 +48,10 @@ associated with merged pull requests.
 ## Release notes
 
 Write curated, user-facing release notes instead of publishing a raw commit
-list. Use the changelog as the exhaustive record and the release description as
-an approachable summary of the release.
+list. `CHANGELOG.md` tracks unreleased changes; GitHub Releases is the published
+release history. Include all user-visible changes from the shipped changelog
+entries in the release notes. When promoting a release candidate to stable,
+also summarize the candidate series using its published GitHub release notes.
 
 Follow this structure and omit any empty section:
 
@@ -78,15 +88,24 @@ completed rather than offer a general assurance.
 
 ## Repository
 
-- [ ] Promote the release-candidate entries in the `next` branch's
-  `CHANGELOG.md` to a `1.0.0` section dated on release day.
+- [ ] Prepare `1.0.0` GitHub release notes from the published candidate series
+  and any `Unreleased` entries included in the release.
 - [ ] Confirm `README.md`, configuration, usage, public API, and migration
   documentation match the release.
 - [ ] Update the commented `version` in the README installation example to the
   release tag so users can opt into an exact, reproducible pin.
-- [ ] Merge the validated `next` release into `main`, then create an annotated
-  `v1.0.0` tag from the clean merge commit only after CI and the manual
-  acceptance pass.
+- [ ] For a new release prepared on `next`, merge it into `main` with a merge
+  commit. For promotion of a candidate already on `main`, review changes since
+  the candidate and prepare the stable release directly on `main`.
+- [ ] Create an annotated `v1.0.0` tag from the final clean release commit on
+  `main` only after CI and the manual acceptance pass.
+- [ ] Publish `1.0.0` as the latest GitHub release without the prerelease flag.
+  Preserve the existing candidate releases.
+- [ ] Merge any direct release changes on `main` into `next` with a merge
+  commit, preserving work intended for later releases.
+- [ ] After publishing the GitHub release, remove only its shipped entries
+  from `CHANGELOG.md` on `next` and update the comparison link. Preserve entries
+  intended for later releases.
 
 ## Automated acceptance
 
@@ -109,9 +128,11 @@ git status --short
 
 ## Manual core-loop acceptance
 
-Record the date, operating system, Neovim version, SQL Tools Service version,
-and SQL Server version in the release pull request. Perform these steps from a
-fresh Neovim data directory:
+Confirm the following workflows interactively from a fresh Neovim data
+directory. Maintainer confirmation is sufficient; summarize completed manual
+validation briefly in the release notes. An existing candidate pass can be used
+for stable promotion when the plugin code and dependencies are unchanged.
+Repeat affected checks when either changes.
 
 1. Start Neovim and confirm the pinned SQL Tools Service installs once without
    replacing a valid installation on the next start.
