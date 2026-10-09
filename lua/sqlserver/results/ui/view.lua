@@ -221,7 +221,21 @@ end
 
 function M.show_query()
   local session = result_sessions[vim.api.nvim_get_current_buf()]
-  return session ~= nil and result_source.show(session.source_bufnr)
+  local source = session and sources[session.source_bufnr]
+  if not source then
+    return false
+  end
+  local previous_window = source.query_window
+  if previous_window and vim.api.nvim_win_is_valid(previous_window) then
+    if result_sessions[vim.api.nvim_win_get_buf(previous_window)] then
+      previous_window = nil
+    end
+  end
+  local shown, winid = result_source.show(source.bufnr, previous_window)
+  if shown then
+    source.query_window = winid
+  end
+  return shown
 end
 
 function M.has_results(bufnr)
@@ -243,6 +257,7 @@ local function result_window(source)
 end
 
 local function display_buffer(source, bufnr, open_results_in)
+  source.query_window = result_source.window(source.bufnr) or source.query_window
   local windows = vim.fn.win_findbuf(bufnr)
   local existing_window = result_window(source)
   if #windows > 0 then

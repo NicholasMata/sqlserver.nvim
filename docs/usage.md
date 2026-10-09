@@ -28,11 +28,12 @@ The result winbar shows the eye-off icon `󰈉` beside the query filename when
 its source query is not visible in the current tab, including when it is open
 in another tab.
 `:SQLServer ShowQuery` (or `<keymap_prefix>o` from a result buffer) focuses the
-source query if it is already visible. Otherwise it restores the query on the
-opposite side of the preferred result split: above the results when `splitbelow`
-is enabled, or below when it is disabled. The global split preference stays
-unchanged. Unrelated query windows, result buffers, and execution history are
-preserved.
+source query if it is already visible. If its original window now shows another
+buffer, ShowQuery switches that window back to the query and focuses it. The
+other buffer stays loaded. If the original window has closed, it restores the
+query opposite the preferred result split: above the results when `splitbelow`
+is enabled, or below when it is disabled. The global split preference, other
+windows, result buffers, and execution history are preserved.
 
 ## SQL buffer workflow
 

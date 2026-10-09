@@ -16,8 +16,8 @@ later releases.
 - Mark result views with the eye-off icon `󰈉` when their source query is
   hidden in the current tab. Use `ShowQuery` or the result-local
   `<keymap_prefix>o` to return to it.
-- Restore a hidden source query opposite the preferred result split with
-  `ShowQuery`, or focus its existing window without disturbing other queries.
+- Restore a hidden source query in its original window with `ShowQuery`, or
+  recreate the window opposite the preferred result split if it has closed.
 
 ### Fixed
 
