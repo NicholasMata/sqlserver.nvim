@@ -6,6 +6,11 @@ releases use [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+
+- Filter `:SQLServer` command completion by the typed prefix, ignoring case
+  while preserving context-sensitive suggestions and command capitalization.
+
 ## [1.0.0-rc.5] - 2026-09-25
 
 ### Added
