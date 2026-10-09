@@ -165,6 +165,7 @@ T["Estimated plan commands focus the plan and respect split placement"] = h.asyn
     vim.api.nvim_win_close(plan_window, true)
   end
   vim.o.splitbelow = original_splitbelow
+  integration.setup()
 end)
 
 T["Ex ranges capture only the requested lines"] = h.async(function()
