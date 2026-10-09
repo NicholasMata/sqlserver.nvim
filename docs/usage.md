@@ -24,8 +24,9 @@ in a different window. One query execution can produce several result sets, and
 each result set has its own result buffer. A retained sequence of those
 executions is the query buffer's result history.
 
-The result winbar shows `↗` beside the query filename when its source query
-is not visible in the current tab, including when it is open in another tab.
+The result winbar shows the eye-off icon `󰈉` beside the query filename when
+its source query is not visible in the current tab, including when it is open
+in another tab.
 `:SQLServer ShowQuery` (or `<keymap_prefix>o` from a result buffer) focuses a
 visible source window or reopens the query in a split. Split placement respects
 Neovim's `splitbelow` preference; returning to the query retains the results.

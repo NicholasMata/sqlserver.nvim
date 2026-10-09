@@ -13,8 +13,9 @@ later releases.
 
 ### Added
 
-- Mark result views with `↗` when their source query is hidden in the current
-  tab. Use `ShowQuery` or the result-local `<keymap_prefix>o` to return to it.
+- Mark result views with the eye-off icon `󰈉` when their source query is
+  hidden in the current tab. Use `ShowQuery` or the result-local
+  `<keymap_prefix>o` to return to it.
 
 ### Fixed
 

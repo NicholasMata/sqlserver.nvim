@@ -20,7 +20,7 @@ local function format_row_count(count)
 end
 
 function M.source_label(name, visible)
-  return name:gsub("%%", "%%%%") .. (visible == false and " ↗" or "")
+  return name:gsub("%%", "%%%%") .. (visible == false and " 󰈉" or "")
 end
 
 ---@param info { source_name: string, source_visible?: boolean, execution: integer, execution_count: integer, result: integer, result_count: integer, displayed_rows: integer, total_rows: integer, duration_ms?: number }
