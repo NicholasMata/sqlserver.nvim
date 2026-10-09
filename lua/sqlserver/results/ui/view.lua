@@ -21,6 +21,7 @@ local highlight_links = {
   SqlServerResultHeader = "Title",
   SqlServerResultBorder = "NonText",
   SqlServerResultNull = "Comment",
+  SqlServerSourceHidden = "DiagnosticWarn",
   SqlServerResultTruncated = "DiagnosticWarn",
   SqlServerResultCurrentCell = "Search",
   SqlServerResultTypeText = "String",

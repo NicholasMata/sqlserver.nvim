@@ -28,6 +28,13 @@ The result winbar always shows an eye icon beside the query filename: `󰈈` whe
 its source query is visible in the current tab, or `󰈉` when it is hidden,
 including when it is open in another tab. Switching icons keeps the winbar
 spacing stable.
+The eye-off icon uses `SqlServerSourceHidden`, which defaults to `DiagnosticWarn`.
+Override it with the normal Neovim highlight API, for example:
+
+```lua
+vim.api.nvim_set_hl(0, "SqlServerSourceHidden", { fg = "#d7a65f" })
+```
+
 `:SQLServer ShowQuery` (or `<keymap_prefix>o` from a result buffer) focuses the
 source query if it is already visible. If its original window now shows another
 buffer, ShowQuery switches that window back to the query and focuses it. The

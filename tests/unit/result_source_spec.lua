@@ -26,12 +26,25 @@ end
 
 T["Source label switches equal-width eye icons and escapes winbar filenames"] = function()
   assert(winbar.source_label("query%file.sql", true) == "query%%file.sql 󰈈")
-  assert(winbar.source_label("query%file.sql", false) == "query%%file.sql 󰈉")
-  assert(winbar.source_label("[No Name]", false) == "[No Name] 󰈉")
+  assert(winbar.source_label("query%file.sql", false) == "query%%file.sql %#SqlServerSourceHidden#󰈉%*")
+  assert(winbar.source_label("[No Name]", false) == "[No Name] %#SqlServerSourceHidden#󰈉%*")
   assert(
-    vim.fn.strdisplaywidth(winbar.source_label("query.sql", true))
-      == vim.fn.strdisplaywidth(winbar.source_label("query.sql", false))
+    vim.api.nvim_eval_statusline(winbar.source_label("query.sql", true), { use_winbar = true }).width
+      == vim.api.nvim_eval_statusline(winbar.source_label("query.sql", false), { use_winbar = true }).width
   )
+end
+
+T["Hidden source highlight defaults to warning and preserves user overrides"] = function()
+  local group = "SqlServerSourceHidden"
+  local original = vim.api.nvim_get_hl(0, { name = group })
+  vim.cmd("highlight clear " .. group)
+  view.setup()
+  assert(vim.api.nvim_get_hl(0, { name = group }).link == "DiagnosticWarn")
+  vim.api.nvim_set_hl(0, group, { fg = "#abcdef" })
+  view.setup()
+  vim.api.nvim_exec_autocmds("ColorScheme", { pattern = "test" })
+  assert(vim.api.nvim_get_hl(0, { name = group }).fg == 0xABCDEF)
+  vim.api.nvim_set_hl(0, group, original)
 end
 
 T["Result indicator follows source window visibility without changing history"] = function()
