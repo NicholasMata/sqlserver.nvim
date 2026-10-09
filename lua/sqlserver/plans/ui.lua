@@ -8,10 +8,23 @@ function M.prepare(plan)
   next_id = next_id + 1
   local transaction = generated_buffer.create({ name = "sqlserver-plan://" .. next_id .. ".sqlplan", scratch = true })
   local ok, err = pcall(function()
-    transaction.set_lines(require("sqlserver.plans.format").lines(plan.xml))
+    local original_lines = vim.split(plan.xml, "\n", { plain = true })
+    transaction.set_lines(original_lines)
     local bufnr = transaction.bufnr
     vim.bo[bufnr].bufhidden = "hide"
     vim.bo[bufnr].filetype = "xml"
+    -- FileType handlers can configure XML formatting. Use Neovim's native
+    -- formatting operator only when a formatter is configured, avoiding its
+    -- default text-wrapping fallback on raw XML.
+    vim.api.nvim_buf_call(bufnr, function()
+      if vim.bo.formatexpr ~= "" or vim.bo.formatprg ~= "" then
+        local formatted = pcall(vim.cmd, "silent keepjumps normal! gggqG")
+        if not formatted then
+          transaction.set_lines(original_lines)
+        end
+      end
+    end)
+    vim.bo[bufnr].modified = false
     vim.bo[bufnr].readonly = true
     vim.bo[bufnr].modifiable = false
     vim.b[bufnr].sqlserver_plan_info = {

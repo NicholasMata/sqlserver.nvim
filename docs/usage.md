@@ -99,9 +99,14 @@ complete lines. A visual mapping to `commands.estimated_plan` or
 `commands.actual_plan` preserves the exact selection, including block mode.
 SQL Server requires SHOWPLAN permission for the referenced databases.
 
-Plan XML opens in a separate, read-only buffer with XML syntax highlighting,
-indented elements, and attributes on separate lines. Formatting applies only
-to the inspection view; snapshots and `.sqlplan` exports retain the original XML.
+Plan XML opens in a separate, read-only buffer with XML syntax highlighting.
+After XML filetype settings load, the view uses Neovim's `gq` formatting
+operator when `formatexpr` or `formatprg` is configured, including Neovim's
+bundled XML `formatexpr` where available.
+Without a configured formatter, the view shows raw XML. Formatters exposed
+only through plugin commands or mappings must be connected to `formatexpr`
+or `formatprg` to run automatically. Formatting applies only to the view;
+snapshots and `.sqlplan` exports retain the original XML.
 The winbar identifies plan kind, ordinal, batch, source connection/database,
 and execution. Actual capture initially shows ordinary rows when available;
 use `ShowPlans` or `]r`/`[r` to move between result and XML buffers.

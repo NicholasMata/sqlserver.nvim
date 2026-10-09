@@ -343,7 +343,7 @@ T["Public plan viewing and export work without a connected workspace"] = functio
     opened = result.bufnr
   end)
   assert(vim.bo[opened].filetype == "xml")
-  assert(vim.deep_equal(vim.api.nvim_buf_get_lines(opened, 0, -1, false), require("sqlserver.plans.format").lines(xml)))
+  assert(#vim.api.nvim_buf_get_lines(opened, 0, -1, false) > 0)
   assert(vim.b[opened].sqlserver_plan.xml == xml)
   vim.api.nvim_win_close(0, true)
   assert(not vim.api.nvim_buf_is_valid(opened))
@@ -355,44 +355,65 @@ T["Public plan viewing and export work without a connected workspace"] = functio
   assert(err.code == "invalid_argument")
 end
 
-T["Plan inspection indents elements and separates quoted attributes"] = function()
-  local lines = require("sqlserver.plans.format").lines(
-    '<ShowPlanXML xmlns="urn:showplan" Version="1"><QueryPlan><RelOp NodeId="0" PhysicalOp="Index Seek" Predicate="x &gt; 1"/><Scalar String="a > b" Other=\'日本語\'/></QueryPlan></ShowPlanXML>'
-  )
-  assert(vim.deep_equal(lines, {
-    "<ShowPlanXML",
-    '  xmlns="urn:showplan"',
-    '  Version="1">',
-    "  <QueryPlan>",
-    "    <RelOp",
-    '      NodeId="0"',
-    '      PhysicalOp="Index Seek"',
-    '      Predicate="x &gt; 1"/>',
-    "    <Scalar",
-    '      String="a > b"',
-    "      Other='日本語'/>",
-    "  </QueryPlan>",
-    "</ShowPlanXML>",
-  }))
+T["Plan inspection uses the XML filetype's configured formatexpr"] = function()
+  local calls = 0
+  _G.sqlserver_test_xml_format = function()
+    calls = calls + 1
+    assert(vim.bo.filetype == "xml")
+    assert(vim.v.lnum == 1 and vim.v.count == 1)
+    vim.api.nvim_buf_set_lines(0, 0, -1, false, { "<ShowPlanXML>", "  <BatchSequence/>", "</ShowPlanXML>" })
+    return 0
+  end
+  local autocmd = vim.api.nvim_create_autocmd("FileType", {
+    pattern = "xml",
+    callback = function()
+      vim.bo.formatexpr = "v:lua.sqlserver_test_xml_format()"
+    end,
+  })
+  local source = vim.api.nvim_get_current_buf()
+  local transaction = require("sqlserver.plans.ui").prepare(plan())
+  vim.api.nvim_del_autocmd(autocmd)
+  _G.sqlserver_test_xml_format = nil
+  assert(calls == 1)
+  assert(vim.api.nvim_get_current_buf() == source)
+  assert(#vim.api.nvim_buf_get_lines(transaction.bufnr, 0, -1, false) == 3)
+  assert(vim.b[transaction.bufnr].sqlserver_plan.xml == xml)
+  assert(vim.bo[transaction.bufnr].readonly and not vim.bo[transaction.bufnr].modifiable)
+  assert(not vim.bo[transaction.bufnr].modified)
+  transaction.rollback()
 end
 
-T["Plan inspection preserves entities, comments, CDATA, and declarations"] = function()
-  local lines = require("sqlserver.plans.format").lines(
-    '<?xml version="1.0"?><ShowPlanXML><!-- a > b --><![CDATA[<not-a-tag>]]><Text>日本語 &amp; text</Text></ShowPlanXML>'
-  )
-  assert(vim.deep_equal(lines, {
-    '<?xml version="1.0"?>',
-    "<ShowPlanXML>",
-    "  <!-- a > b -->",
-    "  <![CDATA[<not-a-tag>]]>",
-    "  <Text>",
-    "    日本語 &amp; text",
-    "  </Text>",
-    "</ShowPlanXML>",
-  }))
-  assert(vim.deep_equal(require("sqlserver.plans.format").lines('<ShowPlanXML Value="unterminated>'), {
-    '<ShowPlanXML Value="unterminated>',
-  }))
+T["Plan inspection uses configured formatprg without changing snapshot XML"] = function()
+  -- cat is a real, identity formatprg available on the local/CI Unix hosts.
+  if vim.fn.executable("cat") == 0 then
+    return
+  end
+  local autocmd = vim.api.nvim_create_autocmd("FileType", {
+    pattern = "xml",
+    callback = function()
+      vim.bo.formatexpr = ""
+      vim.bo.formatprg = "cat"
+    end,
+  })
+  local transaction = require("sqlserver.plans.ui").prepare(plan())
+  vim.api.nvim_del_autocmd(autocmd)
+  assert(table.concat(vim.api.nvim_buf_get_lines(transaction.bufnr, 0, -1, false), "\n") == xml)
+  assert(vim.b[transaction.bufnr].sqlserver_plan.xml == xml)
+  transaction.rollback()
+end
+
+T["Plan inspection leaves XML unchanged when no formatter is configured"] = function()
+  local autocmd = vim.api.nvim_create_autocmd("FileType", {
+    pattern = "xml",
+    callback = function()
+      vim.bo.formatexpr = ""
+      vim.bo.formatprg = ""
+    end,
+  })
+  local transaction = require("sqlserver.plans.ui").prepare(plan())
+  vim.api.nvim_del_autocmd(autocmd)
+  assert(table.concat(vim.api.nvim_buf_get_lines(transaction.bufnr, 0, -1, false), "\n") == xml)
+  transaction.rollback()
 end
 
 T["Plan Ex ranges preserve line boundaries and Unicode columns"] = function()

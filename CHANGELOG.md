@@ -23,7 +23,7 @@ later releases.
   recreate the window opposite the preferred result split if it has closed.
 - Capture estimated and actual execution plans for statements, selections,
   and complete SQL buffers. Retain original XML with execution history, open
-  indented, syntax-highlighted XML views with attributes on separate lines,
+  syntax-highlighted XML views using a configured Neovim XML formatter,
   and save byte-preserving `.sqlplan` files.
 - Add plan capture options to `execute()` and `open_plan()`/`export_plan()`
   public API workflows.
