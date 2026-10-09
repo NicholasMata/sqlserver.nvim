@@ -23,7 +23,9 @@
   ·
   <a href="https://github.com/NicholasMata/sqlserver.nvim/milestones">Planned Releases</a>
   ·
-  <a href="CHANGELOG.md">Changelog</a>
+  <a href="https://github.com/NicholasMata/sqlserver.nvim/releases">Releases</a>
+  ·
+  <a href="https://github.com/NicholasMata/sqlserver.nvim/blob/next/CHANGELOG.md">Unreleased Changes</a>
 </p>
 
 <p align="center">
