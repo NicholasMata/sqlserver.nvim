@@ -1030,6 +1030,8 @@ local function capture_plan(kind, buffer, opts)
             query_results.show(execution.result_sets, plugin_opts, workspace.bufnr, execution.dispose, execution.plans)
           if #execution.plans == 0 then
             utils.log_info("SQL Server returned no execution plan")
+          elseif shown and kind == "estimated" then
+            query_results.show_plan(execution.plans[1].ordinal, plugin_opts.open_results_in)
           end
           return shown
         end,

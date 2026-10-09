@@ -131,6 +131,40 @@ T["Capture errors, no plan, and cancellation produce distinct outcomes"] = h.asy
   assert(registry.get(limited).get_active_operation() == nil)
 end)
 
+T["Estimated plan commands focus the plan and respect split placement"] = h.async(function()
+  local source = vim.api.nvim_get_current_buf()
+  local source_window = vim.api.nvim_get_current_win()
+  vim.api.nvim_buf_set_lines(source, 0, -1, false, { sql })
+  integration.await(function(callback)
+    sqlserver.setup({
+      open_results_in = "split",
+      results = { column_icons = true, cell_navigation = true },
+    }, callback)
+  end)
+  local original_splitbelow = vim.o.splitbelow
+  for index, command in ipairs({ "EstimatedPlan", "EstimatedPlanBuffer" }) do
+    vim.o.splitbelow = index == 2
+    vim.api.nvim_set_current_win(source_window)
+    vim.api.nvim_win_set_cursor(source_window, { 1, 0 })
+    vim.cmd("SQLServer " .. command)
+    assert(
+      vim.wait(30000, function()
+        return registry.get(source).get_state() == require("sqlserver.workspace").states.connected
+          and vim.bo.filetype == "xml"
+      end, 10),
+      command .. " did not focus the captured plan"
+    )
+    local plan_window = vim.api.nvim_get_current_win()
+    assert(plan_window ~= source_window)
+    local plan_row = vim.api.nvim_win_get_position(plan_window)[1]
+    local source_row = vim.api.nvim_win_get_position(source_window)[1]
+    assert((plan_row > source_row) == vim.o.splitbelow, "Plan ignored splitbelow")
+    assert(vim.b.sqlserver_plan.xml and vim.bo.readonly)
+    vim.api.nvim_win_close(plan_window, true)
+  end
+  vim.o.splitbelow = original_splitbelow
+end)
+
 T["Ex ranges capture only the requested lines"] = h.async(function()
   local source = vim.api.nvim_get_current_buf()
   vim.api.nvim_buf_set_lines(source, 0, -1, false, { "SELECT 42 AS Unselected;", sql })

@@ -27,6 +27,8 @@ later releases.
   and save byte-preserving `.sqlplan` files.
 - Add plan capture options to `execute()` and `open_plan()`/`export_plan()`
   public API workflows.
+- Focus the captured XML plan after `EstimatedPlan` and `EstimatedPlanBuffer`,
+  while respecting Neovim's split placement preferences.
 
 ### Fixed
 

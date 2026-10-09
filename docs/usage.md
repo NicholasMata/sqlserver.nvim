@@ -100,6 +100,9 @@ complete lines. A visual mapping to `commands.estimated_plan` or
 SQL Server requires SHOWPLAN permission for the referenced databases.
 
 Plan XML opens in a separate, read-only buffer with XML syntax highlighting.
+`EstimatedPlan` and `EstimatedPlanBuffer` focus the first captured plan.
+`ShowPlans` focuses the selected plan. Split placement follows Neovim's
+`splitbelow` preference.
 After XML filetype settings load, the view uses Neovim's `gq` formatting
 operator when `formatexpr` or `formatprg` is configured, including Neovim's
 bundled XML `formatexpr` where available.
