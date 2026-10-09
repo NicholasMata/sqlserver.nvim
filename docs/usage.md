@@ -104,7 +104,8 @@ Plan winbars use the same hidden-query `󰈉` indicator as result views;
 `:SQLServer ShowQuery` also returns to the source from a retained plan.
 `EstimatedPlan` and `EstimatedPlanBuffer` focus the first captured plan.
 `ShowPlans` focuses the selected plan. Split placement follows Neovim's
-`splitbelow` preference.
+`splitbelow` preference. Plan windows disable spell checking by default; use
+`:setlocal spell` in a plan window to enable it.
 After XML filetype settings load, the view uses Neovim's `gq` formatting
 operator when `formatexpr` or `formatprg` is configured, including Neovim's
 bundled XML `formatexpr` where available.

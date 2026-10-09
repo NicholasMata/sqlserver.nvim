@@ -29,6 +29,8 @@ later releases.
   public API workflows.
 - Focus the captured XML plan after `EstimatedPlan` and `EstimatedPlanBuffer`,
   while respecting Neovim's split placement preferences.
+- Disable spell checking in execution-plan windows by default; users can
+  enable it locally with `:setlocal spell`.
 
 ### Fixed
 

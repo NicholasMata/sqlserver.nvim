@@ -328,6 +328,40 @@ T["Failed plan preparation rolls back and preserves previous history"] = functio
   vim.api.nvim_buf_delete(source, { force = true })
 end
 
+T["Plan windows disable spell checking without changing query or global preferences"] = function()
+  view.clear()
+  local original_spell = vim.go.spell
+  local query_window = vim.api.nvim_get_current_win()
+  local original_window_spell = vim.wo.spell
+  local source = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_set_current_buf(source)
+  vim.go.spell = true
+  vim.wo.spell = true
+  for _, retained in ipairs({ false, true }) do
+    if retained then
+      view.show({}, {
+        results = { history_limit = 2 },
+        open_results_in = function(bufnr)
+          vim.cmd("split")
+          vim.api.nvim_set_current_buf(bufnr)
+        end,
+      }, source, nil, { plan() })
+    else
+      plan_ui.open(plan())
+    end
+    assert(not vim.wo.spell, "Plan window inherited spell checking")
+    assert(vim.api.nvim_get_option_value("spell", { scope = "global" }))
+    assert(vim.wo[query_window].spell, "Plan changed the query window's spell preference")
+    vim.cmd("setlocal spell")
+    assert(vim.wo.spell, "User could not enable spell checking in the plan")
+    vim.api.nvim_win_close(0, true)
+    view.clear()
+  end
+  vim.api.nvim_buf_delete(source, { force = true })
+  vim.go.spell = original_spell
+  vim.wo[query_window].spell = original_window_spell
+end
+
 T["Plan winbar shares the source indicator and source navigation"] = function()
   view.clear()
   local source = vim.api.nvim_create_buf(false, true)

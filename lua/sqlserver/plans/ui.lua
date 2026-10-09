@@ -27,6 +27,14 @@ function M.prepare(plan)
     vim.bo[bufnr].modified = false
     vim.bo[bufnr].readonly = true
     vim.bo[bufnr].modifiable = false
+    vim.api.nvim_create_autocmd("BufWinEnter", {
+      buffer = bufnr,
+      callback = function(args)
+        for _, winid in ipairs(vim.fn.win_findbuf(args.buf)) do
+          vim.api.nvim_set_option_value("spell", false, { win = winid, scope = "local" })
+        end
+      end,
+    })
     vim.b[bufnr].sqlserver_plan_info = {
       source_bufnr = plan.source_bufnr,
       execution_id = plan.execution_id,
