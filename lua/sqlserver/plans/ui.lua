@@ -41,6 +41,7 @@ function M.prepare(plan)
       ordinal = plan.ordinal,
     }
     vim.b[bufnr].sqlserver_plan = vim.deepcopy(plan)
+    require("sqlserver.results.ui.keymaps").attach_plan(bufnr)
     local view = require("sqlserver.results.ui.view")
     vim.keymap.set("n", "]r", view.next_result, { buffer = bufnr, desc = "Next SQL result or plan" })
     vim.keymap.set("n", "[r", view.previous_result, { buffer = bufnr, desc = "Previous SQL result or plan" })

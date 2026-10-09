@@ -290,7 +290,7 @@ T["Plan-only history and mixed results navigate and clean up together"] = functi
   view.show({}, opts, source, nil, { original })
   local first = vim.api.nvim_get_current_buf()
   assert(vim.bo[first].filetype == "xml" and vim.bo[first].readonly)
-  assert(view.render_winbar():find("Estimated plan", 1, true))
+  assert(view.render_winbar():find("  Est. plan%=1 of 1  Execution 1/1", 1, true))
   original.xml = "changed"
   assert(view.execution_plans()[1].xml == xml)
   local collected = require("sqlserver.results.collection").collect_async(raw(), 10, function()
@@ -298,7 +298,11 @@ T["Plan-only history and mixed results navigate and clean up together"] = functi
   end)
   view.show(collected, opts, source, nil, { plan("actual") })
   assert(view.execution_plans()[1].kind == "actual")
+  assert(view.render_winbar():find("%=1 of 2  Execution 2/2", 1, true))
   assert(view.next_result())
+  local winbar = view.render_winbar()
+  assert(winbar:find("  Plan%=2 of 2  Execution 2/2", 1, true))
+  assert(not winbar:find("batch", 1, true))
   assert(vim.bo.filetype == "xml" and not view.copy_cell())
   assert(view.previous_execution(opts.open_results_in) and vim.api.nvim_get_current_buf() == first)
   view.show({}, opts, source, nil, { plan() })
@@ -375,7 +379,7 @@ T["Plan winbar shares the source indicator and source navigation"] = function()
   local plan_buffer = vim.api.nvim_get_current_buf()
   local plan_window = vim.api.nvim_get_current_win()
   assert(view.render_winbar():find("󰈉", 1, true))
-  assert(view.render_winbar():find("Plan 1/1", 1, true))
+  assert(view.render_winbar():find("  Est. plan%=1 of 1  Execution 1/1", 1, true))
   assert(view.show_query() and vim.api.nvim_get_current_buf() == source)
   local source_window = vim.api.nvim_get_current_win()
   assert(not view.render_winbar(plan_buffer):find("󰈉", 1, true))
@@ -385,6 +389,52 @@ T["Plan winbar shares the source indicator and source navigation"] = function()
   vim.api.nvim_win_close(source_window, true)
   view.clear()
   vim.api.nvim_buf_delete(source, { force = true })
+end
+
+T["Plan buffers inherit configured execution shortcuts without cell mappings"] = function()
+  local keymaps = require("sqlserver.results.ui.keymaps")
+  local saved = {}
+  for index = 1, math.huge do
+    local name, value = debug.getupvalue(keymaps.attach_plan, index)
+    if not name then
+      break
+    end
+    saved[name] = value
+  end
+  local called = {}
+  local handlers = {}
+  for _, name in ipairs({ "next_execution", "previous_execution", "show_query", "remove_result" }) do
+    handlers[name] = function()
+      called[name] = true
+    end
+  end
+  keymaps.setup("<leader>m", handlers)
+  local transaction = plan_ui.prepare(plan())
+  local mappings = {}
+  for _, mapping in ipairs(vim.api.nvim_buf_get_keymap(transaction.bufnr, "n")) do
+    mappings[mapping.desc] = mapping
+  end
+  for _, description in ipairs({
+    "Next SQL execution",
+    "Previous SQL execution",
+    "Show source SQL query",
+    "Remove SQL result",
+  }) do
+    assert(mappings[description], "Missing plan shortcut: " .. description)
+    mappings[description].callback()
+  end
+  assert(called.next_execution and called.previous_execution and called.show_query and called.remove_result)
+  assert(not mappings["Next SQL result cell"] and not mappings["Export SQL result"])
+  keymaps.setup("<leader>z", handlers)
+  assert(vim.b[transaction.bufnr].sqlserver_result_keymap_prefix == "<leader>z")
+  assert(not vim.tbl_contains(
+    vim.tbl_map(function(mapping)
+      return mapping.lhs
+    end, vim.api.nvim_buf_get_keymap(transaction.bufnr, "n")),
+    (vim.g.mapleader or "\\") .. "mn"
+  ))
+  transaction.rollback()
+  keymaps.setup(saved.configured_prefix, saved.configured_handlers)
 end
 
 T["Public plan viewing and export work without a connected workspace"] = function()

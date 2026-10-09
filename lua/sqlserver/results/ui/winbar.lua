@@ -41,11 +41,11 @@ function M.render(info)
   if info.duration_ms then
     metadata = metadata .. "  " .. format_duration(info.duration_ms)
   end
-  local position = ("Execution %d/%d  Result %d/%d"):format(
-    info.execution,
-    info.execution_count,
+  local position = ("%d of %d  Execution %d/%d"):format(
     info.result,
-    info.result_count
+    info.result_count,
+    info.execution,
+    info.execution_count
   )
   return ("%s  %s%%=%s "):format(source_name, metadata, position)
 end

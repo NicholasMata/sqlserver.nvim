@@ -113,10 +113,15 @@ Without a configured formatter, the view shows raw XML. Formatters exposed
 only through plugin commands or mappings must be connected to `formatexpr`
 or `formatprg` to run automatically. Formatting applies only to the view;
 snapshots and `.sqlplan` exports retain the original XML.
-The winbar identifies plan kind, ordinal, batch, source connection/database,
-and execution. Actual capture initially shows ordinary rows when available;
-use `ShowPlans` or `]r`/`[r` to move between result and XML buffers.
+The winbar shows the source query and `Plan` or `Est. plan` on the left.
+The right shows the position across all retained results and plans, followed
+by the execution counter, such as `3 of 4  Execution 2/2`.
+Actual capture initially shows ordinary rows when available; use `ShowPlans`
+or `]r`/`[r` to move between result and XML buffers.
 `NextExecution`/`PreviousExecution` also work from a plan buffer.
+Plan buffers use the configured result shortcuts for next/previous execution,
+returning to the source query, and removing the current buffer. XML cursor
+movement is unchanged; table-cell movement and export shortcuts do not apply.
 
 An estimated document may contain multiple statements. Actual plans can
 arrive as separate documents per executed statement, and each is selectable.
@@ -228,7 +233,8 @@ each source buffer. Deleting the source buffer discards its complete history.
 The result winbar identifies the source SQL buffer and shows the current
 execution, result-set position, row count, and elapsed time reported by SQL
 Tools Service. For example, `query.sql  42 rows  38 ms` appears on the left,
-while `Execution 2/4  Result 1/2` stays anchored on the right. A limited result
+while `1 of 2  Execution 2/4` stays anchored on the right. This position counts
+both table results and plans when an execution contains both. A limited result
 uses `100 of 10,000 rows` to distinguish displayed rows from the complete row
 count. The time belongs to the SQL batch that produced the result, so results
 from the same batch show the same time.

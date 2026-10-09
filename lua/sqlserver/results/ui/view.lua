@@ -205,14 +205,13 @@ function M.render_winbar(bufnr)
   local result_set = session.result_set
   if session.plan then
     return result_winbar.source_label(source_name, result_source.visible(session.source_bufnr))
-      .. "  "
-      .. require("sqlserver.plans.snapshot").title(session.plan):gsub("%%", "%%%%")
       .. string.format(
-        "%%=Execution %d/%d  Plan %d/%d",
+        "  %s%%=%d of %d  Execution %d/%d ",
+        session.plan.kind == "estimated" and "Est. plan" or "Plan",
+        result,
+        result_count,
         execution,
-        #source.executions,
-        session.plan.ordinal,
-        #session.execution.plans
+        #source.executions
       )
   end
   return result_winbar.render({

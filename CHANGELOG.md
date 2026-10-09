@@ -31,6 +31,10 @@ later releases.
   while respecting Neovim's split placement preferences.
 - Disable spell checking in execution-plan windows by default; users can
   enable it locally with `:setlocal spell`.
+- Show `Plan` or `Est. plan` beside the source query and use a shared position
+  counter for table results and plans, followed by the execution counter.
+- Support configured execution navigation, source-query restoration, and
+  removal shortcuts in plan buffers without changing XML cursor movement.
 
 ### Fixed
 

@@ -58,7 +58,7 @@ T["Result sessions should retain execution history per source buffer"] = require
   assert(not vim.api.nvim_buf_is_valid(first_execution_second_result))
   local winbar = view.render_winbar(vim.api.nvim_get_current_buf())
   assert(winbar:find("[No Name] %#SqlServerSourceHidden#󰈉%*  1 row  1.25 s%=", 1, true))
-  assert(winbar:find("Execution 2/2  Result 1/1", 1, true))
+  assert(winbar:find("1 of 1  Execution 2/2", 1, true))
   assert(winbar:find("[No Name]", 1, true))
   assert(view.previous_execution(function() end))
   local removed_execution = vim.api.nvim_get_current_buf()
@@ -89,7 +89,7 @@ T["Result sessions should retain execution history per source buffer"] = require
   assert(not vim.api.nvim_buf_is_valid(removed_result))
   assert(contents(vim.api.nvim_get_current_buf()):find("remove%-b"), "The next result set was not selected")
   assert(
-    view.render_winbar():find("Execution 1/1  Result 1/1", 1, true),
+    view.render_winbar():find("1 of 1  Execution 1/1", 1, true),
     "Removing a result removed its nonempty execution"
   )
   assert(view.remove_result())
