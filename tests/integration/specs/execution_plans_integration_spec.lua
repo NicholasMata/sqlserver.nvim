@@ -165,7 +165,12 @@ T["Estimated plan commands focus the plan and respect split placement"] = h.asyn
     vim.api.nvim_win_close(plan_window, true)
   end
   vim.o.splitbelow = original_splitbelow
-  integration.setup()
+  integration.await(function(callback)
+    sqlserver.setup({
+      open_results_in = "current_window",
+      results = { column_icons = true, cell_navigation = true },
+    }, callback)
+  end)
 end)
 
 T["Ex ranges capture only the requested lines"] = h.async(function()
