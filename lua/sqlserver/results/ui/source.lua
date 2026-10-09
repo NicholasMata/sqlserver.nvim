@@ -22,7 +22,9 @@ function M.show(bufnr)
   if winid then
     vim.api.nvim_set_current_win(winid)
   else
-    vim.cmd("split")
+    -- Results follow splitbelow when opened from a query. Restore the source
+    -- on the opposite side without changing the user's global preference.
+    vim.cmd(vim.o.splitbelow and "aboveleft split" or "belowright split")
     vim.api.nvim_set_current_buf(bufnr)
   end
   return true

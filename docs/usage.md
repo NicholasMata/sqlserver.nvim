@@ -27,9 +27,12 @@ executions is the query buffer's result history.
 The result winbar shows the eye-off icon `󰈉` beside the query filename when
 its source query is not visible in the current tab, including when it is open
 in another tab.
-`:SQLServer ShowQuery` (or `<keymap_prefix>o` from a result buffer) focuses a
-visible source window or reopens the query in a split. Split placement respects
-Neovim's `splitbelow` preference; returning to the query retains the results.
+`:SQLServer ShowQuery` (or `<keymap_prefix>o` from a result buffer) focuses the
+source query if it is already visible. Otherwise it restores the query on the
+opposite side of the preferred result split: above the results when `splitbelow`
+is enabled, or below when it is disabled. The global split preference stays
+unchanged. Unrelated query windows, result buffers, and execution history are
+preserved.
 
 ## SQL buffer workflow
 
@@ -91,7 +94,7 @@ enabled, result values remain checked while the column header is excluded.
 | Normal | `[r` | `PreviousResult` | Show the previous result set in the execution |
 | Normal | `<keymap_prefix>n` | `NextExecution` | Show the next retained execution |
 | Normal | `<keymap_prefix>p` | `PreviousExecution` | Show the previous retained execution |
-| Normal | `<keymap_prefix>o` | `ShowQuery` | Focus or reopen the source query |
+| Normal | `<keymap_prefix>o` | `ShowQuery` | Focus or restore the source query |
 | Normal, Visual | `]c` | — | Move to the next result column |
 | Normal, Visual | `[c` | — | Move to the previous result column |
 | Normal | `K` | — | Inspect the current column's SQL type and metadata |

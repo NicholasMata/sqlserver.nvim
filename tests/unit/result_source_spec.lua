@@ -51,7 +51,7 @@ T["Result indicator follows source window visibility without changing history"] 
   vim.api.nvim_buf_delete(source, { force = true })
 end
 
-T["ShowQuery reopens a source in this tab and respects split preferences"] = function()
+T["ShowQuery restores a hidden source opposite the preferred result split"] = function()
   local original_splitbelow = vim.o.splitbelow
   for _, below in ipairs({ false, true }) do
     local source = vim.api.nvim_create_buf(false, true)
@@ -69,7 +69,8 @@ T["ShowQuery reopens a source in this tab and respects split preferences"] = fun
     assert(vim.api.nvim_get_current_tabpage() == result_tab)
     local source_window = vim.api.nvim_get_current_win()
     assert(vim.api.nvim_win_get_buf(source_window) == source)
-    assert((vim.api.nvim_win_get_position(source_window)[1] > vim.api.nvim_win_get_position(result_window)[1]) == below)
+    assert((vim.api.nvim_win_get_position(source_window)[1] > vim.api.nvim_win_get_position(result_window)[1]) ~= below)
+    assert(vim.o.splitbelow == below, "Restoring the query changed the global split preference")
     assert(not view.render_winbar(result):find("󰈉", 1, true))
     assert(vim.api.nvim_buf_get_lines(source, 0, -1, false)[1] == "SELECT N'unchanged';")
     assert(vim.api.nvim_buf_is_valid(result) and view.has_results(source))
@@ -87,6 +88,35 @@ T["ShowQuery ignores unrelated buffers and invalid sources"] = function()
   local source = vim.api.nvim_create_buf(false, true)
   vim.api.nvim_buf_delete(source, { force = true })
   assert(not source_ui.show(source))
+end
+
+T["ShowQuery preserves unrelated query windows when restoring its source"] = function()
+  local source = vim.api.nvim_create_buf(false, true)
+  local unrelated = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_lines(unrelated, 0, -1, false, { "SELECT N'other query';" })
+  vim.bo[unrelated].filetype = "sql"
+  local result = show_result(source)
+  local result_window = vim.api.nvim_get_current_win()
+  vim.cmd("split")
+  local unrelated_window = vim.api.nvim_get_current_win()
+  vim.api.nvim_set_current_buf(unrelated)
+  vim.api.nvim_set_current_win(result_window)
+  local windows = #vim.api.nvim_tabpage_list_wins(0)
+  assert(view.show_query())
+  local source_window = vim.api.nvim_get_current_win()
+  assert(vim.api.nvim_get_current_buf() == source)
+  assert(#vim.api.nvim_tabpage_list_wins(0) == windows + 1)
+  assert(vim.api.nvim_win_get_buf(unrelated_window) == unrelated)
+  assert(vim.api.nvim_win_get_buf(result_window) == result)
+  assert(vim.api.nvim_buf_get_lines(unrelated, 0, -1, false)[1] == "SELECT N'other query';")
+  vim.api.nvim_set_current_win(result_window)
+  assert(view.show_query() and vim.api.nvim_get_current_win() == source_window)
+  assert(#vim.api.nvim_tabpage_list_wins(0) == windows + 1, "Repeated restoration created another query window")
+  vim.api.nvim_win_close(source_window, true)
+  vim.api.nvim_win_close(unrelated_window, true)
+  view.clear()
+  vim.api.nvim_buf_delete(source, { force = true })
+  vim.api.nvim_buf_delete(unrelated, { force = true })
 end
 
 return T
