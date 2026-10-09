@@ -1296,6 +1296,11 @@ local command_handlers = {
     utils.log_info(("Copied %d rows × %d columns as HTML"):format(copied.rows, copied.columns))
   end,
 
+  show_query = function()
+    if not query_results.show_query() then
+      utils.log_error("Go to a query result buffer to show its source query")
+    end
+  end,
   show_results = function()
     local workspace = workspace_registry.get()
     local bufnr = workspace and workspace.bufnr or nil

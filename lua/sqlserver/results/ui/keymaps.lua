@@ -1,6 +1,6 @@
 local M = {}
 
-local configured_suffixes = { "s", "n", "p", "d", "y" }
+local configured_suffixes = { "s", "n", "p", "d", "y", "o" }
 local cell_navigation = true
 local cell_motion_keys = { "h", "j", "k", "l" }
 local cell_motion_descriptions = {
@@ -105,6 +105,7 @@ local function attach_configured(prefix, handlers, bufnr)
     { "n", handlers.next_execution, "Next SQL execution" },
     { "p", handlers.previous_execution, "Previous SQL execution" },
     { "d", handlers.remove_result, "Remove SQL result" },
+    { "o", handlers.show_query, "Show source SQL query" },
   }
   for _, mapping in ipairs(mappings) do
     vim.keymap.set("n", prefix .. mapping[1], mapping[2], { buffer = bufnr, desc = mapping[3] })
@@ -143,6 +144,7 @@ function M.which_key_items(handlers)
     { "s", handlers.export_query_results, desc = "Export Query Result", icon = { icon = "", color = "green" } },
     { "n", handlers.next_execution, desc = "Next Execution" },
     { "p", handlers.previous_execution, desc = "Previous Execution" },
+    { "o", handlers.show_query, desc = "Show Query" },
     { "d", handlers.remove_result, desc = "Remove Result", icon = { icon = "󰆴", color = "red" } },
   }
 end

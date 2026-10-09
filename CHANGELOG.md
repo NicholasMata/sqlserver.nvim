@@ -11,6 +11,17 @@ later releases.
 
 ## [Unreleased]
 
+### Added
+
+- Mark result views with an eye icon `󰈈` when their source query is visible
+  in the current tab, or `󰈉` when hidden, keeping winbar spacing stable.
+  Customize the hidden icon through `SqlServerSourceHidden`, which defaults
+  to `DiagnosticWarn`.
+  Use `ShowQuery` or the result-local
+  `<keymap_prefix>o` to return to it.
+- Restore a hidden source query in its original window with `ShowQuery`, or
+  recreate the window opposite the preferred result split if it has closed.
+
 ### Fixed
 
 - Filter `:SQLServer` command completion by the typed prefix, ignoring case

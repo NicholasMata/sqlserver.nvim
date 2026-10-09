@@ -5,6 +5,7 @@ local result_selection = require("sqlserver.results.selection")
 local result_html = require("sqlserver.results.html")
 local clipboard = require("sqlserver.platform.clipboard")
 local result_winbar = require("sqlserver.results.ui.winbar")
+local result_source = require("sqlserver.results.ui.source")
 
 local M = {}
 local namespace = vim.api.nvim_create_namespace("sqlserver-results")
@@ -20,6 +21,7 @@ local highlight_links = {
   SqlServerResultHeader = "Title",
   SqlServerResultBorder = "NonText",
   SqlServerResultNull = "Comment",
+  SqlServerSourceHidden = "DiagnosticWarn",
   SqlServerResultTruncated = "DiagnosticWarn",
   SqlServerResultCurrentCell = "Search",
   SqlServerResultTypeText = "String",
@@ -203,6 +205,7 @@ function M.render_winbar(bufnr)
   local result_set = session.result_set
   return result_winbar.render({
     source_name = source_name,
+    source_visible = result_source.visible(session.source_bufnr),
     execution = execution,
     execution_count = #source.executions,
     result = result,
@@ -215,6 +218,25 @@ end
 
 function M.winbar()
   return M.render_winbar()
+end
+
+function M.show_query()
+  local session = result_sessions[vim.api.nvim_get_current_buf()]
+  local source = session and sources[session.source_bufnr]
+  if not source then
+    return false
+  end
+  local previous_window = source.query_window
+  if previous_window and vim.api.nvim_win_is_valid(previous_window) then
+    if result_sessions[vim.api.nvim_win_get_buf(previous_window)] then
+      previous_window = nil
+    end
+  end
+  local shown, winid = result_source.show(source.bufnr, previous_window)
+  if shown then
+    source.query_window = winid
+  end
+  return shown
 end
 
 function M.has_results(bufnr)
@@ -236,6 +258,7 @@ local function result_window(source)
 end
 
 local function display_buffer(source, bufnr, open_results_in)
+  source.query_window = result_source.window(source.bufnr) or source.query_window
   local windows = vim.fn.win_findbuf(bufnr)
   local existing_window = result_window(source)
   if #windows > 0 then

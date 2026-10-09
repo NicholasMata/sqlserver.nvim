@@ -24,6 +24,25 @@ in a different window. One query execution can produce several result sets, and
 each result set has its own result buffer. A retained sequence of those
 executions is the query buffer's result history.
 
+The result winbar always shows an eye icon beside the query filename: `󰈈` when
+its source query is visible in the current tab, or `󰈉` when it is hidden,
+including when it is open in another tab. Switching icons keeps the winbar
+spacing stable.
+The eye-off icon uses `SqlServerSourceHidden`, which defaults to `DiagnosticWarn`.
+Override it with the normal Neovim highlight API, for example:
+
+```lua
+vim.api.nvim_set_hl(0, "SqlServerSourceHidden", { fg = "#d7a65f" })
+```
+
+`:SQLServer ShowQuery` (or `<keymap_prefix>o` from a result buffer) focuses the
+source query if it is already visible. If its original window now shows another
+buffer, ShowQuery switches that window back to the query and focuses it. The
+other buffer stays loaded. If the original window has closed, it restores the
+query opposite the preferred result split: above the results when `splitbelow`
+is enabled, or below when it is disabled. The global split preference, other
+windows, result buffers, and execution history are preserved.
+
 ## SQL buffer workflow
 
 | Vim Mode | Mapping | Command | Behavior |
@@ -84,6 +103,7 @@ enabled, result values remain checked while the column header is excluded.
 | Normal | `[r` | `PreviousResult` | Show the previous result set in the execution |
 | Normal | `<keymap_prefix>n` | `NextExecution` | Show the next retained execution |
 | Normal | `<keymap_prefix>p` | `PreviousExecution` | Show the previous retained execution |
+| Normal | `<keymap_prefix>o` | `ShowQuery` | Focus or restore the source query |
 | Normal, Visual | `]c` | — | Move to the next result column |
 | Normal, Visual | `[c` | — | Move to the previous result column |
 | Normal | `K` | — | Inspect the current column's SQL type and metadata |
