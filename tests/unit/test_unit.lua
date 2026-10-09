@@ -2,6 +2,7 @@ local T = MiniTest.new_set()
 
 local modules = {
   "setup_spec",
+  "command_completion_spec",
   "lsp_nulls_spec",
   "sql_tools_service_client_spec",
   "backend_proxy_spec",
