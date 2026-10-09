@@ -57,7 +57,7 @@ T["Result sessions should retain execution history per source buffer"] = require
   assert(not vim.api.nvim_buf_is_valid(first_execution), "Oldest execution exceeded the history limit")
   assert(not vim.api.nvim_buf_is_valid(first_execution_second_result))
   local winbar = view.render_winbar(vim.api.nvim_get_current_buf())
-  assert(winbar:find("[No Name]  1 row  1.25 s%=", 1, true))
+  assert(winbar:find("[No Name] ↗  1 row  1.25 s%=", 1, true))
   assert(winbar:find("Execution 2/2  Result 1/1", 1, true))
   assert(winbar:find("[No Name]", 1, true))
   assert(view.previous_execution(function() end))

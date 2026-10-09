@@ -11,6 +11,11 @@ later releases.
 
 ## [Unreleased]
 
+### Added
+
+- Mark result views with `↗` when their source query is hidden in the current
+  tab. Use `ShowQuery` or the result-local `<keymap_prefix>o` to return to it.
+
 ### Fixed
 
 - Filter `:SQLServer` command completion by the typed prefix, ignoring case

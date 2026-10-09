@@ -24,6 +24,12 @@ in a different window. One query execution can produce several result sets, and
 each result set has its own result buffer. A retained sequence of those
 executions is the query buffer's result history.
 
+The result winbar shows `↗` beside the query filename when its source query
+is not visible in the current tab, including when it is open in another tab.
+`:SQLServer ShowQuery` (or `<keymap_prefix>o` from a result buffer) focuses a
+visible source window or reopens the query in a split. Split placement respects
+Neovim's `splitbelow` preference; returning to the query retains the results.
+
 ## SQL buffer workflow
 
 | Vim Mode | Mapping | Command | Behavior |
@@ -84,6 +90,7 @@ enabled, result values remain checked while the column header is excluded.
 | Normal | `[r` | `PreviousResult` | Show the previous result set in the execution |
 | Normal | `<keymap_prefix>n` | `NextExecution` | Show the next retained execution |
 | Normal | `<keymap_prefix>p` | `PreviousExecution` | Show the previous retained execution |
+| Normal | `<keymap_prefix>o` | `ShowQuery` | Focus or reopen the source query |
 | Normal, Visual | `]c` | — | Move to the next result column |
 | Normal, Visual | `[c` | — | Move to the previous result column |
 | Normal | `K` | — | Inspect the current column's SQL type and metadata |

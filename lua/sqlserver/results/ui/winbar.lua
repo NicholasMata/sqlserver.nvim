@@ -19,10 +19,14 @@ local function format_row_count(count)
   return tostring(count):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
 end
 
----@param info { source_name: string, execution: integer, execution_count: integer, result: integer, result_count: integer, displayed_rows: integer, total_rows: integer, duration_ms?: number }
+function M.source_label(name, visible)
+  return name:gsub("%%", "%%%%") .. (visible == false and " ↗" or "")
+end
+
+---@param info { source_name: string, source_visible?: boolean, execution: integer, execution_count: integer, result: integer, result_count: integer, displayed_rows: integer, total_rows: integer, duration_ms?: number }
 ---@return string
 function M.render(info)
-  local source_name = info.source_name:gsub("%%", "%%%%")
+  local source_name = M.source_label(info.source_name, info.source_visible)
   local row_label = info.total_rows == 1 and "row" or "rows"
   local metadata
   if info.displayed_rows < info.total_rows then

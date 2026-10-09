@@ -37,6 +37,7 @@ local modules = {
   "export_lifecycle_spec",
   "result_session_spec",
   "result_winbar_spec",
+  "result_source_spec",
   "result_sticky_header_spec",
   "query_selection_spec",
   "sql_tools_service_query_spec",

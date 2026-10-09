@@ -5,6 +5,7 @@ local result_selection = require("sqlserver.results.selection")
 local result_html = require("sqlserver.results.html")
 local clipboard = require("sqlserver.platform.clipboard")
 local result_winbar = require("sqlserver.results.ui.winbar")
+local result_source = require("sqlserver.results.ui.source")
 
 local M = {}
 local namespace = vim.api.nvim_create_namespace("sqlserver-results")
@@ -203,6 +204,7 @@ function M.render_winbar(bufnr)
   local result_set = session.result_set
   return result_winbar.render({
     source_name = source_name,
+    source_visible = result_source.visible(session.source_bufnr),
     execution = execution,
     execution_count = #source.executions,
     result = result,
@@ -215,6 +217,11 @@ end
 
 function M.winbar()
   return M.render_winbar()
+end
+
+function M.show_query()
+  local session = result_sessions[vim.api.nvim_get_current_buf()]
+  return session ~= nil and result_source.show(session.source_bufnr)
 end
 
 function M.has_results(bufnr)

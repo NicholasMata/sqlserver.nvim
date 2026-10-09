@@ -23,6 +23,7 @@ local function available_commands(handlers)
     NewDefaultQuery = handlers.new_default_query,
     ExportQueryResults = handlers.export_query_results,
     ShowResults = handlers.show_results,
+    ShowQuery = handlers.show_query,
     NextResult = handlers.next_result,
     PreviousResult = handlers.previous_result,
     NextExecution = handlers.next_execution,
@@ -51,6 +52,7 @@ local function get_items()
       "PreviousExecution",
       "RemoveResult",
       "CopyResultCell",
+      "ShowQuery",
     }
   elseif not workspace then
     local items = { "NewQuery", "NewDefaultQuery", "EditConnections" }
