@@ -343,7 +343,8 @@ T["Public plan viewing and export work without a connected workspace"] = functio
     opened = result.bufnr
   end)
   assert(vim.bo[opened].filetype == "xml")
-  assert(table.concat(vim.api.nvim_buf_get_lines(opened, 0, -1, false), "\n") == xml)
+  assert(vim.deep_equal(vim.api.nvim_buf_get_lines(opened, 0, -1, false), require("sqlserver.plans.format").lines(xml)))
+  assert(vim.b[opened].sqlserver_plan.xml == xml)
   vim.api.nvim_win_close(0, true)
   assert(not vim.api.nvim_buf_is_valid(opened))
   vim.fn.delete(path)
@@ -352,6 +353,46 @@ T["Public plan viewing and export work without a connected workspace"] = functio
     err = failure
   end)
   assert(err.code == "invalid_argument")
+end
+
+T["Plan inspection indents elements and separates quoted attributes"] = function()
+  local lines = require("sqlserver.plans.format").lines(
+    '<ShowPlanXML xmlns="urn:showplan" Version="1"><QueryPlan><RelOp NodeId="0" PhysicalOp="Index Seek" Predicate="x &gt; 1"/><Scalar String="a > b" Other=\'日本語\'/></QueryPlan></ShowPlanXML>'
+  )
+  assert(vim.deep_equal(lines, {
+    "<ShowPlanXML",
+    '  xmlns="urn:showplan"',
+    '  Version="1">',
+    "  <QueryPlan>",
+    "    <RelOp",
+    '      NodeId="0"',
+    '      PhysicalOp="Index Seek"',
+    '      Predicate="x &gt; 1"/>',
+    "    <Scalar",
+    '      String="a > b"',
+    "      Other='日本語'/>",
+    "  </QueryPlan>",
+    "</ShowPlanXML>",
+  }))
+end
+
+T["Plan inspection preserves entities, comments, CDATA, and declarations"] = function()
+  local lines = require("sqlserver.plans.format").lines(
+    '<?xml version="1.0"?><ShowPlanXML><!-- a > b --><![CDATA[<not-a-tag>]]><Text>日本語 &amp; text</Text></ShowPlanXML>'
+  )
+  assert(vim.deep_equal(lines, {
+    '<?xml version="1.0"?>',
+    "<ShowPlanXML>",
+    "  <!-- a > b -->",
+    "  <![CDATA[<not-a-tag>]]>",
+    "  <Text>",
+    "    日本語 &amp; text",
+    "  </Text>",
+    "</ShowPlanXML>",
+  }))
+  assert(vim.deep_equal(require("sqlserver.plans.format").lines('<ShowPlanXML Value="unterminated>'), {
+    '<ShowPlanXML Value="unterminated>',
+  }))
 end
 
 T["Plan Ex ranges preserve line boundaries and Unicode columns"] = function()

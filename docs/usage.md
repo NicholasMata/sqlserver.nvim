@@ -99,7 +99,9 @@ complete lines. A visual mapping to `commands.estimated_plan` or
 `commands.actual_plan` preserves the exact selection, including block mode.
 SQL Server requires SHOWPLAN permission for the referenced databases.
 
-Plan XML opens in a separate, read-only buffer with XML syntax highlighting.
+Plan XML opens in a separate, read-only buffer with XML syntax highlighting,
+indented elements, and attributes on separate lines. Formatting applies only
+to the inspection view; snapshots and `.sqlplan` exports retain the original XML.
 The winbar identifies plan kind, ordinal, batch, source connection/database,
 and execution. Actual capture initially shows ordinary rows when available;
 use `ShowPlans` or `]r`/`[r` to move between result and XML buffers.

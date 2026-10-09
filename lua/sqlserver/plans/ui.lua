@@ -8,7 +8,7 @@ function M.prepare(plan)
   next_id = next_id + 1
   local transaction = generated_buffer.create({ name = "sqlserver-plan://" .. next_id .. ".sqlplan", scratch = true })
   local ok, err = pcall(function()
-    transaction.set_lines(vim.split(plan.xml, "\n", { plain = true }))
+    transaction.set_lines(require("sqlserver.plans.format").lines(plan.xml))
     local bufnr = transaction.bufnr
     vim.bo[bufnr].bufhidden = "hide"
     vim.bo[bufnr].filetype = "xml"

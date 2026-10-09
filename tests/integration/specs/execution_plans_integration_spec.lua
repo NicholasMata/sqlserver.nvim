@@ -41,7 +41,8 @@ T["Capture API preserves plans and ordinary results across replacement and disco
     sqlserver.open_plan({ plan = actual.plans[2] }, callback)
   end)
   assert(vim.bo[opened.bufnr].filetype == "xml")
-  assert(table.concat(vim.api.nvim_buf_get_lines(opened.bufnr, 0, -1, false), "\n") == actual.plans[2].xml)
+  assert(#vim.api.nvim_buf_get_lines(opened.bufnr, 0, -1, false) > 1)
+  assert(vim.b[opened.bufnr].sqlserver_plan.xml == actual.plans[2].xml)
   vim.api.nvim_win_close(0, true)
 end)
 
