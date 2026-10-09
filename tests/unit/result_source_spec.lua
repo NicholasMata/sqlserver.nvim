@@ -24,10 +24,14 @@ local function show_result(source, open_results_in)
   return vim.api.nvim_get_current_buf()
 end
 
-T["Source label only marks hidden queries and escapes winbar filenames"] = function()
-  assert(winbar.source_label("query%file.sql", true) == "query%%file.sql")
+T["Source label switches equal-width eye icons and escapes winbar filenames"] = function()
+  assert(winbar.source_label("query%file.sql", true) == "query%%file.sql 󰈈")
   assert(winbar.source_label("query%file.sql", false) == "query%%file.sql 󰈉")
   assert(winbar.source_label("[No Name]", false) == "[No Name] 󰈉")
+  assert(
+    vim.fn.strdisplaywidth(winbar.source_label("query.sql", true))
+      == vim.fn.strdisplaywidth(winbar.source_label("query.sql", false))
+  )
 end
 
 T["Result indicator follows source window visibility without changing history"] = function()
@@ -39,6 +43,7 @@ T["Result indicator follows source window visibility without changing history"] 
   local source_window = vim.api.nvim_get_current_win()
   vim.api.nvim_set_current_buf(source)
   assert(not view.render_winbar(result):find("󰈉", 1, true))
+  assert(view.render_winbar(result):find("󰈈", 1, true))
   vim.api.nvim_set_current_win(result_window)
   local windows = #vim.api.nvim_tabpage_list_wins(0)
   assert(view.show_query() and vim.api.nvim_get_current_win() == source_window)

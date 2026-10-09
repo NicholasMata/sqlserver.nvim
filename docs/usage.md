@@ -24,9 +24,10 @@ in a different window. One query execution can produce several result sets, and
 each result set has its own result buffer. A retained sequence of those
 executions is the query buffer's result history.
 
-The result winbar shows the eye-off icon `󰈉` beside the query filename when
-its source query is not visible in the current tab, including when it is open
-in another tab.
+The result winbar always shows an eye icon beside the query filename: `󰈈` when
+its source query is visible in the current tab, or `󰈉` when it is hidden,
+including when it is open in another tab. Switching icons keeps the winbar
+spacing stable.
 `:SQLServer ShowQuery` (or `<keymap_prefix>o` from a result buffer) focuses the
 source query if it is already visible. If its original window now shows another
 buffer, ShowQuery switches that window back to the query and focuses it. The
