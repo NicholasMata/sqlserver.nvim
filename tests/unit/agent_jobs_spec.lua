@@ -541,4 +541,32 @@ T["Properties sections and entries navigate and release their buffer"] = functio
   end)
 end
 
+T["Properties headings accept multiline Agent names and preserve their values"] = function()
+  local models = require("sqlserver.adapters.sql_tools_service.agent_models")
+  local properties = require("sqlserver.agent.ui.properties")
+  local names = { "First\nsecond", "Daily\r\nnightly", "Failure\nwarning\talert" }
+  local win = properties.open({ name = "Backup" }, {
+    steps = { models.step({ id = 3, stepName = names[1], command = "SELECT 1" }) },
+    schedules = { models.schedule({ id = 1, name = names[2] }) },
+    linked_alerts = { models.alert({ id = 1, name = names[3] }) },
+  })
+  local bufnr = vim.api.nvim_win_get_buf(win)
+  local ok, err = pcall(function()
+    for index, prefix in ipairs({ "Step 3 · ", "Schedule · ", "Linked alert · " }) do
+      local mapping = vim.fn.maparg(tostring(index + 1), "n", false, true)
+      assert(type(mapping.callback) == "function")
+      mapping.callback()
+      local content = vim.api.nvim_buf_get_lines(bufnr, 0, -1, false)
+      assert(content[3] == prefix .. names[index]:gsub("[%c]", " ") .. "  (1/1)")
+      assert(table.concat(content, "\n"):find("Name:\n" .. names[index], 1, true), "Full name was not preserved")
+      assert(not vim.bo[bufnr].modifiable, "Properties buffer became editable after switching sections")
+      assert(vim.api.nvim_win_is_valid(win))
+    end
+    vim.fn.maparg("1", "n", false, true).callback()
+    assert(not vim.bo[bufnr].modifiable)
+  end)
+  vim.api.nvim_win_close(win, true)
+  assert(ok, err)
+end
+
 return T

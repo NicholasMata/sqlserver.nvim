@@ -52,7 +52,7 @@ end
 
 local function entry(label, fields)
   local result, marks = property_lines(fields)
-  return { label = label, lines = result, marks = marks }
+  return { label = label:gsub("[%c]", " "), lines = result, marks = marks }
 end
 
 function M.properties(job, data)
