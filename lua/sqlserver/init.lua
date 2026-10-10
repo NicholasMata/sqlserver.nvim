@@ -1469,8 +1469,13 @@ command_handlers = {
         focus_target = options and options.focus_target,
         picker = plugin_opts.ui.object_explorer,
         is_active = function()
+          local state = workspace.get_state()
           return workspace_registry.get(workspace.bufnr) == workspace
-            and workspace.get_state() == workspace_module.states.connected
+            and (
+              state == workspace_module.states.connected
+              or state == workspace_module.states.executing
+              or state == workspace_module.states.cancelling
+            )
         end,
         on_close = function()
           workspace.close_object_explorer_session(session)

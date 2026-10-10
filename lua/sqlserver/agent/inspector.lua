@@ -72,7 +72,7 @@ function M.properties(job, data)
   }
   local steps = {}
   for index, step in ipairs(data.steps or {}) do
-    steps[#steps + 1] = entry(("Step %d · %s"):format(index, display(step.name)), {
+    steps[#steps + 1] = entry(("Step %d · %s"):format(step.id or index, display(step.name)), {
       { "Name", step.name },
       { "Subsystem", step.subsystem },
       { "Database", step.database },
@@ -123,13 +123,13 @@ function M.history(data)
     }
     for step_index, step in ipairs(run.steps or {}) do
       fields[#fields + 1] = {
-        ("Step %d"):format(step_index),
+        ("Step %d"):format(step.id or step_index),
         ("%s · %s"):format(display(step.name), display(step.outcome)),
         step.outcome,
         true,
       }
       if step.message then
-        fields[#fields + 1] = { ("Step %d message"):format(step_index), step.message }
+        fields[#fields + 1] = { ("Step %d message"):format(step.id or step_index), step.message }
       end
     end
     local detail, marks = lines(fields)

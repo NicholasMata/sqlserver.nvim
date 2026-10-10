@@ -216,6 +216,52 @@ T["Object Explorer searches all nodes with progress cancellation and caching"] =
   end)
 end
 
+T["Ancestor refresh settles detached Search All requests"] = function()
+  for _, cancel in ipairs({ false, true }) do
+    fake_snacks(function(picker, get_options)
+      local requests = {}
+      local root = service_node("database", "TestDb", "Database", false)
+      local folders = {
+        { nodePath = "database/Tables", label = "Tables", objectType = "Folder", isLeaf = false },
+        { nodePath = "database/Views", label = "Views", objectType = "Folder", isLeaf = false },
+      }
+      model.set_service_children(root, folders)
+      explorer.open({
+        root = root,
+        on_expand = function(node, force, done)
+          requests[#requests + 1] = { node = node, force = force, done = done }
+        end,
+        on_error = error,
+      })
+      local options = get_options()
+      options.filter.transform(picker, { pattern = "Missing" })
+      options.confirm(picker, options.finder()[1])
+      assert(requests[1].node == root.children[1])
+      options.actions.object_refresh(picker, { node = root })
+      assert(requests[2].node == root and requests[2].force)
+      requests[1].done({})
+      local detached = root.children[2]
+      assert(requests[3].node == detached)
+      -- The serialized adapter finishes the ancestor before the next folder.
+      requests[2].done(folders)
+      assert(root.children[2] ~= detached)
+      if cancel then
+        assert(options.actions.object_cancel_search(picker))
+      end
+      requests[3].done({})
+      assert(not detached.loading and detached.load_callbacks == nil)
+      assert(not options.finder()[1].search_loading, "Detached reply stranded Search All")
+      assert(not options.actions.object_cancel_search(picker))
+      -- A fresh traversal can use the replacement nodes and finish normally.
+      options.confirm(picker, options.finder()[1])
+      requests[4].done({})
+      requests[5].done({})
+      assert(options.finder()[1].label == "No matching objects")
+      picker:close()
+    end)
+  end
+end
+
 T["Object Explorer loads children by their service node path"] = function()
   fake_snacks(function(_, get_options)
     local requested

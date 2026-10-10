@@ -240,4 +240,101 @@ T["Jobs command and public API inspect seeded jobs"] = require("tests.helpers").
   assert(ok, failure)
 end)
 
+T["Explorer accepts job replies during query execution and cancellation"] = function()
+  local workspace_module = require("sqlserver.workspace")
+  local registry = require("sqlserver.workspace.registry")
+  local explorer = require("sqlserver.objects.ui.explorer")
+  local original_snacks = package.loaded.snacks
+  local source = vim.api.nvim_create_buf(true, false)
+  local source_win = vim.api.nvim_get_current_win()
+  local original_buf = vim.api.nvim_get_current_buf()
+  vim.api.nvim_set_current_buf(source)
+  local state = workspace_module.states.connected
+  local requests, options, picker = {}, nil, nil
+  local workspace = {
+    bufnr = source,
+    get_state = function()
+      return state
+    end,
+    get_connection = function()
+      return { server = "localhost" }
+    end,
+    open_object_explorer_async = function()
+      return {},
+        require("sqlserver.objects.explorer").from_service({
+          nodePath = "database",
+          label = "TestDbB",
+          objectType = "Database",
+          isLeaf = false,
+        })
+    end,
+    close_object_explorer_session = function() end,
+    close_agent_view = function() end,
+    cancel_agent_request = function() end,
+    list_agent_jobs_async = function()
+      return { { id = "a", name = "Backup" } }
+    end,
+    get_agent_job_details_async = function()
+      requests[#requests + 1] = coroutine.running()
+      return coroutine.yield()
+    end,
+  }
+  registry.attach(source, workspace)
+  package.loaded.snacks = {
+    picker = {
+      format = {
+        tree = function()
+          return {}
+        end,
+      },
+      pick = function(opts)
+        options = opts
+        picker = {
+          closed = false,
+          refresh = function() end,
+          focus = function() end,
+          close = function(self)
+            self.closed = true
+            opts.on_close(self)
+          end,
+        }
+        return picker
+      end,
+    },
+  }
+  local ok, err = pcall(function()
+    require("sqlserver").object_explorer({ focus_target = "jobs" })
+    assert(options, "Public explorer entry point did not open")
+    local jobs = vim.iter(options.finder()):find(function(item)
+      return item.node.agent_kind == "jobs"
+    end)
+    options.actions.object_toggle(picker, jobs)
+    local job = vim.iter(options.finder()):find(function(item)
+      return item.node.agent_kind == "job"
+    end)
+    for _, query_state in ipairs({ workspace_module.states.executing, workspace_module.states.cancelling }) do
+      state = workspace_module.states.connected
+      options.actions.object_refresh(picker, job)
+      assert(job.node.loading)
+      state = query_state
+      assert(coroutine.resume(requests[#requests], { steps = { { id = 3, name = "Third" } } }))
+      assert(not job.node.loading and job.node.details, "Query state stranded the details reply")
+      state = workspace_module.states.connected
+      local count = #requests
+      options.confirm(picker, job)
+      assert(#requests == count, "Inspecting cached details issued another request")
+      local win = vim.api.nvim_get_current_win()
+      assert(vim.bo[vim.api.nvim_win_get_buf(win)].filetype == "sqlserver-job-properties")
+      vim.api.nvim_win_close(win, true)
+    end
+  end)
+  explorer.close(source)
+  registry.detach(source)
+  package.loaded.snacks = original_snacks
+  vim.api.nvim_set_current_win(source_win)
+  vim.api.nvim_set_current_buf(original_buf)
+  vim.api.nvim_buf_delete(source, { force = true })
+  assert(ok, err)
+end
+
 return T

@@ -133,6 +133,24 @@ T["Job inspector separates properties from filterable history"] = function()
   assert(#agent_inspector.history({ histories = {} }) == 0)
 end
 
+T["Job inspector preserves nonsequential step IDs"] = function()
+  local steps = {
+    { id = 3, name = "Third", outcome = "failed", message = "Third failed" },
+    { id = 1, name = "First", outcome = "succeeded", message = "First finished" },
+    { name = "Missing ID", outcome = "succeeded", message = "Fallback" },
+  }
+  local pages = agent_inspector.properties({}, { steps = steps })
+  assert(pages[2].entries[1].label == "Step 3 · Third")
+  assert(pages[2].entries[2].label == "Step 1 · First")
+  assert(pages[2].entries[3].label == "Step 3 · Missing ID")
+  local detail = agent_inspector.history({ histories = { { steps = steps } } })[1].detail
+  assert(detail:find("Step 3: Third · failed", 1, true))
+  assert(detail:find("Step 3 message: Third failed", 1, true))
+  assert(detail:find("Step 1: First · succeeded", 1, true))
+  assert(detail:find("Step 1 message: First finished", 1, true))
+  assert(detail:find("Step 3 message: Fallback", 1, true))
+end
+
 T["Object Explorer loads Agent jobs without a service node path"] = function()
   local original = package.loaded.snacks
   local original_notify = vim.notify

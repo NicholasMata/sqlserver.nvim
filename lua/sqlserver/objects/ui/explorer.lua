@@ -292,11 +292,18 @@ function M.open(context)
     node.loading = true
     refresh(picker)
     context.on_expand(node, force, function(children, err)
-      if not is_active() or node.load_generation ~= generation or not contains_node(root, node) then
+      if not is_active() or node.load_generation ~= generation then
         return
       end
-      local callbacks = node.load_callbacks
+      local callbacks = node.load_callbacks or {}
       node.load_callbacks = nil
+      if not contains_node(root, node) then
+        node.loading = false
+        for _, done in ipairs(callbacks) do
+          done(false)
+        end
+        return
+      end
       if err then
         node.loading = false
         node.errorMessage = err.message or tostring(err)
