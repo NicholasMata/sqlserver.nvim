@@ -80,14 +80,14 @@ T["Agent tree is instance-level and preserves service nodes"] = function()
   assert(server.children[2].agent_kind == "service")
 end
 
-T["Agent jobs are leaves with compact status annotations"] = function()
+T["Agent jobs show status icons without repeating text"] = function()
   local root = agent_tree.attach(service_root("Database"), "localhost")
   local jobs_node = root.children[2].children[1]
   local job = { id = "job-1", name = "Backup", enabled = true, execution_status = "idle" }
   agent_tree.set_jobs(jobs_node, { job })
   local job_node = jobs_node.children[1]
   assert(job_node.id == "sqlserver-agent://jobs/job-1")
-  assert(job_node.icon == "󰄬" and object_tree.details(job_node)[1] == "Enabled")
+  assert(job_node.icon == "󰄬" and #object_tree.details(job_node) == 0)
   assert(job_node.status_icon == "󰅐" and job_node.status_highlight == "SqlServerJobIdle")
   assert(job_node.isLeaf and job_node.children == nil)
   job_node.details = { steps = {} }
@@ -95,6 +95,7 @@ T["Agent jobs are leaves with compact status annotations"] = function()
   assert(jobs_node.children[1] == job_node and job_node.details)
   assert(job_node.icon == "󰅙")
   assert(job_node.status_icon == "󰐊" and job_node.status_highlight == "SqlServerJobRunning")
+  assert(#object_tree.details(job_node) == 0)
   agent_tree.set_jobs(jobs_node, { vim.tbl_extend("force", job, { execution_status = "queued" }) })
   assert(job_node.status_icon == "󰔟" and job_node.status_highlight == "SqlServerJobWaiting")
   agent_tree.set_jobs(jobs_node, { vim.tbl_extend("force", job, { execution_status = "suspended" }) })

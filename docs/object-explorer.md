@@ -113,8 +113,9 @@ are colored.
 Press `q` to return to Object Explorer. A job without recorded runs reports
 `No history` without opening a picker.
 
-Job rows show separate colored icons for enabled and execution status; the
-Overview shows last outcome and run times. The Agent branch uses separate
+Job rows show the name and separate colored icons for enabled and execution
+status, without repeating those states as text. Overview shows the full
+status labels, last outcome, and run times. The Agent branch uses separate
 read-only SQL Tools Service requests; its plugin-owned node paths are never
 sent to Object Explorer requests. No service or job mutation is offered.
 

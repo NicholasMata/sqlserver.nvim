@@ -63,18 +63,6 @@ function M.attach(service_root, server_name)
   return root
 end
 
-local function job_annotations(job)
-  local result = {}
-  local enabled = job.enabled == true and "Enabled" or job.enabled == false and "Disabled" or nil
-  if enabled then
-    result[#result + 1] = enabled
-  end
-  if value(job.execution_status) then
-    result[#result + 1] = value(job.execution_status)
-  end
-  return result
-end
-
 function M.set_jobs(parent, jobs)
   local previous = {}
   for _, child in ipairs(parent.children or {}) do
@@ -89,7 +77,7 @@ function M.set_jobs(parent, jobs)
     local execution_icon = execution_icons[job.execution_status]
     child.status_icon = execution_icon and execution_icon[1] or nil
     child.status_highlight = execution_icon and execution_icon[2] or nil
-    child.annotations = job_annotations(job)
+    child.annotations = nil
     child.isLeaf = true
     children[#children + 1] = child
   end
