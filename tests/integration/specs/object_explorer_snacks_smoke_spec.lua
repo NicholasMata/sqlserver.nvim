@@ -64,6 +64,22 @@ T["Object Explorer works with a real Snacks picker"] = require("tests.helpers").
     "Object Explorer did not open a real Snacks picker"
   )
 
+  local function assert_input_navigation()
+    assert(vim.api.nvim_get_current_win() == picker.input.win.win, "Explorer did not focus its search input")
+    assert(vim.fn.mode():find("^n"), "Explorer input did not start in Normal mode")
+    local before = picker.list.cursor
+    press_normal("j")
+    assert(picker.list.cursor == before + 1, "j did not move the tree selection")
+    press_normal("k")
+    assert(picker.list.cursor == before, "k did not restore the tree selection")
+    assert(vim.api.nvim_get_current_win() == picker.input.win.win, "Tree navigation moved focus out of the input")
+  end
+
+  assert_input_navigation()
+  vim.api.nvim_set_current_win(vim.fn.win_findbuf(source_bufnr)[1])
+  sqlserver.object_explorer()
+  assert_input_navigation()
+
   assert(picker.opts.title == "SQL Server Object Explorer")
   assert(picker.opts.win.list.keys.l == "object_toggle")
   assert(picker.opts.win.list.keys.h == "object_collapse")
@@ -113,6 +129,12 @@ T["Object Explorer works with a real Snacks picker"] = require("tests.helpers").
     "K did not open the object action menu after searching"
   )
   action_picker:close()
+  assert(
+    vim.wait(1000, function()
+      return vim.api.nvim_get_current_win() == picker.input.win.win and vim.fn.mode():find("^n") ~= nil
+    end, 10),
+    "Closing actions did not restore Normal mode in the search input"
+  )
 
   vim.api.nvim_set_current_win(picker.input.win.win)
   picker.input:set("NoSuchDatabaseObject")

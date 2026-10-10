@@ -50,6 +50,9 @@ workspace winbar uses a shorter status.
 
 ## Mappings
 
+The sidebar opens with the cursor in the search bar in Normal mode. Use
+`j`/`k` to move the tree selection while the cursor stays in the search bar.
+Press `i` to type a search and `<Esc>` to return to Normal mode.
 Press `?` in Normal mode to open Snacks' built-in mapping help.
 
 | Vim Mode | Mapping | Command | Description |

@@ -7,6 +7,11 @@ local agent_properties = require("sqlserver.agent.ui.properties")
 
 local M, active, navigation = {}, {}, {}
 
+local function focus_explorer(picker)
+  picker:focus("input")
+  vim.cmd("stopinsert")
+end
+
 local function require_snacks()
   local ok, snacks = pcall(require, "snacks")
   if not ok or not snacks.picker or type(snacks.picker.pick) ~= "function" then
@@ -30,7 +35,7 @@ function M.focus(bufnr, target)
   if not picker or picker.closed then
     return false
   end
-  picker:focus("list")
+  focus_explorer(picker)
   if target and navigation[bufnr] then
     navigation[bufnr](target)
   end
@@ -119,7 +124,7 @@ function M.open(context)
     local function on_close()
       job_windows[win] = nil
       if is_active() and selection == job_selection and not next(job_windows) and not next(job_pickers) then
-        picker:focus("list")
+        focus_explorer(picker)
       end
     end
     win = second and open(first, second, on_close) or open(first, on_close)
@@ -581,7 +586,7 @@ function M.open(context)
         vim.notify("No history for " .. node.label, vim.log.levels.INFO, { title = "SQLServer" })
         vim.schedule(function()
           if is_active() then
-            picker:focus("list")
+            focus_explorer(picker)
           end
         end)
         return
@@ -598,7 +603,7 @@ function M.open(context)
           job_pickers[child] = nil
           vim.schedule(function()
             if is_active() and selection == job_selection and not next(job_windows) and not next(job_pickers) then
-              picker:focus("list")
+              focus_explorer(picker)
             end
           end)
         end,
@@ -736,7 +741,10 @@ function M.open(context)
   local options = vim.tbl_deep_extend("force", {
     title = "SQL Server Object Explorer",
     finder = items,
-    focus = "list",
+    focus = "input",
+    on_show = function()
+      vim.cmd("stopinsert")
+    end,
     auto_close = false,
     tree = true,
     layout = { preset = "sidebar", preview = false },
@@ -846,6 +854,8 @@ function M.open(context)
           ["H"] = { "object_collapse_all", mode = "n", nowait = true },
           ["K"] = { "object_actions", mode = "n", nowait = true },
           ["c"] = { "object_cancel_search", mode = "n", nowait = true },
+          ["d"] = { "object_definition", mode = "n", nowait = true },
+          ["r"] = { "object_refresh", mode = "n", nowait = true },
         },
       },
       list = {
@@ -865,18 +875,6 @@ function M.open(context)
   }, context.picker or {})
   options.matcher.keep_parents = false
   options.sort = { fields = { "sort" } }
-  local configured_on_change = options.on_change
-  options.on_change = function(current_picker, item)
-    if configured_on_change then
-      configured_on_change(current_picker, item)
-    end
-    if item and item.node and not item.placeholder then
-      local win, row, col = node_position(current_picker, item)
-      if win then
-        vim.api.nvim_win_set_cursor(win, { row, math.max(0, col - 2) })
-      end
-    end
-  end
   local configured_on_close = options.on_close
   options.on_close = function(closed_picker)
     closed = true
