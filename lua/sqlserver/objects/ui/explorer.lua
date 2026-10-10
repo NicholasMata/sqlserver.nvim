@@ -1,7 +1,11 @@
 local object_tree = require("sqlserver.objects.explorer")
 local object_actions = require("sqlserver.objects.actions")
+local agent_tree = require("sqlserver.agent.explorer")
+local agent_inspector = require("sqlserver.agent.inspector")
+local agent_history = require("sqlserver.agent.ui.history")
+local agent_properties = require("sqlserver.agent.ui.properties")
 
-local M, active = {}, {}
+local M, active, navigation = {}, {}, {}
 
 local function require_snacks()
   local ok, snacks = pcall(require, "snacks")
@@ -21,12 +25,15 @@ local function can_expand(node)
   return node.isLeaf == false
 end
 
-function M.focus(bufnr)
+function M.focus(bufnr, target)
   local picker = active[bufnr]
   if not picker or picker.closed then
     return false
   end
   picker:focus("list")
+  if target and navigation[bufnr] then
+    navigation[bufnr](target)
+  end
   return true
 end
 
@@ -35,7 +42,7 @@ function M.open(context)
   if not snacks then
     return nil, snacks_error
   end
-  if context.bufnr and M.focus(context.bufnr) then
+  if context.bufnr and M.focus(context.bufnr, context.focus_target) then
     return active[context.bufnr], nil
   end
 
@@ -46,6 +53,10 @@ function M.open(context)
   local search_loading, search_cancelling = false, false
   local search_loaded_count = 0
   local refresh_pending = false
+  local job_selection = 0
+  local closed = false
+  local job_windows, job_pickers = {}, {}
+  local pending_details
 
   local function remember(node)
     if node.expanded then
@@ -58,7 +69,61 @@ function M.open(context)
   remember(root)
 
   local function is_active()
-    return picker and not picker.closed and (not context.is_active or context.is_active())
+    return not closed and picker and not picker.closed and (not context.is_active or context.is_active())
+  end
+
+  local function contains_node(parent, node)
+    if parent == node then
+      return true
+    end
+    for _, child in ipairs(parent.children or {}) do
+      if contains_node(child, node) then
+        return true
+      end
+    end
+    return false
+  end
+
+  local function cancel_details()
+    if not pending_details then
+      return
+    end
+    local node = pending_details
+    pending_details = nil
+    node.detail_generation = (node.detail_generation or 0) + 1
+    node.loading = false
+    node.detail_callbacks = nil
+    if context.on_cancel_details then
+      context.on_cancel_details()
+    end
+  end
+
+  local function close_job_views()
+    local windows, pickers = job_windows, job_pickers
+    job_windows, job_pickers = {}, {}
+    for child in pairs(pickers) do
+      if child ~= picker and not child.closed then
+        child:close()
+      end
+    end
+    for win in pairs(windows) do
+      if vim.api.nvim_win_is_valid(win) then
+        vim.api.nvim_win_close(win, true)
+      end
+    end
+  end
+
+  local function open_job_float(open, first, second)
+    local selection = job_selection
+    local win
+    local function on_close()
+      job_windows[win] = nil
+      if is_active() and selection == job_selection and not next(job_windows) and not next(job_pickers) then
+        picker:focus("list")
+      end
+    end
+    win = second and open(first, second, on_close) or open(first, on_close)
+    job_windows[win] = true
   end
 
   local function has_unloaded(node)
@@ -201,28 +266,50 @@ function M.open(context)
   end
 
   local function load_node(node, force, callback)
-    if node.loading then
+    if node.loading and not (force and node.agent_kind == "jobs") then
+      if callback then
+        node.load_callbacks = node.load_callbacks or {}
+        node.load_callbacks[#node.load_callbacks + 1] = callback
+      end
       return false
+    end
+    if force and node.agent_kind == "jobs" then
+      job_selection = job_selection + 1
+      cancel_details()
+      close_job_views()
+    end
+    node.load_generation = (node.load_generation or 0) + 1
+    local generation = node.load_generation
+    node.load_callbacks = node.load_callbacks or {}
+    if callback then
+      node.load_callbacks[#node.load_callbacks + 1] = callback
     end
     node.loading = true
     refresh(picker)
     context.on_expand(node, force, function(children, err)
-      if not is_active() then
+      if not is_active() or node.load_generation ~= generation or not contains_node(root, node) then
         return
       end
+      local callbacks = node.load_callbacks
+      node.load_callbacks = nil
       if err then
         node.loading = false
+        node.errorMessage = err.message or tostring(err)
         context.on_error(err.message or tostring(err))
         refresh(picker)
-        if callback then
-          callback(false)
+        for _, done in ipairs(callbacks) do
+          done(false)
         end
         return
       end
-      object_tree.set_service_children(node, children)
+      if node.agent_kind == "jobs" then
+        agent_tree.set_jobs(node, children)
+      else
+        object_tree.set_service_children(node, children)
+      end
       refresh(picker)
-      if callback then
-        callback(true)
+      for _, done in ipairs(callbacks) do
+        done(true)
       end
     end)
     return true
@@ -371,14 +458,13 @@ function M.open(context)
     end
   end
 
-  local function select_action(object, callback)
-    local actions = object_actions.for_object(object)
-    local width = #object_actions.qualified_name(object) + 4
+  local function select_action(prompt, actions, callback)
+    local width = vim.fn.strdisplaywidth(prompt) + 4
     for _, action in ipairs(actions) do
       width = math.max(width, vim.fn.strdisplaywidth(action.label) + 6)
     end
     snacks.picker.select(actions, {
-      prompt = object_actions.qualified_name(object),
+      prompt = prompt,
       format_item = function(action)
         return action.icon .. "  " .. action.label
       end,
@@ -407,8 +493,104 @@ function M.open(context)
     }, callback)
   end
 
+  local function load_job_details(node, force, callback)
+    if node.loading and not force then
+      node.detail_callbacks = node.detail_callbacks or {}
+      node.detail_callbacks[#node.detail_callbacks + 1] = callback
+      return
+    end
+    if node.details and not force then
+      callback(node.details)
+      return
+    end
+    if pending_details and pending_details ~= node then
+      cancel_details()
+    end
+    node.detail_generation = (node.detail_generation or 0) + 1
+    local generation = node.detail_generation
+    pending_details = node
+    node.loading = true
+    node.detail_callbacks = node.detail_callbacks or {}
+    node.detail_callbacks[#node.detail_callbacks + 1] = callback
+    refresh(picker)
+    context.on_expand(node, force, function(details, err)
+      if not is_active() or node.detail_generation ~= generation or not contains_node(root, node) then
+        return
+      end
+      pending_details = nil
+      node.loading = false
+      local callbacks = node.detail_callbacks or {}
+      node.detail_callbacks = nil
+      if err then
+        node.errorMessage = err.message or tostring(err)
+        context.on_error(node.errorMessage)
+        refresh(picker)
+        return
+      end
+      node.errorMessage = nil
+      node.details = details
+      refresh(picker)
+      for _, pending in ipairs(callbacks) do
+        pending(details)
+      end
+    end)
+  end
+
+  local function open_job_view(node, section)
+    job_selection = job_selection + 1
+    local selection = job_selection
+    if pending_details and pending_details ~= node then
+      cancel_details()
+    end
+    close_job_views()
+    load_job_details(node, false, function(details)
+      if selection ~= job_selection then
+        return
+      end
+      if section == "properties" then
+        open_job_float(agent_properties.open, node.job, details)
+        return
+      end
+      local rows = agent_inspector.history(details)
+      if #rows == 0 then
+        vim.notify("No history for " .. node.label, vim.log.levels.INFO, { title = "SQLServer" })
+        vim.schedule(function()
+          if is_active() then
+            picker:focus("list")
+          end
+        end)
+        return
+      end
+      local history_picker = snacks.picker.pick({
+        title = "Job History · " .. node.label,
+        items = rows,
+        focus = "list",
+        format = function(item)
+          return { { item.label } }
+        end,
+        layout = { preset = "select" },
+        on_close = function(child)
+          job_pickers[child] = nil
+          vim.schedule(function()
+            if is_active() and selection == job_selection and not next(job_windows) and not next(job_pickers) then
+              picker:focus("list")
+            end
+          end)
+        end,
+        confirm = function(current_picker, item)
+          if not is_active() or selection ~= job_selection or not item or not item.detail then
+            return
+          end
+          current_picker:close()
+          open_job_float(agent_history.open, item)
+        end,
+      })
+      job_pickers[history_picker] = true
+    end)
+  end
+
   local function show_actions(current_picker, item)
-    if not item or not item.object then
+    if not item or not item.node or (not item.object and not item.node.agent_kind) then
       return
     end
     local current_window = vim.api.nvim_get_current_win()
@@ -425,7 +607,29 @@ function M.open(context)
         end
       end)
     end
-    select_action(item.object, function(action)
+    local actions, prompt
+    if item.object then
+      actions = object_actions.for_object(item.object)
+      prompt = object_actions.qualified_name(item.object)
+    elseif item.node.agent_kind == "service" or item.node.agent_kind == "jobs" then
+      actions = {
+        { id = "refresh_jobs", icon = "󰑐", label = "Refresh Jobs" },
+        { id = "copy_name", icon = "󰆏", label = "Copy name" },
+      }
+      prompt = item.label
+    elseif item.node.agent_kind == "job" then
+      actions = {
+        { id = "inspect_job", icon = "󰈙", label = "Inspect job" },
+        { id = "job_history", icon = "󰋚", label = "View history" },
+        { id = "refresh_job", icon = "󰑐", label = "Refresh details" },
+        { id = "copy_name", icon = "󰆏", label = "Copy name" },
+      }
+      prompt = item.label
+    else
+      actions = { { id = "copy_name", icon = "󰆏", label = "Copy name" } }
+      prompt = item.label
+    end
+    select_action(prompt, actions, function(action)
       if not action then
         restore_mode()
         return
@@ -438,7 +642,7 @@ function M.open(context)
       elseif action.id == "definition" then
         context.on_definition(item.object)
       elseif action.id == "copy_name" then
-        context.on_copy(item.object.name)
+        context.on_copy(item.object and item.object.name or item.label)
         restore_mode()
       elseif action.id == "copy_qualified_name" then
         context.on_copy(object_actions.qualified_name(item.object))
@@ -446,6 +650,64 @@ function M.open(context)
       elseif action.id == "refresh" then
         load_node(item.node, true)
         restore_mode()
+      elseif action.id == "refresh_jobs" then
+        local jobs = item.node.agent_kind == "jobs" and item.node or item.node.children[1]
+        load_node(jobs, true)
+        restore_mode()
+      elseif action.id == "inspect_job" then
+        open_job_view(item.node, "properties")
+      elseif action.id == "job_history" then
+        open_job_view(item.node, "history")
+      elseif action.id == "refresh_job" then
+        load_job_details(item.node, true, function() end)
+        restore_mode()
+      end
+    end)
+  end
+
+  local function focus_target(target)
+    if target ~= "jobs" then
+      return
+    end
+    local function find_jobs(node)
+      if node.agent_kind == "jobs" then
+        return node
+      end
+      for _, child in ipairs(node.children or {}) do
+        local found = find_jobs(child)
+        if found then
+          return found
+        end
+      end
+    end
+    local jobs = find_jobs(root)
+    if not jobs then
+      return
+    end
+    local function expand_parents(node)
+      for _, child in ipairs(node.children or {}) do
+        if child == jobs or expand_parents(child) then
+          expanded[node.id] = true
+          return true
+        end
+      end
+      return false
+    end
+    expand_parents(root)
+    if picker.input and picker.input.set and picker.find then
+      picker.input:set("")
+      picker:find()
+    end
+    refresh(picker)
+    vim.schedule(function()
+      if not is_active() or not picker.list or not picker.list.view then
+        return
+      end
+      for index, item in ipairs(items()) do
+        if item.node == jobs then
+          picker.list:view(index)
+          return
+        end
       end
     end)
   end
@@ -481,7 +743,13 @@ function M.open(context)
       local formatted = snacks.picker.format.tree(item, current_picker)
       local marker = item.loading and "… " or can_expand(item.node) and (item.expanded and " " or " ") or "  "
       formatted[#formatted + 1] = { marker, "SnacksPickerTree" }
-      formatted[#formatted + 1] = { item.icon .. " ", "SnacksPickerIcon" }
+      local icon_highlight = item.node.agent_kind == "job"
+          and (item.node.job.enabled == true and "SqlServerJobEnabled" or item.node.job.enabled == false and "SqlServerJobDisabled" or "SqlServerJobUnknown")
+        or "SnacksPickerIcon"
+      formatted[#formatted + 1] = { item.icon .. " ", icon_highlight }
+      if item.node.status_icon then
+        formatted[#formatted + 1] = { item.node.status_icon .. " ", item.node.status_highlight }
+      end
       local label_highlight = item.node.errorMessage and "DiagnosticError"
         or item.object and "SnacksPickerFile"
         or "SnacksPickerDirectory"
@@ -495,6 +763,10 @@ function M.open(context)
     confirm = function(current_picker, item)
       if item and item.search_all then
         start_search_all()
+        return
+      end
+      if item and item.node and item.node.agent_kind == "job" then
+        open_job_view(item.node, "properties")
         return
       end
       object_action(context.on_query)(current_picker, item)
@@ -533,7 +805,13 @@ function M.open(context)
       end,
       object_refresh = function(_, item)
         if item and item.node and not item.placeholder then
-          load_node(item.node, true)
+          if item.node.agent_kind == "service" then
+            load_node(item.node.children[1], true)
+          elseif item.node.agent_kind == "job" then
+            load_job_details(item.node, true, function() end)
+          elseif not item.node.agent_kind or item.node.agent_kind == "jobs" then
+            load_node(item.node, true)
+          end
         end
       end,
       object_cancel_search = cancel_search_all,
@@ -568,8 +846,22 @@ function M.open(context)
   options.sort = { fields = { "sort" } }
   local configured_on_close = options.on_close
   options.on_close = function(closed_picker)
+    closed = true
+    job_selection = job_selection + 1
+    cancel_details()
+    close_job_views()
+    local function release_node(node)
+      node.load_generation = (node.load_generation or 0) + 1
+      node.load_callbacks = nil
+      node.loading = false
+      for _, child in ipairs(node.children or {}) do
+        release_node(child)
+      end
+    end
+    release_node(root)
     if context.bufnr and active[context.bufnr] == closed_picker then
       active[context.bufnr] = nil
+      navigation[context.bufnr] = nil
     end
     if context.on_close then
       context.on_close()
@@ -579,8 +871,19 @@ function M.open(context)
     end
   end
   picker = snacks.picker.pick(options)
+  vim.api.nvim_set_hl(0, "SqlServerJobEnabled", { default = true, link = "DiagnosticOk" })
+  vim.api.nvim_set_hl(0, "SqlServerJobDisabled", { default = true, link = "Comment" })
+  vim.api.nvim_set_hl(0, "SqlServerJobUnknown", { default = true, link = "DiagnosticWarn" })
+  vim.api.nvim_set_hl(0, "SqlServerJobRunning", { default = true, link = "DiagnosticInfo" })
+  vim.api.nvim_set_hl(0, "SqlServerJobWaiting", { default = true, link = "DiagnosticWarn" })
+  vim.api.nvim_set_hl(0, "SqlServerJobSuspended", { default = true, link = "DiagnosticWarn" })
+  vim.api.nvim_set_hl(0, "SqlServerJobIdle", { default = true, link = "Comment" })
   if context.bufnr then
     active[context.bufnr] = picker
+    navigation[context.bufnr] = focus_target
+  end
+  if context.focus_target then
+    focus_target(context.focus_target)
   end
   return picker, nil
 end
@@ -591,6 +894,7 @@ function M.close(bufnr)
     return false
   end
   active[bufnr] = nil
+  navigation[bufnr] = nil
   if not picker.closed then
     picker:close()
   end

@@ -9,6 +9,7 @@ local function available_commands(handlers)
   return {
     Activity = handlers.toggle_activity,
     ConnectionInfo = handlers.show_connection_info,
+    Jobs = handlers.show_jobs,
     Connect = handlers.connect,
     Reconnect = handlers.reconnect,
     Disconnect = handlers.disconnect,
@@ -94,6 +95,7 @@ local function get_items()
   elseif state == states.connected then
     local items = {
       "ConnectionInfo",
+      "Jobs",
       "NewQuery",
       "NewDefaultQuery",
       "EditConnections",

@@ -95,7 +95,7 @@ T["Object Explorer works with a real Snacks picker"] = require("tests.helpers").
     filtered_labels[#filtered_labels + 1] = picker.list:get(index).label
   end
   assert(
-    picker.list:count() == 4,
+    picker.list:count() == 6,
     "Filtered Object Explorer included unrelated nodes: " .. vim.inspect(filtered_labels)
   )
   press_normal("K")

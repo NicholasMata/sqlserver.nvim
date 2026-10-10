@@ -1,9 +1,9 @@
 # Object Explorer
 
-Object Explorer currently presents the hierarchy returned by SQL Tools Service
-in a persistent Snacks sidebar. It belongs to the current SQL buffer's
-connection and preserves service-defined folders, ordering, and object
-relationships instead of flattening them into a plugin-specific structure.
+Object Explorer combines the SQL Tools Service object hierarchy with an
+instance-level SQL Server Agent branch in a persistent Snacks sidebar.
+It belongs to the current SQL buffer's connection and preserves the service's
+folders, ordering, and object relationships.
 
 <p align="center">
   <img src="assets/object-explorer.png" alt="SQL Server Object Explorer beside a connected SQL buffer" width="1000">
@@ -13,7 +13,8 @@ relationships instead of flattening them into a plugin-specific structure.
 
 Object Explorer requires
 [snacks.nvim](https://github.com/folke/snacks.nvim) with its picker enabled.
-Snacks remains optional for every other sqlserver.nvim workflow.
+Snacks remains optional for other sqlserver.nvim workflows, including the
+read-only SQL Agent public API.
 
 Connect a SQL buffer, then run:
 
@@ -24,12 +25,17 @@ Connect a SQL buffer, then run:
 With `keymap_prefix = "<leader>s"`, the default mapping is `<leader>sb`.
 Opening Object Explorer again for the same SQL buffer focuses the existing
 sidebar.
+`:SQLServer Jobs` opens the same sidebar and focuses SQL Server Agent's Jobs
+branch.
 
 ## Hierarchy and loading
 
-The initial tree contains the root and the children SQL Tools Service returns
-for it. Expanding a node requests its children lazily. This keeps startup fast
-and avoids requesting an entire large database before it is needed.
+The initial tree contains the SQL Tools Service hierarchy and a plugin-owned
+`SQL Server Agent → Jobs` branch under the server. When the service supplies
+a database root, the explorer shows that database beneath a Databases folder
+beside Agent. Expanding a service node or Jobs requests its children lazily.
+This keeps startup fast and avoids requesting an entire large database or job
+list before it is needed.
 
 Loaded nodes remain cached for the lifetime of the explorer session. A node
 that SQL Tools Service reports as expandable keeps its disclosure marker until
@@ -48,15 +54,15 @@ Press `?` in Normal mode to open Snacks' built-in mapping help.
 
 | Vim Mode | Mapping | Command | Description |
 | --- | --- | --- | --- |
-| Normal | `<CR>` | Snacks `confirm` | Build a runnable query for an object, or toggle a structural node |
-| Normal | `K` | `object_actions` | Open contextual actions for the selected object |
+| Normal | `<CR>` | Snacks `confirm` | Build a runnable query for an object, expand a folder, or inspect a job |
+| Normal | `K` | `object_actions` | Open contextual actions for the selected object or Agent node |
 | Normal | `c` | `object_cancel_search` | Cancel an active full-tree search load |
-| Normal | `l` | `object_toggle` | Expand or collapse a node, lazily loading details |
+| Normal | `l` | `object_toggle` | Expand or collapse a folder, lazily loading its children |
 | Normal | `h` | `object_collapse` | Collapse the current node or its parent |
 | Normal | `L` | `object_expand_all` | Expand the complete tree, loading details as needed |
 | Normal | `H` | `object_collapse_all` | Return to the compact root outline |
 | Normal | `d` | `object_definition` | Open the selected object's editable definition |
-| Normal | `r` | `object_refresh` | Refresh the complete metadata snapshot and redraw the tree |
+| Normal | `r` | `object_refresh` | Refresh the selected service or Agent node |
 | Normal | `q` | Snacks `cancel` | Close Object Explorer |
 
 ## Searching
@@ -92,10 +98,35 @@ side effects. Definitions open in dedicated editable SQL buffers. Existing
 definition-buffer collisions use the same focus-or-create workflow as
 `:SQLServer ObjectDefinition`.
 
+Press `K` on SQL Server Agent or Jobs to refresh the job list. On a job,
+the menu offers **Inspect job**, **View history**, **Refresh details**, and
+**Copy name**. `<CR>` on a job opens the inspector directly. The inspector
+opens a scrollable Job Properties window with Overview, Steps, Schedules,
+and Linked alerts. Press `1`–`4` or `h`/`l` to switch sections, `[`/`]` to
+move between entries, and `q` to return to Object Explorer. Property names
+are muted, entry headings have an accent color, and enabled state, execution
+state, and last outcome use status colors. View history
+opens a separate searchable picker with one row per run. Press `<CR>` on a run
+to close the picker and read its outcome and step messages in a scrollable
+float. Field names are muted, step headings have an accent color, and outcomes
+are colored.
+Press `q` to return to Object Explorer. A job without recorded runs reports
+`No history` without opening a picker.
+
+Job rows show separate colored icons for enabled and execution status; the
+Overview shows last outcome and run times. The Agent branch uses separate
+read-only SQL Tools Service requests; its plugin-owned node paths are never
+sent to Object Explorer requests. No service or job mutation is offered.
+
+Refreshing Jobs or job details supersedes an earlier pending request. Failed
+refreshes retain the last successful content. Search All includes jobs through
+the Agent request path. Closing the explorer or disconnecting also closes its
+job properties, history picker, and run windows.
+
 ## Supported scope
 
-Object Explorer deliberately covers query and object-scripting workflows
-rather than SQL Server administration. Actionable objects are tables, views,
+Object Explorer covers query and object-scripting workflows plus read-only
+SQL Server Agent Jobs inspection. Actionable objects are tables, views,
 stored procedures, scalar-valued functions, and table-valued functions. Their
 folder placement and ordering come from SQL Tools Service.
 
@@ -113,8 +144,8 @@ Use `<keymap_prefix>l`, `:SQLServer CancelOperation`, or `sqlserver.cancel()`
 while a script is being generated. Cancellation is sent to SQL Tools Service,
 and scripting plan and progress notifications update the existing operation.
 
-The current Object Explorer does not show server-administration branches such
-as Security, Storage, Service Broker, or SQL Server Agent.
+The current Object Explorer does not show other server-administration branches
+such as Security, Storage, or Service Broker.
 
 ## Configuration
 
@@ -134,3 +165,4 @@ require("sqlserver").setup({
 Object Explorer requests use `timeouts.object_explorer`, which defaults to
 10,000 milliseconds. Set it to `false` to wait indefinitely. See
 [Configuration](configuration.md) for the complete option reference.
+Agent requests use `timeouts.agent` with the same default.

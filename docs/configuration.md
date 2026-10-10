@@ -111,6 +111,11 @@ indefinitely.
 | `execute_generated_select_statements` | `true` | Immediately executes generated table and view queries. Procedures are never executed automatically. |
 | `lsp_settings` | See defaults above | Settings passed directly to SQL Tools Service. |
 
+Object Explorer colors enabled, disabled, and unknown job icons through
+`SqlServerJobEnabled`, `SqlServerJobDisabled`, and `SqlServerJobUnknown`.
+These link to `DiagnosticOk`, `Comment`, and `DiagnosticWarn` by default and
+can be overridden with `vim.api.nvim_set_hl()`.
+
 Result header icons classify the SQL type metadata already returned with each
 query. They do not request full schema metadata or infer keys and indexes. Set
 only the glyphs you want to replace; omitted values retain their defaults:

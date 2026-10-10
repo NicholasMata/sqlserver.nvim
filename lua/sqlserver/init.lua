@@ -17,6 +17,7 @@ local workspace_registry = require("sqlserver.workspace.registry")
 local activity_stream = require("sqlserver.workspace.activity_stream").create({ on_error = utils.log_error })
 local activity_ui = require("sqlserver.ui.activity")
 local connection_info_ui = require("sqlserver.ui.connection_info")
+local agent_tree = require("sqlserver.agent.explorer")
 local ui_options = require("sqlserver.config.ui")
 local status_ui = require("sqlserver.ui.status")
 local generated_buffer = require("sqlserver.ui.generated_buffer")
@@ -24,6 +25,12 @@ local timeout_options = require("sqlserver.config.timeouts")
 local result_options = require("sqlserver.config.results")
 local connection_profiles = require("sqlserver.connections.profiles")
 local public_api = require("sqlserver.api")
+
+activity_stream.subscribe(function(workspace)
+  if workspace.get_state and workspace.get_state() == workspace_module.states.disconnected then
+    object_explorer.close(workspace.bufnr)
+  end
+end)
 
 local joinpath = vim.fs.joinpath
 local workspace_winbar_expression = "%{%v:lua.require'sqlserver.ui.status'.winbar()%}"
@@ -1059,7 +1066,8 @@ local function choose_plan_async()
   })
 end
 
-local command_handlers = {
+local command_handlers
+command_handlers = {
   estimated_plan = function(opts)
     capture_plan("estimated", false, opts)
   end,
@@ -1309,6 +1317,19 @@ local command_handlers = {
     connection_info_ui.show(workspace)
   end,
 
+  show_jobs = function()
+    local workspace = workspace_registry.get()
+    if not workspace then
+      utils.log_error("No SQL Server workspace is attached to this buffer")
+      return
+    end
+    if workspace.get_state() ~= workspace_module.states.connected then
+      utils.log_error("Connect before viewing SQL Agent jobs")
+      return
+    end
+    command_handlers.object_explorer({ focus_target = "jobs" })
+  end,
+
   backup_database = function()
     local workspace = workspace_registry.get()
     if not workspace then
@@ -1419,7 +1440,7 @@ local command_handlers = {
     end
   end,
 
-  object_explorer = function()
+  object_explorer = function(options)
     local workspace = workspace_registry.get()
     if not workspace then
       utils.log_error("No SQL Server workspace is attached to this buffer")
@@ -1429,7 +1450,7 @@ local command_handlers = {
       utils.log_error("You are currently " .. workspace.get_state())
       return
     end
-    if object_explorer.focus(workspace.bufnr) then
+    if object_explorer.focus(workspace.bufnr, options and options.focus_target) then
       return
     end
     utils.try_resume(coroutine.create(function()
@@ -1441,9 +1462,11 @@ local command_handlers = {
       if not session then
         return
       end
+      root = agent_tree.attach(root, (workspace.get_connection() or {}).server)
       local picker, picker_error = object_explorer.open({
         bufnr = workspace.bufnr,
         root = root,
+        focus_target = options and options.focus_target,
         picker = plugin_opts.ui.object_explorer,
         is_active = function()
           return workspace_registry.get(workspace.bufnr) == workspace
@@ -1451,12 +1474,29 @@ local command_handlers = {
         end,
         on_close = function()
           workspace.close_object_explorer_session(session)
+          workspace.close_agent_view("jobs")
+          workspace.close_agent_view("details")
         end,
         on_copy = function(text)
           vim.fn.setreg("+", text, "v")
         end,
         on_error = utils.log_error,
+        on_cancel_details = function()
+          workspace.cancel_agent_request("details")
+        end,
         on_expand = function(node, force, callback)
+          if node.agent_kind == "jobs" then
+            public_api.list_jobs({ bufnr = workspace.bufnr }, callback)
+            return
+          end
+          if node.agent_kind == "job" then
+            public_api.job_details({ bufnr = workspace.bufnr, job = node.job }, callback)
+            return
+          end
+          if node.agent_kind then
+            callback(nil, { message = "This Agent node cannot be expanded" })
+            return
+          end
           utils.try_resume(coroutine.create(function()
             local ok, children = pcall(
               workspace.expand_object_explorer_async,
@@ -1577,6 +1617,8 @@ local M = {
   cancel = public_api.cancel,
   refresh_objects = public_api.refresh_objects,
   list_objects = public_api.list_objects,
+  list_jobs = public_api.list_jobs,
+  job_details = public_api.job_details,
   script_object = public_api.script_object,
   export_results = public_api.export_results,
   open_plan = public_api.open_plan,

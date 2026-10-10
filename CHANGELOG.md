@@ -13,6 +13,11 @@ later releases.
 
 ### Added
 
+- Add read-only SQL Agent Jobs to Object Explorer and a callback API for
+  jobs. Inspect steps, schedules, and linked alerts in a scrollable Job
+  Properties window, and search job history in a separate picker that opens
+  selected runs in a scrollable float. Refresh actions report failures without
+  discarding cached details.
 - Mark result views with an eye icon `󰈈` when their source query is visible
   in the current tab, or `󰈉` when hidden, keeping winbar spacing stable.
   Customize the hidden icon through `SqlServerSourceHidden`, which defaults

@@ -84,7 +84,7 @@ end
 ---@param node table
 ---@return string[]
 function M.details(node)
-  local details = {}
+  local details = vim.deepcopy(node.annotations or {})
   for _, field in ipairs({ "nodeSubType", "nodeStatus" }) do
     local value = node[field]
     if type(value) == "string" and value ~= "" then
@@ -101,7 +101,7 @@ end
 ---@param service_nodes table[]
 function M.set_service_children(parent, service_nodes)
   local seen = {}
-  parent.children = vim
+  local service_children = vim
     .iter(service_nodes or {})
     :filter(function(service_node)
       if type(service_node) ~= "table" or type(service_node.nodePath) ~= "string" or seen[service_node.nodePath] then
@@ -112,6 +112,12 @@ function M.set_service_children(parent, service_nodes)
     end)
     :map(M.from_service)
     :totable()
+  for _, child in ipairs(parent.children or {}) do
+    if child.agent_kind then
+      service_children[#service_children + 1] = child
+    end
+  end
+  parent.children = service_children
   for _, child in ipairs(parent.children) do
     child.path_labels = vim.deepcopy(parent.path_labels or { parent.label })
     child.path_labels[#child.path_labels + 1] = child.label
