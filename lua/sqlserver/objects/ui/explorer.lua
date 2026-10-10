@@ -459,8 +459,24 @@ function M.open(context)
     end
   end
 
-  local function select_action(actions, callback)
+  local function action_position(current_picker, item)
+    local list = current_picker.list
+    local win = list and list.win and list.win.win
+    if win and vim.api.nvim_win_is_valid(win) then
+      local row = list:idx2row(list.cursor)
+      local line = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(win), row - 1, row, false)[1] or ""
+      local col = item.icon and item.icon ~= "" and line:find(item.icon, 1, true) or 1
+      local position = vim.fn.screenpos(win, row, col or 1)
+      if position.row > 0 and position.col > 0 then
+        return { relative = "editor", row = position.row, col = position.col - 1 }
+      end
+    end
+    return { relative = "cursor", row = 1, col = 0 }
+  end
+
+  local function select_action(current_picker, item, actions, callback)
     local prompt = "Actions"
+    local position = action_position(current_picker, item)
     local width = vim.fn.strdisplaywidth(prompt) + 4
     for _, action in ipairs(actions) do
       width = math.max(width, vim.fn.strdisplaywidth(action.label) + 6)
@@ -478,9 +494,9 @@ function M.open(context)
         end,
         layout = {
           layout = {
-            relative = "cursor",
-            row = 1,
-            col = 0,
+            relative = position.relative,
+            row = position.row,
+            col = position.col,
             width = math.min(width, math.max(vim.o.columns - 4, 20)),
             min_width = 20,
             height = #actions + 2,
@@ -627,7 +643,7 @@ function M.open(context)
     else
       actions = { { id = "copy_name", icon = "󰆏", label = "Copy name" } }
     end
-    select_action(actions, function(action)
+    select_action(current_picker, item, actions, function(action)
       if not action then
         restore_mode()
         return

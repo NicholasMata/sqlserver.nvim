@@ -373,7 +373,7 @@ T["Object Explorer suppresses duplicate loads and preserves collapse while loadi
   end)
 end
 
-T["Object Explorer presents K actions in a cursor-relative context menu"] = function()
+T["Object Explorer anchors K actions to the selected node"] = function()
   local picker_options
   local selected_items
   local selected_options
@@ -450,6 +450,41 @@ T["Object Explorer presents K actions in a cursor-relative context menu"] = func
     assert(vim.wait(1000, function()
       return copied == "[dbo].[Person]" and restored_focus == "input" and vim.fn.mode():find("^n") ~= nil
     end))
+
+    local list_buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[list_buf].bufhidden = "wipe"
+    local line = " │ └╴  " .. person.icon .. " " .. person.label
+    vim.api.nvim_buf_set_lines(list_buf, 0, -1, false, { "Another node", line })
+    local list_win = vim.api.nvim_open_win(list_buf, false, {
+      relative = "editor",
+      row = 2,
+      col = 4,
+      width = 40,
+      height = 2,
+      style = "minimal",
+    })
+    picker.list = {
+      win = { win = list_win },
+      cursor = 7,
+      idx2row = function(_, idx)
+        assert(idx == 7)
+        return 2
+      end,
+    }
+    local ok, err = pcall(function()
+      local icon_col = assert(line:find(person.icon, 1, true))
+      local expected = vim.fn.screenpos(list_win, 2, icon_col)
+      assert(expected.row > 0 and expected.col > 0)
+      for _, cursor in ipairs({ { 1, 0 }, { 2, #line - 1 } }) do
+        vim.api.nvim_win_set_cursor(list_win, cursor)
+        picker_options.actions.object_actions(picker, person)
+        local anchored = selected_options.snacks.layout.layout
+        assert(anchored.relative == "editor")
+        assert(anchored.row == expected.row and anchored.col == expected.col - 1)
+      end
+    end)
+    vim.api.nvim_win_close(list_win, true)
+    assert(ok, err)
   end)
 end
 
