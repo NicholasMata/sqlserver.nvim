@@ -459,7 +459,8 @@ function M.open(context)
     end
   end
 
-  local function select_action(prompt, actions, callback)
+  local function select_action(actions, callback)
+    local prompt = "Actions"
     local width = vim.fn.strdisplaywidth(prompt) + 4
     for _, action in ipairs(actions) do
       width = math.max(width, vim.fn.strdisplaywidth(action.label) + 6)
@@ -608,16 +609,14 @@ function M.open(context)
         end
       end)
     end
-    local actions, prompt
+    local actions
     if item.object then
       actions = object_actions.for_object(item.object)
-      prompt = object_actions.qualified_name(item.object)
     elseif item.node.agent_kind == "service" or item.node.agent_kind == "jobs" then
       actions = {
         { id = "refresh_jobs", icon = "󰑐", label = "Refresh Jobs" },
         { id = "copy_name", icon = "󰆏", label = "Copy name" },
       }
-      prompt = item.label
     elseif item.node.agent_kind == "job" then
       actions = {
         { id = "inspect_job", icon = "󰈙", label = "Inspect job" },
@@ -625,12 +624,10 @@ function M.open(context)
         { id = "refresh_job", icon = "󰑐", label = "Refresh details" },
         { id = "copy_name", icon = "󰆏", label = "Copy name" },
       }
-      prompt = item.label
     else
       actions = { { id = "copy_name", icon = "󰆏", label = "Copy name" } }
-      prompt = item.label
     end
-    select_action(prompt, actions, function(action)
+    select_action(actions, function(action)
       if not action then
         restore_mode()
         return

@@ -429,7 +429,7 @@ T["Object Explorer presents K actions in a cursor-relative context menu"] = func
     picker_options.actions.object_actions(picker, person)
 
     assert(#selected_items > 1)
-    assert(selected_options.prompt == "[dbo].[Person]")
+    assert(selected_options.prompt == "Actions")
     assert(selected_options.snacks.focus == "list")
     local formatted = selected_options.snacks.format({ item = selected_items[1], idx = 1 })
     assert(formatted[1][1] == selected_items[1].icon .. "  " .. selected_items[1].label)
