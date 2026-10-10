@@ -124,7 +124,7 @@ T["Jobs command and public API inspect seeded jobs"] = require("tests.helpers").
     )
     picker.opts.actions.object_actions(picker, job_node)
     local menu = vim.iter(snacks.picker.get({ tab = false })):find(function(open)
-      return open.opts.title == "sqlserver.nvim fixture no history"
+      return open.opts.title == "Actions"
     end)
     assert(menu, "Job action menu did not open")
     local view_history = vim.iter(menu.opts.finder()):find(function(item)
@@ -151,7 +151,7 @@ T["Jobs command and public API inspect seeded jobs"] = require("tests.helpers").
 
     picker.opts.actions.object_actions(picker, find_item("sqlserver.nvim fixture history"))
     menu = vim.iter(snacks.picker.get({ tab = false })):find(function(open)
-      return open.opts.title == "sqlserver.nvim fixture history"
+      return open.opts.title == "Actions"
     end)
     assert(menu, "Populated job action menu did not open")
     view_history = vim.iter(menu.opts.finder()):find(function(item)
@@ -219,7 +219,9 @@ T["Jobs command and public API inspect seeded jobs"] = require("tests.helpers").
     )
     assert(
       vim.wait(1000, function()
-        return not picker.closed and vim.api.nvim_get_current_win() == picker.list.win.win
+        return not picker.closed
+          and vim.api.nvim_get_current_win() == picker.input.win.win
+          and vim.fn.mode():find("^n") ~= nil
       end),
       "Object Explorer did not regain focus"
     )
