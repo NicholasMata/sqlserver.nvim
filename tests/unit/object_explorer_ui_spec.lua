@@ -236,6 +236,52 @@ T["Object Explorer loads children by their service node path"] = function()
   end)
 end
 
+T["Object Explorer clears refresh errors after a successful retry"] = function()
+  fake_snacks(function(picker, get_options)
+    local root = service_node("database", "TestDb", "Database", false)
+    root.expanded = true
+    model.set_service_children(root, {
+      { nodePath = "database/Tables", label = "Tables", objectType = "Folder", isLeaf = false },
+    })
+    local folder = root.children[1]
+    model.set_service_children(folder, {
+      { nodePath = "database/Tables/Old", label = "Old", objectType = "Table", isLeaf = true },
+    })
+    local errors, complete = {}, nil
+    explorer.open({
+      root = root,
+      on_expand = function(node, force, done)
+        assert(node == folder and force)
+        complete = done
+      end,
+      on_error = function(message)
+        errors[#errors + 1] = message
+      end,
+    })
+    local options = get_options()
+    local item = options.finder()[2]
+    options.actions.object_refresh(picker, item)
+    complete(nil, { message = "Temporary service failure" })
+    assert(not folder.loading and folder.children[1].label == "Old")
+    assert(vim.deep_equal(errors, { "Temporary service failure" }))
+    assert(model.details(folder)[1] == "Temporary service failure")
+    assert(vim.iter(options.format(item, picker)):any(function(part)
+      return part[2] == "DiagnosticError"
+    end))
+
+    options.actions.object_refresh(picker, item)
+    complete({
+      { nodePath = "database/Tables/New", label = "New", objectType = "Table", isLeaf = true },
+    })
+    assert(folder.loaded and not folder.loading and folder.children[1].label == "New")
+    assert(#model.details(folder) == 0, "Successful retry retained the old error annotation")
+    assert(not vim.iter(options.format(item, picker)):any(function(part)
+      return part[2] == "DiagnosticError"
+    end), "Successful retry retained error highlighting")
+    assert(#errors == 1)
+  end)
+end
+
 T["Object Explorer removes disclosure from a loaded empty node"] = function()
   fake_snacks(function(_, get_options)
     local root = service_node("database", "TestDb", "Database", false)

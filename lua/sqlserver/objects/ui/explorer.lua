@@ -302,6 +302,7 @@ function M.open(context)
         end
         return
       end
+      node.errorMessage = nil
       if node.agent_kind == "jobs" then
         agent_tree.set_jobs(node, children)
       else
