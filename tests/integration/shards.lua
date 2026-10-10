@@ -14,6 +14,8 @@ M.environment = {
 M.connected = {
   core = {
     "public_api_integration_spec",
+    "execution_plan_protocol_spec",
+    "execution_plans_integration_spec",
     "execution_scope_integration_spec",
     "error_line_numbers_integration_spec",
     "execute_query_spec",

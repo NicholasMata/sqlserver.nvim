@@ -98,6 +98,9 @@ return {
 
       local normal_group = vim.tbl_deep_extend("keep", wkeygroup, {})
       normal_group.expand = function()
+        if vim.b.sqlserver_plan_info then
+          return result_keymaps.which_key_plan_items(M)
+        end
         local workspace = workspace_registry.get()
         if workspace then
           local state = workspace.get_state()
@@ -196,6 +199,9 @@ return {
       local visual_group = vim.tbl_deep_extend("keep", wkeygroup, {})
       visual_group.mode = "v"
       visual_group.expand = function()
+        if vim.b.sqlserver_plan_info then
+          return {}
+        end
         if vim.b.query_result_info then
           return result_keymaps.which_key_visual_items(M)
         end

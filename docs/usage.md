@@ -77,6 +77,78 @@ Interactive prompts and object pickers do not start a timer; timing begins only
 when backend work starts. Generated buffers are displayed after their contents
 are ready, so the current window remains unchanged when preparation fails.
 
+## Execution plans
+
+Capture plans from a connected SQL query buffer:
+
+| Command | Behavior |
+| --- | --- |
+| `EstimatedPlan` | Capture the statement under the cursor or current visual selection without executing SQL |
+| `EstimatedPlanBuffer` | Capture the complete buffer without executing SQL |
+| `ActualPlan` | Execute the statement or selection once and capture runtime plans alongside ordinary results |
+| `ActualPlanBuffer` | Execute the complete buffer once with runtime plans |
+| `ShowPlans` | Select and open a captured plan from the active retained execution |
+| `ExportPlan` | Export the current plan, or select one from the active execution, as a `.sqlplan` file |
+
+These commands have no default prefix mapping. Run them as
+`:SQLServer EstimatedPlan`, for example, or map the corresponding functions
+under `require("sqlserver").commands`. An actual capture executes the SQL,
+including any writes; an estimated capture does not.
+An explicit Ex range such as `:1,3SQLServer EstimatedPlan` captures those
+complete lines. A visual mapping to `commands.estimated_plan` or
+`commands.actual_plan` preserves the exact selection, including block mode.
+SQL Server requires SHOWPLAN permission for the referenced databases.
+
+Plan XML opens in a separate, read-only buffer with XML syntax highlighting.
+Plan winbars use the same hidden-query `󰈉` indicator as result views;
+`:SQLServer ShowQuery` also returns to the source from a retained plan.
+`EstimatedPlan` and `EstimatedPlanBuffer` focus the first captured plan.
+`ShowPlans` focuses the selected plan. Split placement follows Neovim's
+`splitbelow` preference. Plan windows disable spell checking by default; use
+`:setlocal spell` in a plan window to enable it.
+After XML filetype settings load, the view uses Neovim's `gq` formatting
+operator when `formatexpr` or `formatprg` is configured, including Neovim's
+bundled XML `formatexpr` where available.
+Without a configured formatter, the view shows raw XML. Formatters exposed
+only through plugin commands or mappings must be connected to `formatexpr`
+or `formatprg` to run automatically. Formatting applies only to the view;
+snapshots and `.sqlplan` exports retain the original XML.
+The winbar shows the source query and `Plan` or `Est. plan` on the left.
+The right shows the position across all retained results and plans, followed
+by the execution counter, such as `3 of 4  Execution 2/2`.
+Actual capture initially shows ordinary rows when available; use `ShowPlans`
+or `]r`/`[r` to move between result and XML buffers.
+`NextExecution`/`PreviousExecution` also work from a plan buffer.
+Plan buffers use the configured result shortcuts for next/previous execution,
+returning to the source query, and removing the current buffer. The result
+export shortcut (`<keymap_prefix>s`) exports the plan instead. WhichKey shows
+these plan actions rather than query commands or table-cell actions. XML cursor
+movement is unchanged; table-cell movement and export shortcuts do not apply.
+
+An estimated document may contain multiple statements. Actual plans can
+arrive as separate documents per executed statement, and each is selectable.
+Some statements, such as PRINT and trivial constant SELECTs, may produce no
+actual plan. A no-plan outcome is reported separately from permission or
+retrieval errors; server messages remain in Activity.
+
+Plans share the source buffer's bounded `results.history_limit` with table
+results, including executions containing only plans. They remain viewable and
+saveable after a new query replaces service-side results or the connection
+is disconnected. Removing a plan buffer, evicting its execution, or deleting
+the source clears its retained view.
+
+`ExportPlan` suggests a filename using the source query, plan kind, and plan
+number, such as `report-actual-plan-1.sqlplan`. Unnamed or unavailable sources
+use `query` as the filename stem. It confirms replacement
+of an existing file. Export writes the original captured XML as UTF-8 without
+formatting, table serialization, or truncation, and never reruns SQL.
+The notification shows the exported filename; `:messages` records the full
+destination path.
+Retrieval uses `timeouts.export`; query execution uses `timeouts.query`.
+`CancelOperation` cancels execution or plan collection.
+
+Operator trees, graphical viewing, and comparison are planned for 1.2.0.
+
 ## Result view workflow
 
 Every SQL source buffer retains its own recent successful executions in memory.
@@ -167,7 +239,8 @@ each source buffer. Deleting the source buffer discards its complete history.
 The result winbar identifies the source SQL buffer and shows the current
 execution, result-set position, row count, and elapsed time reported by SQL
 Tools Service. For example, `query.sql  42 rows  38 ms` appears on the left,
-while `Execution 2/4  Result 1/2` stays anchored on the right. A limited result
+while `1 of 2  Execution 2/4` stays anchored on the right. This position counts
+both table results and plans when an execution contains both. A limited result
 uses `100 of 10,000 rows` to distinguish displayed rows from the complete row
 count. The time belongs to the SQL batch that produced the result, so results
 from the same batch show the same time.

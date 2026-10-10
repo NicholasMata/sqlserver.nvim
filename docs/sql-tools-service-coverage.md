@@ -56,5 +56,5 @@ messages, errors, and timings shown during ordinary query execution.
 | --- | --- |
 | ⚪ Profiler | Capturing and inspecting server event traces. No dedicated workflow is currently planned. |
 | ⚪ Query Store | Browsing Query Store performance history and reports. This is distinct from the plugin's query execution and result history; no dedicated workflow is currently planned. |
-| 🔵 Query Plans | Capture and present estimated or actual execution plans in a readable form. GitHub issues track implementation and release planning. |
+| 🟡 Query Plans | For `1.1.0`, capture estimated/actual plans, inspect retained XML, and save original `.sqlplan` files. See [capture/export #39](https://github.com/NicholasMata/sqlserver.nvim/issues/39) and [Usage](usage.md#execution-plans). Native operator exploration and graphical viewing/comparison are tracked for `1.2.0` in [#40](https://github.com/NicholasMata/sqlserver.nvim/issues/40). |
 | ⚪ Assessment | Running database or server assessment checks and reviewing recommendations. No dedicated workflow is currently planned. |

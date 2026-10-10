@@ -14,7 +14,7 @@ T["Result winbar should separate metadata from navigation"] = function()
     duration_ms = 38,
   })
 
-  assert(rendered == "query.sql 󰈈  42 rows  38 ms%=Execution 2/4  Result 1/2 ")
+  assert(rendered == "query.sql 󰈈  42 rows  38 ms%=1 of 2  Execution 2/4 ")
 end
 
 T["Result winbar should compactly describe limited results"] = function()
@@ -30,7 +30,7 @@ T["Result winbar should compactly describe limited results"] = function()
   })
 
   assert(rendered:find("100%% query.sql 󰈈  100 of 10,000 rows  1.25 s%=", 1, true))
-  assert(rendered:find("Execution 1/1  Result 1/1", 1, true))
+  assert(rendered:find("1 of 1  Execution 1/1", 1, true))
 end
 
 return T

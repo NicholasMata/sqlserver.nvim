@@ -1,6 +1,7 @@
 local utils = require("sqlserver.utils")
 local result_cell = require("sqlserver.results.cell")
 local connection_profiles = require("sqlserver.connections.profiles")
+local plans = require("sqlserver.adapters.sql_tools_service.plans")
 
 local M = {}
 
@@ -218,6 +219,13 @@ function M.create(bufnr, client, timeouts)
 
       local method
       local params = { ownerUri = owner_uri }
+      if request.plan then
+        assert(request.plan == "estimated" or request.plan == "actual", "Unknown execution-plan kind")
+        params.executionPlanOptions = {
+          includeEstimatedExecutionPlanXml = request.plan == "estimated",
+          includeActualExecutionPlanXml = request.plan == "actual",
+        }
+      end
       if request.kind == "statement" then
         method = "query/executedocumentstatement"
         params.line = request.position.line
@@ -266,6 +274,13 @@ function M.create(bufnr, client, timeouts)
     end,
 
     dispose_query_async = dispose_query_async,
+
+    fetch_execution_plans_async = function(completed, kind, timeout, is_active)
+      if active_query_id ~= completed._sqlserver_query_id then
+        error({ code = "plan_unavailable", message = "These execution plans are no longer available" }, 0)
+      end
+      return plans.collect_async(client, completed, kind, timeout, is_active)
+    end,
 
     export_result_async = function(locator, path, format, opts)
       if not active_query_id or locator._sqlserver_query_id ~= active_query_id then

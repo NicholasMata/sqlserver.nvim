@@ -686,6 +686,9 @@ function M.create(opts)
   end
 
   local function complete_query(operation_id, result)
+    if disposed or (state ~= M.states.executing and state ~= M.states.cancelling) then
+      return false
+    end
     if state == M.states.cancelling then
       if backend.dispose_query_async and result and result._sqlserver_query_id then
         pcall(backend.dispose_query_async, result._sqlserver_query_id)
@@ -736,6 +739,9 @@ function M.create(opts)
     local operation_id = begin_operation("query", "SQL Server query", "Executing query")
     set_state(M.states.executing)
     local ok, result = pcall(backend.execute_async, request)
+    if disposed then
+      return nil
+    end
     if state == M.states.cancelling then
       if backend.dispose_query_async and result and result._sqlserver_query_id then
         pcall(backend.dispose_query_async, result._sqlserver_query_id)
@@ -762,7 +768,7 @@ function M.create(opts)
     local lifecycle = {}
 
     function lifecycle.update(phase, message, details)
-      if finished or state ~= M.states.executing then
+      if finished or disposed or state ~= M.states.executing then
         return false
       end
       local operation = operation_manager.operation(operation_id)
@@ -778,7 +784,7 @@ function M.create(opts)
     end
 
     function lifecycle.fail(message, err)
-      if finished then
+      if finished or disposed then
         return false
       end
       finished = true
@@ -831,6 +837,12 @@ function M.create(opts)
 
   function workspace.fetch_result_rows_async(locator)
     return backend.fetch_result_rows_async(locator)
+  end
+
+  function workspace.fetch_execution_plans_async(completed, kind, timeout)
+    return backend.fetch_execution_plans_async(completed, kind, timeout, function()
+      return not disposed and state == M.states.executing
+    end)
   end
 
   function workspace.connection_changed_async(result)

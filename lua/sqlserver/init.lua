@@ -1008,7 +1008,117 @@ local function export_query_results_async(result_info, selection, result_bufnr)
   end
 end
 
+local function capture_plan(kind, buffer, opts)
+  local workspace = workspace_registry.get()
+  if not workspace then
+    utils.log_error("Open a connected SQL query buffer to capture an execution plan")
+    return
+  end
+  utils.try_resume(coroutine.create(function()
+    local request = opts and opts.request or (buffer and query_selection.buffer() or query_selection.current())
+    if workspace.get_state() == workspace_module.states.disconnected then
+      connect_to_default(workspace, plugin_opts)
+    end
+    clear_message_buffer()
+    await_public(function(callback)
+      public_api.execute({
+        bufnr = workspace.bufnr,
+        request = request,
+        plan = kind,
+        _present = function(execution)
+          local shown =
+            query_results.show(execution.result_sets, plugin_opts, workspace.bufnr, execution.dispose, execution.plans)
+          if #execution.plans == 0 then
+            utils.log_info("SQL Server returned no execution plan")
+          elseif shown and kind == "estimated" then
+            query_results.show_plan(execution.plans[1].ordinal, plugin_opts.open_results_in)
+          end
+          return shown
+        end,
+      }, callback)
+    end)
+  end))
+end
+
+local function choose_plan_async()
+  local current = vim.b.sqlserver_plan
+  local plans = query_results.execution_plans()
+  if #plans == 0 and current then
+    return current
+  end
+  if #plans == 0 then
+    utils.log_error("This execution has no captured plans")
+    return
+  end
+  if #plans == 1 then
+    return plans[1]
+  end
+  return utils.ui_select_async(plans, {
+    prompt = "Execution plan:",
+    format_item = require("sqlserver.plans.snapshot").title,
+  })
+end
+
 local command_handlers = {
+  estimated_plan = function(opts)
+    capture_plan("estimated", false, opts)
+  end,
+  estimated_plan_buffer = function()
+    capture_plan("estimated", true)
+  end,
+  actual_plan = function(opts)
+    capture_plan("actual", false, opts)
+  end,
+  actual_plan_buffer = function()
+    capture_plan("actual", true)
+  end,
+  show_plans = function()
+    utils.try_resume(coroutine.create(function()
+      local plan = choose_plan_async()
+      if plan and not query_results.show_plan(plan.ordinal, plugin_opts.open_results_in) then
+        await_public(function(callback)
+          public_api.open_plan({ plan = plan }, callback)
+        end)
+      end
+    end))
+  end,
+  export_plan = function()
+    utils.try_resume(coroutine.create(function()
+      local plan = vim.b.sqlserver_plan or choose_plan_async()
+      if not plan then
+        return
+      end
+      local path = utils.ui_input_async({
+        prompt = "Export execution plan: ",
+        default = require("sqlserver.plans.files").suggest_name(plan),
+        completion = "file",
+      })
+      if not path or path == "" then
+        return
+      end
+      path = vim.fn.fnamemodify(path, ":p")
+      local overwrite = false
+      local existing = vim.uv.fs_lstat(path)
+      if existing then
+        if existing.type ~= "file" then
+          utils.log_error("Export path exists and is not a file: " .. path)
+          return
+        end
+        overwrite = utils.ui_select_async(
+          { "Overwrite", "Cancel" },
+          { prompt = "Export file already exists. Replace it?" }
+        ) == "Overwrite"
+        if not overwrite then
+          return
+        end
+      end
+      await_public(function(callback)
+        public_api.export_plan({ plan = plan, path = path, overwrite = overwrite }, callback)
+      end)
+      vim.api.nvim_echo({ { "Exported execution plan to " .. path } }, true, {})
+      utils.log_info("Exported " .. vim.fn.fnamemodify(path, ":t"))
+    end))
+  end,
   new_query = function()
     utils.try_resume(coroutine.create(function()
       new_query_async()
@@ -1469,6 +1579,8 @@ local M = {
   list_objects = public_api.list_objects,
   script_object = public_api.script_object,
   export_results = public_api.export_results,
+  open_plan = public_api.open_plan,
+  export_plan = public_api.export_plan,
   status = status_ui.component,
   commands = command_handlers,
 }
