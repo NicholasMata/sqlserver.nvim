@@ -459,14 +459,21 @@ function M.open(context)
     end
   end
 
-  local function action_position(current_picker, item)
+  local function node_position(current_picker, item)
     local list = current_picker.list
     local win = list and list.win and list.win.win
     if win and vim.api.nvim_win_is_valid(win) then
       local row = list:idx2row(list.cursor)
       local line = vim.api.nvim_buf_get_lines(vim.api.nvim_win_get_buf(win), row - 1, row, false)[1] or ""
       local col = item.icon and item.icon ~= "" and line:find(item.icon, 1, true) or 1
-      local position = vim.fn.screenpos(win, row, col or 1)
+      return win, row, col or 1
+    end
+  end
+
+  local function action_position(current_picker, item)
+    local win, row, col = node_position(current_picker, item)
+    if win then
+      local position = vim.fn.screenpos(win, row, col)
       if position.row > 0 and position.col > 0 then
         return { relative = "editor", row = position.row, col = position.col - 1 }
       end
@@ -858,6 +865,18 @@ function M.open(context)
   }, context.picker or {})
   options.matcher.keep_parents = false
   options.sort = { fields = { "sort" } }
+  local configured_on_change = options.on_change
+  options.on_change = function(current_picker, item)
+    if configured_on_change then
+      configured_on_change(current_picker, item)
+    end
+    if item and item.node and not item.placeholder then
+      local win, row, col = node_position(current_picker, item)
+      if win then
+        vim.api.nvim_win_set_cursor(win, { row, math.max(0, col - 2) })
+      end
+    end
+  end
   local configured_on_close = options.on_close
   options.on_close = function(closed_picker)
     closed = true
