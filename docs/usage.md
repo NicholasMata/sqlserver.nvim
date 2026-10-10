@@ -65,6 +65,7 @@ windows, result buffers, and execution history are preserved.
 | Normal | `<keymap_prefix>r` | `RefreshCache` | Refresh object and IntelliSense metadata |
 | Normal | `<keymap_prefix>a` | `Activity` | Toggle workspace activity |
 | Normal | `<keymap_prefix>i` | `ConnectionInfo` | Show connection and server information |
+| Normal | — | `Jobs` | Inspect read-only SQL Agent jobs and their details |
 
 If a disconnected query is executed, the plugin attempts to use the connection
 profile named `default`. Current-statement parsing is delegated to SQL Tools
@@ -148,6 +149,47 @@ Retrieval uses `timeouts.export`; query execution uses `timeouts.query`.
 `CancelOperation` cancels execution or plan collection.
 
 Operator trees, graphical viewing, and comparison are planned for 1.2.0.
+
+## SQL Agent Jobs
+
+Open `:SQLServer ObjectExplorer` from a connected SQL buffer and expand
+`SQL Server Agent → Jobs`. `:SQLServer Jobs` opens the same explorer and
+focuses the Jobs branch. Both commands require Snacks with its picker enabled.
+The Agent branch sits under the server, beside Databases, even when the query
+buffer is connected to a user database.
+
+Expand Jobs to load the job list, then press `<CR>` on a job to open its
+inspector. The scrollable Job Properties window has Overview, Steps,
+Schedules, and Linked alerts sections. Press `1`–`4` or `h`/`l` to switch
+sections, `[`/`]` to move between entries, and `q` to return to Object
+Explorer. Property names are muted, entry headings have an accent color, and
+status values are colored. Press `K` on a job and choose **View history** to
+filter runs.
+Press `<CR>` on a run to close the picker and read its step messages in a
+scrollable float. Field names are muted, step headings have an accent color,
+and run and step outcomes are colored. `q` returns to Object Explorer. A
+never-run job reports `No history` and stays in Object Explorer.
+
+Enabled and disabled jobs use `󰄬` and `󰅙`; unknown state uses `?`. The icons
+can be colored through `SqlServerJobEnabled`, `SqlServerJobDisabled`, and
+`SqlServerJobUnknown`. A second icon shows the current execution state:
+running, waiting, suspended, or idle. Its colors use `SqlServerJobRunning`,
+`SqlServerJobWaiting`, `SqlServerJobSuspended`, and `SqlServerJobIdle`.
+The properties window uses those same groups for status values and
+`SqlServerJobPropertyLabel` and `SqlServerJobPropertyHeading` for field names
+and entry headings. The run window uses `SqlServerJobHistoryLabel` and
+`SqlServerJobHistoryHeading` for field names and step headings;
+outcomes use Neovim's diagnostic status colors.
+
+Press `K` on SQL Server Agent, Jobs, or a job for contextual read-only
+actions. Press `r` on Jobs to refresh the list, or on a job to refresh its
+details. Existing content remains visible if a refresh fails. Empty,
+unavailable-Agent, permission, timeout, and request-failure states are shown
+when the service provides enough evidence to distinguish them. No mutating
+Agent actions are available.
+
+The equivalent `list_jobs` and `job_details` callback APIs work without
+Snacks; see the [public API](public-api.md#sql-agent-jobs).
 
 ## Result view workflow
 
@@ -399,6 +441,7 @@ scope, screenshot, and configuration.
 | --- | --- |
 | `Activity` | Toggle workspace activity |
 | `ConnectionInfo` | Show connection and server information |
+| `Jobs` | Inspect read-only SQL Agent jobs and their details |
 | `Connect` | Connect the current query buffer |
 | `Reconnect` | Retry the query buffer's previous connection |
 | `Disconnect` | Disconnect the current query buffer |

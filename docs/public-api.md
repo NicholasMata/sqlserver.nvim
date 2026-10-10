@@ -163,6 +163,23 @@ individual tree-node refresh are deliberately outside the 1.0 contract. The
 returned script includes the resolved public object descriptor alongside its
 SQL text and execution metadata.
 
+## SQL Agent Jobs
+
+`list_jobs({ bufnr = 0 }, callback)` returns normalized, read-only job
+descriptors for the connected workspace. Call it again to refresh the list.
+The descriptors include job identity, enabled state, current execution state,
+and last and next run information when SQL Tools Service provides it.
+
+Pass a returned job to `job_details({ bufnr = 0, job = job }, callback)` to load
+its steps, schedules, execution history, and job-linked alerts. Repeating the
+call refreshes those details. A job that has never run has an empty `histories`
+list and `history_state = "empty"` while retaining its steps and schedules.
+
+The callbacks use the usual `(result, err)` form. Error codes distinguish
+`agent_unavailable`, `agent_permission_denied`, `agent_timeout`, and
+`agent_request_failed` when the service provides enough evidence. Superseded
+requests complete with `agent_cancelled`.
+
 ## Result Export
 
 `export_results(opts, callback)` writes a public API result set without a file

@@ -44,6 +44,7 @@ local modules = {
   "sql_tools_service_query_spec",
   "sql_tools_service_agent_spec",
   "agent_lifecycle_spec",
+  "agent_jobs_spec",
   "sql_tools_service_scripting_spec",
   "query_summary_spec",
   "object_script_spec",

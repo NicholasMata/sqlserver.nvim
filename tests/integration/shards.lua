@@ -44,6 +44,7 @@ M.connected = {
     "use_query_spec",
     "object_picker_snacks_integration_spec",
     "object_explorer_snacks_smoke_spec",
+    "agent_jobs_integration_spec",
   },
 }
 

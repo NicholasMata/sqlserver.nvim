@@ -151,6 +151,34 @@ function M.current_connection(bufnr)
   return nil, normalize_error("workspace_not_found", result)
 end
 
+local function agent_result(result, err)
+  if err then
+    error(err, 0)
+  end
+  if result == nil then
+    error(api_error("agent_cancelled", "SQL Agent request was cancelled"), 0)
+  end
+  return result
+end
+
+---@param opts? { bufnr?: integer }
+---@param callback fun(jobs?: table[], error?: table)
+function M.list_jobs(opts, callback)
+  opts = opts or {}
+  run("agent_request_failed", callback, function()
+    return agent_result(get_workspace(opts.bufnr).list_agent_jobs_async())
+  end)
+end
+
+---@param opts { bufnr?: integer, job: table }
+---@param callback fun(details?: table, error?: table)
+function M.job_details(opts, callback)
+  opts = opts or {}
+  run("agent_request_failed", callback, function()
+    return agent_result(get_workspace(opts.bufnr).get_agent_job_details_async(opts.job))
+  end)
+end
+
 local function execution_request(opts)
   if opts.request then
     return vim.deepcopy(opts.request)

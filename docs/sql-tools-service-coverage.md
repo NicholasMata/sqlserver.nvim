@@ -41,7 +41,7 @@ plans only read-only access to it.
 
 | Item | Scope in `sqlserver.nvim` |
 | --- | --- |
-| 🔵 SQL Agent | Browse instance-level Jobs and Alerts through Object Explorer, with read-only details and contextual actions. Operators, Proxies, and Schedules are related server-level resources. GitHub issues define the release boundaries and action scope: [Jobs and Alerts](https://github.com/NicholasMata/sqlserver.nvim/issues/21) and [Operators, Proxies, and Schedules](https://github.com/NicholasMata/sqlserver.nvim/issues/23). |
+| 🟡 SQL Agent | Browse instance-level Jobs through Object Explorer, with read-only properties, searchable history, and contextual actions. The Alerts branch remains planned under [Jobs and Alerts](https://github.com/NicholasMata/sqlserver.nvim/issues/21). Operators, Proxies, and standalone Schedules are tracked separately in [their feature issue](https://github.com/NicholasMata/sqlserver.nvim/issues/23). See [SQL Agent Jobs](usage.md#sql-agent-jobs) for the implemented workflow. |
 | ⚪ Backup | A dedicated backup workflow with configuration and status tracking is not planned. `BackupDatabase` currently inserts a SQL command into a query buffer; it is not a backup-management UI. |
 | ⚪ Restore | A dedicated restore workflow with configuration and status tracking is not planned. `RestoreDatabase` currently inserts a SQL command into a query buffer; it is not a restore-management UI. |
 | 🔵 Edit Data | Update eligible cells, add and delete rows, and use SQL Tools Service to generate an unsaved SQL buffer for review and manual execution. The feature does not apply changes automatically. Arbitrary query results are not assumed writable. See the [feature issue](https://github.com/NicholasMata/sqlserver.nvim/issues/22) for release scope. |
