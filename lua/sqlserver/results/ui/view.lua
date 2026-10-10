@@ -5,6 +5,7 @@ local result_selection = require("sqlserver.results.selection")
 local result_html = require("sqlserver.results.html")
 local clipboard = require("sqlserver.platform.clipboard")
 local result_winbar = require("sqlserver.results.ui.winbar")
+local result_source = require("sqlserver.results.ui.source")
 
 local M = {}
 local namespace = vim.api.nvim_create_namespace("sqlserver-results")
@@ -20,6 +21,7 @@ local highlight_links = {
   SqlServerResultHeader = "Title",
   SqlServerResultBorder = "NonText",
   SqlServerResultNull = "Comment",
+  SqlServerSourceHidden = "DiagnosticWarn",
   SqlServerResultTruncated = "DiagnosticWarn",
   SqlServerResultCurrentCell = "Search",
   SqlServerResultTypeText = "String",
@@ -201,8 +203,20 @@ function M.render_winbar(bufnr)
   local source_name = vim.api.nvim_buf_get_name(session.source_bufnr)
   source_name = source_name ~= "" and vim.fn.fnamemodify(source_name, ":t") or "[No Name]"
   local result_set = session.result_set
+  if session.plan then
+    return result_winbar.source_label(source_name, result_source.visible(session.source_bufnr))
+      .. string.format(
+        "  %s%%=%d of %d  Execution %d/%d ",
+        session.plan.kind == "estimated" and "Est. plan" or "Plan",
+        result,
+        result_count,
+        execution,
+        #source.executions
+      )
+  end
   return result_winbar.render({
     source_name = source_name,
+    source_visible = result_source.visible(session.source_bufnr),
     execution = execution,
     execution_count = #source.executions,
     result = result,
@@ -215,6 +229,25 @@ end
 
 function M.winbar()
   return M.render_winbar()
+end
+
+function M.show_query()
+  local session = result_sessions[vim.api.nvim_get_current_buf()]
+  local source = session and sources[session.source_bufnr]
+  if not source then
+    return false
+  end
+  local previous_window = source.query_window
+  if previous_window and vim.api.nvim_win_is_valid(previous_window) then
+    if result_sessions[vim.api.nvim_win_get_buf(previous_window)] then
+      previous_window = nil
+    end
+  end
+  local shown, winid = result_source.show(source.bufnr, previous_window)
+  if shown then
+    source.query_window = winid
+  end
+  return shown
 end
 
 function M.has_results(bufnr)
@@ -236,6 +269,7 @@ local function result_window(source)
 end
 
 local function display_buffer(source, bufnr, open_results_in)
+  source.query_window = result_source.window(source.bufnr) or source.query_window
   local windows = vim.fn.win_findbuf(bufnr)
   local existing_window = result_window(source)
   if #windows > 0 then
@@ -471,7 +505,7 @@ end
 function M.copy_cell()
   local bufnr = vim.api.nvim_get_current_buf()
   local session = result_sessions[bufnr]
-  if not session then
+  if not session or session.plan then
     return false
   end
   local cursor = vim.api.nvim_win_get_cursor(0)
@@ -520,7 +554,7 @@ end
 
 function M.visual_selection()
   local session = result_sessions[vim.api.nvim_get_current_buf()]
-  if not session then
+  if not session or session.plan then
     return nil, "Go to a query result buffer to export a selection"
   end
   local anchor = vim.fn.getpos("v")
@@ -682,8 +716,10 @@ end
 ---@param opts table
 ---@param source_bufnr? integer
 ---@param dispose? fun(): boolean
-function M.show(result_sets, opts, source_bufnr, dispose)
-  if not result_sets or #result_sets == 0 then
+function M.show(result_sets, opts, source_bufnr, dispose, plans)
+  result_sets = result_sets or {}
+  plans = plans or {}
+  if #result_sets == 0 and #plans == 0 then
     return false
   end
   source_bufnr = source_bufnr or vim.api.nvim_get_current_buf()
@@ -708,6 +744,7 @@ function M.show(result_sets, opts, source_bufnr, dispose)
     buffers = {},
     active_result = 1,
     dispose = dispose,
+    plans = vim.deepcopy(plans),
   }
   next_execution_id = next_execution_id + 1
 
@@ -783,19 +820,109 @@ function M.show(result_sets, opts, source_bufnr, dispose)
     table.insert(execution.buffers, bufnr)
   end
 
+  local plan_transactions = {}
+  local plans_ok, plans_error = pcall(function()
+    for _, plan in ipairs(execution.plans) do
+      local transaction = require("sqlserver.plans.ui").prepare(plan)
+      plan_transactions[#plan_transactions + 1] = transaction
+      local bufnr = transaction.bufnr
+      table.insert(execution.buffers, bufnr)
+      result_sessions[bufnr] = {
+        source_bufnr = source_bufnr,
+        execution = execution,
+        result_index = #execution.buffers,
+        plan = plan,
+      }
+      vim.api.nvim_create_autocmd("BufEnter", {
+        buffer = bufnr,
+        callback = function()
+          local current_source = sources[source_bufnr]
+          local session = result_sessions[bufnr]
+          if current_source and session then
+            current_source.active_execution = execution_index(current_source, execution)
+              or current_source.active_execution
+            execution.active_result = session.result_index
+            last_source_buffer = source_bufnr
+          end
+        end,
+      })
+      vim.api.nvim_create_autocmd("BufWipeout", {
+        buffer = bufnr,
+        once = true,
+        callback = function()
+          result_sessions[bufnr] = nil
+          vim.schedule(function()
+            if sources[source_bufnr] then
+              prune_source(sources[source_bufnr])
+            end
+          end)
+        end,
+      })
+    end
+  end)
+  if not plans_ok then
+    for _, transaction in ipairs(plan_transactions) do
+      transaction.rollback()
+    end
+    delete_execution(execution)
+    error(plans_error, 0)
+  end
+
   table.insert(source.executions, execution)
   source.active_execution = #source.executions
   last_source_buffer = source_bufnr
 
+  local displayed, display_error = pcall(display_buffer, source, execution.buffers[1], opts.open_results_in)
+  if not displayed then
+    table.remove(source.executions)
+    source.active_execution = #source.executions
+    for _, transaction in ipairs(plan_transactions) do
+      transaction.rollback()
+    end
+    delete_execution(execution)
+    error(display_error, 0)
+  end
+  for _, transaction in ipairs(plan_transactions) do
+    transaction.commit(function() end)
+  end
   local history_limit = opts.results.history_limit or 10
   while #source.executions > history_limit do
     delete_execution(table.remove(source.executions, 1))
     source.active_execution = source.active_execution - 1
   end
-
-  display_buffer(source, execution.buffers[1], opts.open_results_in)
   M.refresh_current_cell(execution.buffers[1])
   return true
+end
+
+function M.execution_plans(bufnr)
+  bufnr = bufnr or vim.api.nvim_get_current_buf()
+  local session = result_sessions[bufnr]
+  local source = sources[source_for_buffer(bufnr, false)]
+  local execution = session and session.execution or source and active_execution(source)
+  local plans = {}
+  for _, bufnr in ipairs(execution and execution.buffers or {}) do
+    local retained = result_sessions[bufnr]
+    if retained and retained.plan and vim.api.nvim_buf_is_valid(bufnr) then
+      plans[#plans + 1] = vim.deepcopy(retained.plan)
+    end
+  end
+  return plans
+end
+
+function M.show_plan(ordinal, open_results_in)
+  local source = sources[source_for_buffer(vim.api.nvim_get_current_buf(), false)]
+  local execution = source and active_execution(source)
+  if not execution then
+    return false
+  end
+  for _, bufnr in ipairs(execution.buffers) do
+    local session = result_sessions[bufnr]
+    if session and session.plan and session.plan.ordinal == ordinal then
+      display_buffer(source, bufnr, open_results_in)
+      return true
+    end
+  end
+  return false
 end
 
 return M

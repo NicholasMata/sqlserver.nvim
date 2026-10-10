@@ -57,8 +57,8 @@ T["Result sessions should retain execution history per source buffer"] = require
   assert(not vim.api.nvim_buf_is_valid(first_execution), "Oldest execution exceeded the history limit")
   assert(not vim.api.nvim_buf_is_valid(first_execution_second_result))
   local winbar = view.render_winbar(vim.api.nvim_get_current_buf())
-  assert(winbar:find("[No Name]  1 row  1.25 s%=", 1, true))
-  assert(winbar:find("Execution 2/2  Result 1/1", 1, true))
+  assert(winbar:find("[No Name] %#SqlServerSourceHidden#󰈉%*  1 row  1.25 s%=", 1, true))
+  assert(winbar:find("1 of 1  Execution 2/2", 1, true))
   assert(winbar:find("[No Name]", 1, true))
   assert(view.previous_execution(function() end))
   local removed_execution = vim.api.nvim_get_current_buf()
@@ -89,7 +89,7 @@ T["Result sessions should retain execution history per source buffer"] = require
   assert(not vim.api.nvim_buf_is_valid(removed_result))
   assert(contents(vim.api.nvim_get_current_buf()):find("remove%-b"), "The next result set was not selected")
   assert(
-    view.render_winbar():find("Execution 1/1  Result 1/1", 1, true),
+    view.render_winbar():find("1 of 1  Execution 1/1", 1, true),
     "Removing a result removed its nonempty execution"
   )
   assert(view.remove_result())
@@ -120,10 +120,11 @@ T["Result sessions should dispose released query storage"] = require("tests.help
   assert(view.show({ result("first", 1) }, options(1, opened), source, disposal("first")))
   local first_buffer = opened.bufnr
   assert(view.show({ result("second", 1) }, options(1, opened), source, disposal("second")))
+  local second_buffer = vim.api.nvim_get_current_buf()
   assert(disposed.first == 1, "History eviction should dispose its query")
   assert(not vim.api.nvim_buf_is_valid(first_buffer))
 
-  assert(view.remove_result(opened.bufnr))
+  assert(view.remove_result(second_buffer))
   assert(disposed.second == 1, "Removing the final result should dispose its query")
   view.clear(source)
   assert(disposed.second == 1, "Clearing an empty source should not dispose twice")

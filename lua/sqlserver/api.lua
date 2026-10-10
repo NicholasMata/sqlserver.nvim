@@ -151,6 +151,34 @@ function M.current_connection(bufnr)
   return nil, normalize_error("workspace_not_found", result)
 end
 
+local function agent_result(result, err)
+  if err then
+    error(err, 0)
+  end
+  if result == nil then
+    error(api_error("agent_cancelled", "SQL Agent request was cancelled"), 0)
+  end
+  return result
+end
+
+---@param opts? { bufnr?: integer }
+---@param callback fun(jobs?: table[], error?: table)
+function M.list_jobs(opts, callback)
+  opts = opts or {}
+  run("agent_request_failed", callback, function()
+    return agent_result(get_workspace(opts.bufnr).list_agent_jobs_async())
+  end)
+end
+
+---@param opts { bufnr?: integer, job: table }
+---@param callback fun(details?: table, error?: table)
+function M.job_details(opts, callback)
+  opts = opts or {}
+  run("agent_request_failed", callback, function()
+    return agent_result(get_workspace(opts.bufnr).get_agent_job_details_async(opts.job))
+  end)
+end
+
 local function execution_request(opts)
   if opts.request then
     return vim.deepcopy(opts.request)
@@ -164,19 +192,65 @@ local function execution_request(opts)
   return query_selection.statement(opts.bufnr)
 end
 
----@param opts? { bufnr?: integer, scope?: "statement"|"selection"|"buffer", text?: string, request?: SqlServerQueryRequest, _present?: fun(execution: table): boolean }
+---@param opts? { bufnr?: integer, scope?: "statement"|"selection"|"buffer", text?: string, request?: SqlServerQueryRequest, plan?: "estimated"|"actual", _present?: fun(execution: table): boolean }
 ---@param callback fun(result?: table, error?: table)
 function M.execute(opts, callback)
   opts = opts or {}
   run("query_failed", callback, function()
     local workspace = get_workspace(opts.bufnr)
-    local raw, lifecycle = workspace.execute_async(execution_request(opts), { defer_completion = true })
+    local request = execution_request(opts)
+    if opts.plan ~= nil then
+      request.plan = opts.plan
+    end
+    if request.plan ~= nil and request.plan ~= "estimated" and request.plan ~= "actual" then
+      error(api_error("invalid_argument", "plan must be 'estimated' or 'actual'"), 0)
+    end
+    local connection = workspace.get_connection()
+    local context = connection and connection_profiles.public_view(connection) or nil
+    local raw, lifecycle = workspace.execute_async(request, { defer_completion = true })
     if not raw then
       return { cancelled = true, result_sets = {} }
     end
-    lifecycle.update("loading_results", "Loading query results")
     local configured = require_config()
+    if not request.plan then
+      lifecycle.update("loading_results", "Loading query results")
+    end
     local query_id = raw._sqlserver_query_id
+    local plans = {}
+    if request.plan then
+      lifecycle.update("loading_plans", "Loading execution plans")
+      local plan_timeout = configured.timeouts and configured.timeouts.export
+      if plan_timeout == nil then
+        plan_timeout = 10000
+      end
+      local plans_ok, plan_result = pcall(workspace.fetch_execution_plans_async, raw, request.plan, plan_timeout)
+      if not plans_ok then
+        pcall(workspace.dispose_query_async, query_id)
+        local cancelled = not lifecycle.update("loading_results", "Loading query results")
+        if cancelled then
+          lifecycle.complete()
+          return { cancelled = true, result_sets = {}, plans = {} }
+        end
+        lifecycle.fail("Execution-plan capture failed", plan_result)
+        error(plan_result, 0)
+      end
+      plans = plan_result
+      if query_summary.create(raw).has_error then
+        pcall(workspace.dispose_query_async, query_id)
+        lifecycle.fail("Execution-plan capture failed", "SQL Server rejected plan capture; see Activity")
+        error(api_error("plan_capture_failed", "SQL Server rejected plan capture; see Activity for server messages"), 0)
+      end
+      for _, plan in ipairs(plans) do
+        plan.source_bufnr = workspace.bufnr
+        plan.execution_id = query_id
+        plan.connection = vim.deepcopy(context)
+      end
+      if not lifecycle.update("loading_results", "Loading query results") then
+        pcall(workspace.dispose_query_async, query_id)
+        lifecycle.complete()
+        return { cancelled = true, result_sets = {}, plans = {} }
+      end
+    end
     local collected_ok, collected =
       pcall(result_sets.collect_async, raw, configured.results.max_rows, workspace.fetch_result_rows_async)
     if not collected_ok then
@@ -192,6 +266,8 @@ function M.execute(opts, callback)
       cancelled = false,
       summary = query_summary.create(raw),
       result_sets = collected,
+      plans = plans,
+      plan_status = request.plan and (#plans > 0 and "captured" or "none") or nil,
       dispose = function()
         if released then
           return false
@@ -200,6 +276,11 @@ function M.execute(opts, callback)
         return workspace.release_query(query_id)
       end,
     }
+    if not lifecycle.update("results_ready", "Query results ready") then
+      execution.dispose()
+      lifecycle.complete()
+      return { cancelled = true, result_sets = {}, plans = {} }
+    end
     if opts._present then
       if not lifecycle.update("rendering_results", "Rendering query results") then
         lifecycle.complete()
@@ -333,6 +414,28 @@ function M.export_results(opts, callback)
       end
     end
     return { path = opts.path, format = format, selection = vim.deepcopy(opts.selection) }
+  end)
+end
+
+---@param opts { plan: SqlServerPlan }
+---@param callback fun(result?: table, error?: table)
+function M.open_plan(opts, callback)
+  run("plan_open_failed", callback, function()
+    require_config()
+    return require("sqlserver.plans.ui").open(opts and opts.plan)
+  end)
+end
+
+---@param opts { plan: SqlServerPlan, path: string, overwrite?: boolean }
+---@param callback fun(result?: table, error?: table)
+function M.export_plan(opts, callback)
+  run("plan_export_failed", callback, function()
+    require_config()
+    opts = opts or {}
+    if type(opts.path) ~= "string" or opts.path == "" or not opts.path:lower():match("%.sqlplan$") then
+      error(api_error("invalid_argument", "export_plan() requires a .sqlplan path"), 0)
+    end
+    return require("sqlserver.plans.files").save(opts.plan, opts.path, opts.overwrite == true)
   end)
 end
 

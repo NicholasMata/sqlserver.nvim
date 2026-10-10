@@ -48,8 +48,12 @@ execution while keeping protocol, workspace, result, and UI concerns separate.
 - Search, browse, and script tables, views, procedures, and functions in the
   connected database. The [hierarchical Object Explorer](docs/object-explorer.md)
   is available when `snacks.nvim` is installed with its picker enabled.
+- Browse SQL Server Agent jobs, inspect properties, and search execution
+  history through Object Explorer.
 - Execute the statement under the cursor, a visual selection, or the complete
   buffer.
+- Capture estimated or actual execution plans, inspect their XML, and save
+  original `.sqlplan` files from retained execution history.
 - Cancel active queries and inspect persistent workspace activity.
 - Revisit recent executions and navigate their result sets in dedicated
   `sqlserver-result` buffers.
@@ -79,7 +83,8 @@ Requires Neovim 0.11.7 or newer. With [lazy.nvim](https://github.com/folke/lazy.
 The tested SQL Tools Service release is pinned and installed automatically on
 first setup unless `tools_file` points to an existing executable. Override
 `tools_version` only when intentionally testing another upstream release.
-`snacks.nvim` is optional; only `:SQLServer ObjectExplorer` requires it.
+`snacks.nvim` is optional; Object Explorer and its `:SQLServer Jobs`
+shortcut require it.
 Create or edit connection profiles with:
 
 ```vim
@@ -111,6 +116,7 @@ require("sqlserver").setup({
     connection = 10000,
     export = 10000,
     object_explorer = 10000,
+    agent = 10000,
     query = false,
   },
   ui = {
@@ -146,9 +152,9 @@ available through `:SQLServer`.
            │                    │                    │
       Development          Administration       Diagnostics
            │                    │                    │
-      ✅ Connections        🔵 SQL Agent          ⚪ Profiler
+      ✅ Connections        🟡 SQL Agent          ⚪ Profiler
       ✅ IntelliSense       ⚪ Backup             ⚪ Query Store
-      ✅ Query              ⚪ Restore            🔵 Query Plans
+      ✅ Query              ⚪ Restore            🟡 Query Plans
       ✅ Objects            🔵 Edit Data          ⚪ Assessment
       ⚪ Schema Compare     ⚪ Security
       ⚪ Table Design
@@ -158,6 +164,11 @@ The [coverage definitions](docs/sql-tools-service-coverage.md) explain each
 term and status. GitHub [issues](https://github.com/NicholasMata/sqlserver.nvim/issues)
 and [release milestones](https://github.com/NicholasMata/sqlserver.nvim/milestones)
 track planned scope and delivery.
+
+Execution-plan capture, XML inspection, and `.sqlplan` export are part of
+[1.1.0](https://github.com/NicholasMata/sqlserver.nvim/issues/39). Native
+operator exploration and graphical viewing/comparison are tracked for
+[1.2.0](https://github.com/NicholasMata/sqlserver.nvim/issues/40).
 
 ## Contributing
 

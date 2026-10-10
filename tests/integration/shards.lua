@@ -14,6 +14,8 @@ M.environment = {
 M.connected = {
   core = {
     "public_api_integration_spec",
+    "execution_plan_protocol_spec",
+    "execution_plans_integration_spec",
     "execution_scope_integration_spec",
     "error_line_numbers_integration_spec",
     "execute_query_spec",
@@ -28,6 +30,8 @@ M.connected = {
     "file_with_space_spec",
     "non_ascii_spec",
     "cancel_query_spec",
+    "agent_fixture_protocol_spec",
+    "agent_adapter_integration_spec",
   },
   objects = {
     "dbo_completion_spec",
@@ -40,6 +44,7 @@ M.connected = {
     "use_query_spec",
     "object_picker_snacks_integration_spec",
     "object_explorer_snacks_smoke_spec",
+    "agent_jobs_integration_spec",
   },
 }
 

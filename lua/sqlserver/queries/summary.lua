@@ -50,8 +50,12 @@ function M.create(result)
       summary.server_duration_ms = (summary.server_duration_ms or 0) + batch_duration_ms
     end
     for _, result_set in ipairs(batch.resultSetSummaries or {}) do
-      summary.result_set_count = summary.result_set_count + 1
-      summary.row_count = summary.row_count + (result_set.rowCount or 0)
+      local is_plan = type(result_set.specialAction) == "table"
+        and result_set.specialAction.expectYukonXMLShowPlan == true
+      if not is_plan then
+        summary.result_set_count = summary.result_set_count + 1
+        summary.row_count = summary.row_count + (result_set.rowCount or 0)
+      end
     end
   end
 

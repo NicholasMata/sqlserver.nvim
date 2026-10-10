@@ -44,6 +44,7 @@ require("sqlserver").setup({
     connection = 10000,
     export = 10000,
     object_explorer = 10000,
+    agent = 10000,
     query = false,
   },
 
@@ -105,9 +106,15 @@ indefinitely.
 | `timeouts.connection` | `10000` | Maximum wait for a connection or disconnection operation. |
 | `timeouts.export` | `10000` | Maximum wait for SQL Tools Service to finish writing an exported result. |
 | `timeouts.object_explorer` | `10000` | Maximum wait for an object metadata refresh or scripting request. |
+| `timeouts.agent` | `10000` | Maximum wait for a SQL Agent jobs, details, or alerts request. |
 | `timeouts.query` | `false` | Maximum query duration before server-side cancellation is requested. |
 | `execute_generated_select_statements` | `true` | Immediately executes generated table and view queries. Procedures are never executed automatically. |
 | `lsp_settings` | See defaults above | Settings passed directly to SQL Tools Service. |
+
+Object Explorer colors enabled, disabled, and unknown job icons through
+`SqlServerJobEnabled`, `SqlServerJobDisabled`, and `SqlServerJobUnknown`.
+These link to `DiagnosticOk`, `Comment`, and `DiagnosticWarn` by default and
+can be overridden with `vim.api.nvim_set_hl()`.
 
 Result header icons classify the SQL type metadata already returned with each
 query. They do not request full schema metadata or infer keys and indexes. Set
@@ -244,6 +251,11 @@ See [Object Explorer](object-explorer.md) for its mappings, lazy-loading model,
 search behavior, supported object scope, and screenshot.
 
 ## SQL Tools Service
+
+Execution-plan capture uses `timeouts.query` while SQL runs and
+`timeouts.export` while each plan document is retrieved. Plan views share
+`results.history_limit` with table results. Saving a retained `.sqlplan`
+snapshot requires no SQL Tools Service request.
 
 `lsp_settings` is passed directly to SQL Tools Service. See
 [LSP Settings](lsp-settings.md) for the available formatting configuration.

@@ -10,12 +10,14 @@ local finder = require("sqlserver.objects.ui.picker")
 local object_explorer = require("sqlserver.objects.ui.explorer")
 local sql_tools_service = require("sqlserver.adapters.sql_tools_service.client")
 local query_backend = require("sqlserver.adapters.sql_tools_service.query")
+local agent_backend = require("sqlserver.adapters.sql_tools_service.agent")
 local backend_proxy = require("sqlserver.adapters.sql_tools_service.backend_proxy")
 local workspace_module = require("sqlserver.workspace")
 local workspace_registry = require("sqlserver.workspace.registry")
 local activity_stream = require("sqlserver.workspace.activity_stream").create({ on_error = utils.log_error })
 local activity_ui = require("sqlserver.ui.activity")
 local connection_info_ui = require("sqlserver.ui.connection_info")
+local agent_tree = require("sqlserver.agent.explorer")
 local ui_options = require("sqlserver.config.ui")
 local status_ui = require("sqlserver.ui.status")
 local generated_buffer = require("sqlserver.ui.generated_buffer")
@@ -23,6 +25,12 @@ local timeout_options = require("sqlserver.config.timeouts")
 local result_options = require("sqlserver.config.results")
 local connection_profiles = require("sqlserver.connections.profiles")
 local public_api = require("sqlserver.api")
+
+activity_stream.subscribe(function(workspace)
+  if workspace.get_state and workspace.get_state() == workspace_module.states.disconnected then
+    object_explorer.close(workspace.bufnr)
+  end
+end)
 
 local joinpath = vim.fs.joinpath
 local workspace_winbar_expression = "%{%v:lua.require'sqlserver.ui.status'.winbar()%}"
@@ -131,6 +139,7 @@ local function enable_lsp(opts)
       local proxy = pending_backends[bufnr]
       if workspace and proxy then
         proxy.bind(query_backend.create(bufnr, client, opts.timeouts))
+        workspace.set_agent_backend(agent_backend.create(client, workspace))
         pending_backends[bufnr] = nil
         workspace_clients[bufnr] = client.id
         workspace.service_ready()
@@ -140,7 +149,9 @@ local function enable_lsp(opts)
           backend = query_backend.create(bufnr, client, opts.timeouts),
           objects = finder,
           activity_stream = activity_stream,
+          agent_timeout = opts.timeouts.agent,
         })
+        workspace.set_agent_backend(agent_backend.create(client, workspace))
         workspace_registry.attach(bufnr, workspace)
         workspace_clients[bufnr] = client.id
         apply_winbar(bufnr, opts)
@@ -209,6 +220,7 @@ local function set_auto_commands(opts)
           objects = finder,
           activity_stream = activity_stream,
           service_pending = true,
+          agent_timeout = opts.timeouts.agent,
         })
       )
       apply_winbar(bufnr, opts)
@@ -1003,7 +1015,118 @@ local function export_query_results_async(result_info, selection, result_bufnr)
   end
 end
 
-local command_handlers = {
+local function capture_plan(kind, buffer, opts)
+  local workspace = workspace_registry.get()
+  if not workspace then
+    utils.log_error("Open a connected SQL query buffer to capture an execution plan")
+    return
+  end
+  utils.try_resume(coroutine.create(function()
+    local request = opts and opts.request or (buffer and query_selection.buffer() or query_selection.current())
+    if workspace.get_state() == workspace_module.states.disconnected then
+      connect_to_default(workspace, plugin_opts)
+    end
+    clear_message_buffer()
+    await_public(function(callback)
+      public_api.execute({
+        bufnr = workspace.bufnr,
+        request = request,
+        plan = kind,
+        _present = function(execution)
+          local shown =
+            query_results.show(execution.result_sets, plugin_opts, workspace.bufnr, execution.dispose, execution.plans)
+          if #execution.plans == 0 then
+            utils.log_info("SQL Server returned no execution plan")
+          elseif shown and kind == "estimated" then
+            query_results.show_plan(execution.plans[1].ordinal, plugin_opts.open_results_in)
+          end
+          return shown
+        end,
+      }, callback)
+    end)
+  end))
+end
+
+local function choose_plan_async()
+  local current = vim.b.sqlserver_plan
+  local plans = query_results.execution_plans()
+  if #plans == 0 and current then
+    return current
+  end
+  if #plans == 0 then
+    utils.log_error("This execution has no captured plans")
+    return
+  end
+  if #plans == 1 then
+    return plans[1]
+  end
+  return utils.ui_select_async(plans, {
+    prompt = "Execution plan:",
+    format_item = require("sqlserver.plans.snapshot").title,
+  })
+end
+
+local command_handlers
+command_handlers = {
+  estimated_plan = function(opts)
+    capture_plan("estimated", false, opts)
+  end,
+  estimated_plan_buffer = function()
+    capture_plan("estimated", true)
+  end,
+  actual_plan = function(opts)
+    capture_plan("actual", false, opts)
+  end,
+  actual_plan_buffer = function()
+    capture_plan("actual", true)
+  end,
+  show_plans = function()
+    utils.try_resume(coroutine.create(function()
+      local plan = choose_plan_async()
+      if plan and not query_results.show_plan(plan.ordinal, plugin_opts.open_results_in) then
+        await_public(function(callback)
+          public_api.open_plan({ plan = plan }, callback)
+        end)
+      end
+    end))
+  end,
+  export_plan = function()
+    utils.try_resume(coroutine.create(function()
+      local plan = vim.b.sqlserver_plan or choose_plan_async()
+      if not plan then
+        return
+      end
+      local path = utils.ui_input_async({
+        prompt = "Export execution plan: ",
+        default = require("sqlserver.plans.files").suggest_name(plan),
+        completion = "file",
+      })
+      if not path or path == "" then
+        return
+      end
+      path = vim.fn.fnamemodify(path, ":p")
+      local overwrite = false
+      local existing = vim.uv.fs_lstat(path)
+      if existing then
+        if existing.type ~= "file" then
+          utils.log_error("Export path exists and is not a file: " .. path)
+          return
+        end
+        overwrite = utils.ui_select_async(
+          { "Overwrite", "Cancel" },
+          { prompt = "Export file already exists. Replace it?" }
+        ) == "Overwrite"
+        if not overwrite then
+          return
+        end
+      end
+      await_public(function(callback)
+        public_api.export_plan({ plan = plan, path = path, overwrite = overwrite }, callback)
+      end)
+      vim.api.nvim_echo({ { "Exported execution plan to " .. path } }, true, {})
+      utils.log_info("Exported " .. vim.fn.fnamemodify(path, ":t"))
+    end))
+  end,
   new_query = function()
     utils.try_resume(coroutine.create(function()
       new_query_async()
@@ -1194,6 +1317,19 @@ local command_handlers = {
     connection_info_ui.show(workspace)
   end,
 
+  show_jobs = function()
+    local workspace = workspace_registry.get()
+    if not workspace then
+      utils.log_error("No SQL Server workspace is attached to this buffer")
+      return
+    end
+    if workspace.get_state() ~= workspace_module.states.connected then
+      utils.log_error("Connect before viewing SQL Agent jobs")
+      return
+    end
+    command_handlers.object_explorer({ focus_target = "jobs" })
+  end,
+
   backup_database = function()
     local workspace = workspace_registry.get()
     if not workspace then
@@ -1291,6 +1427,11 @@ local command_handlers = {
     utils.log_info(("Copied %d rows × %d columns as HTML"):format(copied.rows, copied.columns))
   end,
 
+  show_query = function()
+    if not query_results.show_query() then
+      utils.log_error("Go to a query result buffer to show its source query")
+    end
+  end,
   show_results = function()
     local workspace = workspace_registry.get()
     local bufnr = workspace and workspace.bufnr or nil
@@ -1299,7 +1440,7 @@ local command_handlers = {
     end
   end,
 
-  object_explorer = function()
+  object_explorer = function(options)
     local workspace = workspace_registry.get()
     if not workspace then
       utils.log_error("No SQL Server workspace is attached to this buffer")
@@ -1309,7 +1450,7 @@ local command_handlers = {
       utils.log_error("You are currently " .. workspace.get_state())
       return
     end
-    if object_explorer.focus(workspace.bufnr) then
+    if object_explorer.focus(workspace.bufnr, options and options.focus_target) then
       return
     end
     utils.try_resume(coroutine.create(function()
@@ -1321,22 +1462,46 @@ local command_handlers = {
       if not session then
         return
       end
+      root = agent_tree.attach(root, (workspace.get_connection() or {}).server)
       local picker, picker_error = object_explorer.open({
         bufnr = workspace.bufnr,
         root = root,
+        focus_target = options and options.focus_target,
         picker = plugin_opts.ui.object_explorer,
         is_active = function()
+          local state = workspace.get_state()
           return workspace_registry.get(workspace.bufnr) == workspace
-            and workspace.get_state() == workspace_module.states.connected
+            and (
+              state == workspace_module.states.connected
+              or state == workspace_module.states.executing
+              or state == workspace_module.states.cancelling
+            )
         end,
         on_close = function()
           workspace.close_object_explorer_session(session)
+          workspace.close_agent_view("jobs")
+          workspace.close_agent_view("details")
         end,
         on_copy = function(text)
           vim.fn.setreg("+", text, "v")
         end,
         on_error = utils.log_error,
+        on_cancel_details = function()
+          workspace.cancel_agent_request("details")
+        end,
         on_expand = function(node, force, callback)
+          if node.agent_kind == "jobs" then
+            public_api.list_jobs({ bufnr = workspace.bufnr }, callback)
+            return
+          end
+          if node.agent_kind == "job" then
+            public_api.job_details({ bufnr = workspace.bufnr, job = node.job }, callback)
+            return
+          end
+          if node.agent_kind then
+            callback(nil, { message = "This Agent node cannot be expanded" })
+            return
+          end
           utils.try_resume(coroutine.create(function()
             local ok, children = pcall(
               workspace.expand_object_explorer_async,
@@ -1457,8 +1622,12 @@ local M = {
   cancel = public_api.cancel,
   refresh_objects = public_api.refresh_objects,
   list_objects = public_api.list_objects,
+  list_jobs = public_api.list_jobs,
+  job_details = public_api.job_details,
   script_object = public_api.script_object,
   export_results = public_api.export_results,
+  open_plan = public_api.open_plan,
+  export_plan = public_api.export_plan,
   status = status_ui.component,
   commands = command_handlers,
 }

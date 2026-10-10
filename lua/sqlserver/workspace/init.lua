@@ -28,6 +28,9 @@ function M.create(opts)
   local disposed = false
   local explorer_sessions = {}
   local active_object_script
+  local agent_backend = opts.agent
+  local agent_timeout = opts.agent_timeout == nil and 10000 or opts.agent_timeout
+  local agent_slots = {}
   local workspace
 
   local function emit(event)
@@ -112,8 +115,50 @@ function M.create(opts)
     end
   end
 
+  local cancel_agent_requests
   local function set_state(next_state)
+    if next_state == M.states.disconnected then
+      cancel_agent_requests(true)
+    end
     state = next_state
+  end
+
+  local function agent_slot(kind)
+    if not agent_slots[kind] then
+      agent_slots[kind] = { status = "idle", data = nil, error = nil, loading = false, generation = 0 }
+    end
+    return agent_slots[kind]
+  end
+
+  local function cancel_agent_slot(slot)
+    slot.generation = slot.generation + 1
+    local request = slot.request
+    slot.request = nil
+    slot.loading = false
+    if request then
+      local operation = operation_manager.operation(request.operation_id)
+      if operation then
+        operation.cancel({ phase = "cancelled", message = "SQL Agent request cancelled" })
+      end
+      if request.control.cancel then
+        request.control.cancel()
+      end
+    end
+    if slot.status == "loading" then
+      slot.status = slot.data and "ready" or "idle"
+    end
+  end
+
+  cancel_agent_requests = function(clear)
+    for _, slot in pairs(agent_slots) do
+      cancel_agent_slot(slot)
+      if clear then
+        slot.data = nil
+        slot.error = nil
+        slot.status = "idle"
+        slot.job = nil
+      end
+    end
   end
 
   local function object_script_control(operation_id)
@@ -204,6 +249,7 @@ function M.create(opts)
     if disposed then
       return false
     end
+    cancel_agent_requests(true)
     operation_manager.cancel_all({
       phase = "cancelled",
       message = "Operation cancelled because SQL Tools Service stopped",
@@ -252,6 +298,110 @@ function M.create(opts)
 
   function workspace.get_connection_info()
     return connection_info and vim.deepcopy(connection_info) or nil
+  end
+
+  function workspace.set_agent_backend(value, timeout)
+    agent_backend = value
+    if timeout ~= nil then
+      assert(timeout == false or (type(timeout) == "number" and timeout > 0), "Invalid SQL Agent timeout")
+      agent_timeout = timeout
+    end
+  end
+
+  function workspace.get_agent_state(kind)
+    assert(kind == "jobs" or kind == "details" or kind == "alerts", "Unknown SQL Agent state")
+    local slot = agent_slot(kind)
+    return vim.deepcopy({
+      status = slot.status,
+      data = slot.data,
+      error = slot.error,
+      loading = slot.loading,
+      job = slot.job,
+    })
+  end
+
+  function workspace.cancel_agent_request(kind)
+    assert(kind == "jobs" or kind == "details" or kind == "alerts", "Unknown SQL Agent request")
+    cancel_agent_slot(agent_slot(kind))
+  end
+
+  function workspace.close_agent_view(kind)
+    workspace.cancel_agent_request(kind)
+    agent_slots[kind] = nil
+  end
+
+  local function run_agent_request(kind, job)
+    local slot = agent_slot(kind)
+    cancel_agent_slot(slot)
+    if state ~= M.states.connected or not agent_backend then
+      local err = { code = "agent_not_connected", message = "Connect to SQL Server before inspecting SQL Agent" }
+      slot.error = err
+      slot.status = "error"
+      return nil, vim.deepcopy(err)
+    end
+    if kind == "details" then
+      if not (type(job) == "table" and type(job.id) == "string" and type(job.name) == "string") then
+        local err = { code = "agent_invalid_job", message = "Select a SQL Agent job before loading its details" }
+        slot.error = err
+        slot.status = "error"
+        return nil, vim.deepcopy(err)
+      end
+      if not slot.job or slot.job.id ~= job.id then
+        slot.data = nil
+      end
+      slot.job = { id = job.id, name = job.name }
+    end
+    local generation = slot.generation
+    local labels = { jobs = "jobs", details = "job details", alerts = "alerts" }
+    local label = labels[kind]
+    local operation_id =
+      begin_operation("agent", "SQL Agent " .. label, "Loading SQL Agent " .. label, "loading_" .. kind)
+    local control = {}
+    slot.request = { operation_id = operation_id, control = control }
+    slot.loading = true
+    slot.status = "loading"
+    slot.error = nil
+    local method = ({ jobs = "list_jobs_async", details = "get_job_details_async", alerts = "list_alerts_async" })[kind]
+    local ok, result
+    if kind == "details" then
+      ok, result = pcall(agent_backend[method], job, control, agent_timeout)
+    else
+      ok, result = pcall(agent_backend[method], control, agent_timeout)
+    end
+    if disposed or slot.generation ~= generation or state == M.states.disconnected then
+      return nil
+    end
+    slot.request = nil
+    slot.loading = false
+    local operation = operation_manager.operation(operation_id)
+    if not ok or type(result) ~= "table" then
+      local err = not ok
+          and type(result) == "table"
+          and result.code
+          and result.message
+          and { code = result.code, message = result.message }
+        or { code = "agent_request_failed", message = "Could not load SQL Agent " .. label }
+      slot.error = err
+      slot.status = slot.data and "ready" or "error"
+      operation.fail(err, { phase = "failed", message = err.message })
+      return nil, vim.deepcopy(err)
+    end
+    slot.data = vim.deepcopy(result)
+    slot.status = kind ~= "details" and #result == 0 and "empty" or "ready"
+    operation.succeed({ phase = "ready", message = "SQL Agent " .. label .. " loaded" })
+    return vim.deepcopy(slot.data)
+  end
+
+  function workspace.list_agent_jobs_async()
+    return run_agent_request("jobs")
+  end
+
+  function workspace.get_agent_job_details_async(job)
+    return run_agent_request("details", job)
+  end
+
+  function workspace.list_agent_alerts_async()
+    return run_agent_request("alerts")
   end
 
   local function complete_connection(operation_id)
@@ -405,6 +555,7 @@ function M.create(opts)
     if state ~= M.states.connected then
       error("You are currently " .. state, 0)
     end
+    cancel_agent_requests(true)
     local operation_id = begin_operation("connection", "SQL Server connection", "Disconnecting")
     local ok, err = pcall(backend.disconnect_async)
     if not ok then
@@ -506,6 +657,7 @@ function M.create(opts)
       return
     end
     disposed = true
+    cancel_agent_requests(true)
 
     if active_object_script then
       pcall(active_object_script.cancel)
@@ -534,6 +686,9 @@ function M.create(opts)
   end
 
   local function complete_query(operation_id, result)
+    if disposed or (state ~= M.states.executing and state ~= M.states.cancelling) then
+      return false
+    end
     if state == M.states.cancelling then
       if backend.dispose_query_async and result and result._sqlserver_query_id then
         pcall(backend.dispose_query_async, result._sqlserver_query_id)
@@ -584,6 +739,9 @@ function M.create(opts)
     local operation_id = begin_operation("query", "SQL Server query", "Executing query")
     set_state(M.states.executing)
     local ok, result = pcall(backend.execute_async, request)
+    if disposed then
+      return nil
+    end
     if state == M.states.cancelling then
       if backend.dispose_query_async and result and result._sqlserver_query_id then
         pcall(backend.dispose_query_async, result._sqlserver_query_id)
@@ -610,7 +768,7 @@ function M.create(opts)
     local lifecycle = {}
 
     function lifecycle.update(phase, message, details)
-      if finished or state ~= M.states.executing then
+      if finished or disposed or state ~= M.states.executing then
         return false
       end
       local operation = operation_manager.operation(operation_id)
@@ -626,7 +784,7 @@ function M.create(opts)
     end
 
     function lifecycle.fail(message, err)
-      if finished then
+      if finished or disposed then
         return false
       end
       finished = true
@@ -679,6 +837,12 @@ function M.create(opts)
 
   function workspace.fetch_result_rows_async(locator)
     return backend.fetch_result_rows_async(locator)
+  end
+
+  function workspace.fetch_execution_plans_async(completed, kind, timeout)
+    return backend.fetch_execution_plans_async(completed, kind, timeout, function()
+      return not disposed and state == M.states.executing
+    end)
   end
 
   function workspace.connection_changed_async(result)
