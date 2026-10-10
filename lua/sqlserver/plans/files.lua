@@ -1,6 +1,24 @@
 local snapshot = require("sqlserver.plans.snapshot")
 local M = {}
 
+function M.suggest_name(plan)
+  snapshot.validate(plan)
+  local source_name = ""
+  if plan.source_bufnr and vim.api.nvim_buf_is_valid(plan.source_bufnr) then
+    source_name = vim.api.nvim_buf_get_name(plan.source_bufnr)
+  end
+  local stem = vim.fn.fnamemodify(source_name, ":t:r"):gsub('[%c<>:"/\\|?*]', "_"):gsub("^%s+", ""):gsub("[%s.]+$", "")
+  if stem == "" then
+    stem = "query"
+  end
+  return string.format(
+    "%s-%s-plan-%d.sqlplan",
+    stem,
+    plan.kind == "estimated" and "estimated" or "actual",
+    plan.ordinal or 1
+  )
+end
+
 function M.save(plan, path, overwrite)
   snapshot.validate(plan)
   assert(type(path) == "string" and path ~= "", "An export path is required")

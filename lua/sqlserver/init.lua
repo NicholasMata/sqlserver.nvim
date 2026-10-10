@@ -1082,17 +1082,21 @@ local command_handlers = {
       end
     end))
   end,
-  save_plan = function()
+  export_plan = function()
     utils.try_resume(coroutine.create(function()
       local plan = vim.b.sqlserver_plan or choose_plan_async()
       if not plan then
         return
       end
-      local path =
-        utils.ui_input_async({ prompt = "Save execution plan: ", default = "plan.sqlplan", completion = "file" })
+      local path = utils.ui_input_async({
+        prompt = "Export execution plan: ",
+        default = require("sqlserver.plans.files").suggest_name(plan),
+        completion = "file",
+      })
       if not path or path == "" then
         return
       end
+      path = vim.fn.fnamemodify(path, ":p")
       local overwrite = false
       local existing = vim.uv.fs_lstat(path)
       if existing then
@@ -1111,7 +1115,8 @@ local command_handlers = {
       await_public(function(callback)
         public_api.export_plan({ plan = plan, path = path, overwrite = overwrite }, callback)
       end)
-      utils.log_info("Saved execution plan to " .. path)
+      vim.api.nvim_echo({ { "Exported execution plan to " .. path } }, true, {})
+      utils.log_info("Exported " .. vim.fn.fnamemodify(path, ":t"))
     end))
   end,
   new_query = function()

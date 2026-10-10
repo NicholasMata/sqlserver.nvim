@@ -251,6 +251,22 @@ T["Capture failure never presents partial plans and ends the operation"] = h.asy
   cleanup()
 end)
 
+T["Plan export suggests source-specific filenames with safe fallbacks"] = function()
+  local source = vim.api.nvim_create_buf(false, true)
+  vim.api.nvim_buf_set_name(source, vim.fn.tempname() .. "/sales report.sql")
+  local captured = plan("actual", 2)
+  captured.source_bufnr = source
+  assert(files.suggest_name(captured) == "sales report-actual-plan-2.sqlplan")
+  captured.kind = "estimated"
+  assert(files.suggest_name(captured) == "sales report-estimated-plan-2.sqlplan")
+  vim.api.nvim_buf_set_name(source, vim.fn.tempname() .. "/report:daily?.sql")
+  assert(files.suggest_name(captured) == "report_daily_-estimated-plan-2.sqlplan")
+  vim.api.nvim_buf_set_name(source, "")
+  assert(files.suggest_name(captured) == "query-estimated-plan-2.sqlplan")
+  vim.api.nvim_buf_delete(source, { force = true })
+  assert(files.suggest_name(captured) == "query-estimated-plan-2.sqlplan")
+end
+
 T["Plan export preserves exact XML and handles overwrite and write failures"] = function()
   local path = vim.fn.tempname() .. ".sqlplan"
   files.save(plan(), path)
@@ -403,7 +419,7 @@ T["Plan buffers inherit configured execution shortcuts without cell mappings"] =
   end
   local called = {}
   local handlers = {}
-  for _, name in ipairs({ "next_execution", "previous_execution", "show_query", "remove_result" }) do
+  for _, name in ipairs({ "next_execution", "previous_execution", "show_query", "remove_result", "export_plan" }) do
     handlers[name] = function()
       called[name] = true
     end
@@ -425,6 +441,27 @@ T["Plan buffers inherit configured execution shortcuts without cell mappings"] =
   end
   assert(called.next_execution and called.previous_execution and called.show_query and called.remove_result)
   assert(not mappings["Next SQL result cell"] and not mappings["Export SQL result"])
+  assert(mappings["Export SQL execution plan"].callback == handlers.export_plan)
+  local previous_which_key = package.loaded["which-key"]
+  local groups = {}
+  package.loaded["which-key"] = {
+    add = function(group)
+      groups[#groups + 1] = group
+    end,
+  }
+  require("sqlserver.ui.keymaps").set_keymaps("<leader>m", handlers)
+  vim.api.nvim_buf_call(transaction.bufnr, function()
+    local items = groups[1].expand()
+    local descriptions = vim.tbl_map(function(item)
+      return item.desc
+    end, items)
+    assert(vim.tbl_contains(descriptions, "Export Plan"))
+    assert(vim.tbl_contains(descriptions, "Next Execution") and vim.tbl_contains(descriptions, "Previous Execution"))
+    assert(not vim.tbl_contains(descriptions, "Show Results"))
+    assert(not vim.tbl_contains(descriptions, "Export Query Result"))
+    assert(#groups[2].expand() == 0)
+  end)
+  package.loaded["which-key"] = previous_which_key
   keymaps.setup("<leader>z", handlers)
   assert(vim.b[transaction.bufnr].sqlserver_result_keymap_prefix == "<leader>z")
   assert(not vim.tbl_contains(

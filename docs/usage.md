@@ -88,7 +88,7 @@ Capture plans from a connected SQL query buffer:
 | `ActualPlan` | Execute the statement or selection once and capture runtime plans alongside ordinary results |
 | `ActualPlanBuffer` | Execute the complete buffer once with runtime plans |
 | `ShowPlans` | Select and open a captured plan from the active retained execution |
-| `SavePlan` | Save the current plan, or select one from the active execution, as a `.sqlplan` file |
+| `ExportPlan` | Export the current plan, or select one from the active execution, as a `.sqlplan` file |
 
 These commands have no default prefix mapping. Run them as
 `:SQLServer EstimatedPlan`, for example, or map the corresponding functions
@@ -120,7 +120,9 @@ Actual capture initially shows ordinary rows when available; use `ShowPlans`
 or `]r`/`[r` to move between result and XML buffers.
 `NextExecution`/`PreviousExecution` also work from a plan buffer.
 Plan buffers use the configured result shortcuts for next/previous execution,
-returning to the source query, and removing the current buffer. XML cursor
+returning to the source query, and removing the current buffer. The result
+export shortcut (`<keymap_prefix>s`) exports the plan instead. WhichKey shows
+these plan actions rather than query commands or table-cell actions. XML cursor
 movement is unchanged; table-cell movement and export shortcuts do not apply.
 
 An estimated document may contain multiple statements. Actual plans can
@@ -135,9 +137,13 @@ saveable after a new query replaces service-side results or the connection
 is disconnected. Removing a plan buffer, evicting its execution, or deleting
 the source clears its retained view.
 
-`SavePlan` prompts for a filename ending in `.sqlplan` and confirms replacement
+`ExportPlan` suggests a filename using the source query, plan kind, and plan
+number, such as `report-actual-plan-1.sqlplan`. Unnamed or unavailable sources
+use `query` as the filename stem. It confirms replacement
 of an existing file. Export writes the original captured XML as UTF-8 without
 formatting, table serialization, or truncation, and never reruns SQL.
+The notification shows the exported filename; `:messages` records the full
+destination path.
 Retrieval uses `timeouts.export`; query execution uses `timeouts.query`.
 `CancelOperation` cancels execution or plan collection.
 

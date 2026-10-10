@@ -21,7 +21,7 @@ local function available_commands(handlers)
     ActualPlan = handlers.actual_plan,
     ActualPlanBuffer = handlers.actual_plan_buffer,
     ShowPlans = handlers.show_plans,
-    SavePlan = handlers.save_plan,
+    ExportPlan = handlers.export_plan,
     RefreshCache = handlers.refresh_cache,
     EditConnections = handlers.edit_connections,
     SwitchDatabase = handlers.switch_database,
@@ -50,7 +50,7 @@ local function get_items()
     return {
       "ShowQuery",
       "ShowPlans",
-      "SavePlan",
+      "ExportPlan",
       "ShowResults",
       "NextResult",
       "PreviousResult",

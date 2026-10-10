@@ -109,7 +109,9 @@ local function attach_configured(prefix, handlers, bufnr)
     { "d", handlers.remove_result, "Remove SQL result" },
     { "o", handlers.show_query, "Show source SQL query" },
   }
-  if not is_plan then
+  if is_plan then
+    table.insert(mappings, { "s", handlers.export_plan, "Export SQL execution plan" })
+  else
     table.insert(mappings, { "s", handlers.export_query_results, "Export SQL result" })
   end
   for _, mapping in ipairs(mappings) do
@@ -164,6 +166,16 @@ function M.which_key_items(handlers)
     { "p", handlers.previous_execution, desc = "Previous Execution" },
     { "o", handlers.show_query, desc = "Show Query" },
     { "d", handlers.remove_result, desc = "Remove Result", icon = { icon = "󰆴", color = "red" } },
+  }
+end
+
+function M.which_key_plan_items(handlers)
+  return {
+    { "s", handlers.export_plan, desc = "Export Plan", icon = { icon = "", color = "green" } },
+    { "n", handlers.next_execution, desc = "Next Execution" },
+    { "p", handlers.previous_execution, desc = "Previous Execution" },
+    { "o", handlers.show_query, desc = "Show Query" },
+    { "d", handlers.remove_result, desc = "Remove Plan", icon = { icon = "󰆴", color = "red" } },
   }
 end
 

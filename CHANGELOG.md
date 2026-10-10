@@ -35,6 +35,9 @@ later releases.
   counter for table results and plans, followed by the execution counter.
 - Support configured execution navigation, source-query restoration, and
   removal shortcuts in plan buffers without changing XML cursor movement.
+- Show plan actions in WhichKey and use `ExportPlan` or the result export
+  shortcut to export the original XML as `.sqlplan`, suggesting a filename
+  based on the source query, plan kind, and plan number.
 
 ### Fixed
 
