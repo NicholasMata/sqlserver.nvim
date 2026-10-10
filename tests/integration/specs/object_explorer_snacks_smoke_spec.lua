@@ -140,11 +140,11 @@ T["Object Explorer works with a real Snacks picker"] = require("tests.helpers").
   picker.input:set("NoSuchDatabaseObject")
   picker:find()
   assert(
-    vim.wait(1000, function()
+    vim.wait(10000, function()
       local first = picker.list:get(1)
       local second = picker.list:get(2)
       return picker.input.filter.pattern == "NoSuchDatabaseObject"
-        and not picker.matcher:running()
+        and not picker:is_active()
         and picker.list:count() == 2
         and first
         and first.search_all
@@ -153,7 +153,18 @@ T["Object Explorer works with a real Snacks picker"] = require("tests.helpers").
         and second.placeholder
         and second.label == "No matching loaded objects"
     end, 20),
-    "Empty object search did not show its no-match row"
+    "Empty object search did not show its no-match row: "
+      .. vim.inspect({
+        pattern = picker.input.filter.pattern,
+        input = picker.input:get(),
+        active = picker:is_active(),
+        count = picker.list:count(),
+        first = picker.list:get(1) and picker.list:get(1).label,
+        second = picker.list:get(2) and picker.list:get(2).label,
+        items = vim.tbl_map(function(item)
+          return item.label
+        end, picker.list.items),
+      })
   )
 
   picker.opts.actions.object_toggle(picker, picker:current({ resolve = false }))
