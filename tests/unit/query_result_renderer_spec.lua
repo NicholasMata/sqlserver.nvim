@@ -172,6 +172,43 @@ T["Result renderer preserves models and describes truncation"] = require("tests.
     end)
     :totable()
   assert(#null_highlights == 1, "Only database NULL should receive null highlighting")
+  for _, decoration in ipairs(rendered.decorations) do
+    if decoration.highlight == "SqlServerResultTruncated" then
+      local line = rendered.lines[decoration.line + 1]
+      if decoration.end_col == -1 then
+        assert(line == "Showing 3 of 5 rows", "Row-limit warnings should remain highlighted")
+      else
+        assert(line:sub(decoration.start_col + 1, decoration.end_col) == "…")
+      end
+    end
+  end
 end)
+
+T["Clipping colors only its marker with Unicode and narrow columns"] = function()
+  local model = query_result.create({
+    columns = { "Payload", "Literal" },
+    rows = {
+      {
+        result_cell.create({ display_value = "界😀abcdef" }),
+        result_cell.create({ display_value = "…" }),
+      },
+    },
+    row_count = 1,
+    locator = {},
+  })
+  for _, width in ipairs({ 1, 6 }) do
+    local rendered = renderer.render(model, { max_cell_width = width })
+    local warnings = vim.tbl_filter(function(decoration)
+      return decoration.highlight == "SqlServerResultTruncated"
+    end, rendered.decorations)
+    assert(#warnings == 1, "An ellipsis in the original value is not a clipping warning")
+    local warning = warnings[1]
+    assert(warning.line == 2)
+    local value = width == 1 and "…" or "界😀a…"
+    assert(rendered.lines[3]:sub(1, #value) == value)
+    assert(warning.start_col == #value - #"…" and warning.end_col == #value)
+  end
+  assert(model.rows[1][1].display_value == "界😀abcdef")
+end
 
 return T

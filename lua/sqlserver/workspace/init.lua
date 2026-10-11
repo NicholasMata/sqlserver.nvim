@@ -835,8 +835,8 @@ function M.create(opts)
     error("There is no cancellable operation in the current buffer", 0)
   end
 
-  function workspace.fetch_result_rows_async(locator)
-    return backend.fetch_result_rows_async(locator)
+  function workspace.fetch_result_rows_async(locator, columns)
+    return backend.fetch_result_rows_async(locator, columns)
   end
 
   function workspace.fetch_execution_plans_async(completed, kind, timeout)

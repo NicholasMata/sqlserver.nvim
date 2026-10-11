@@ -57,6 +57,8 @@ execution while keeping protocol, workspace, result, and UI concerns separate.
 - Cancel active queries and inspect persistent workspace activity.
 - Revisit recent executions and navigate their result sets in dedicated
   `sqlserver-result` buffers.
+- Inspect any retained result cell in a read-only float or regular buffer, with XML/JSON
+  filetypes, configured formatting, and exact original-value copying.
 - Open CSV, JSON, and XML exports as editable buffers, or save Excel `.xlsx`.
 - Copy selected result ranges as rich HTML tables for apps such as Teams.
 - Display workspace state and result-history position in a configurable winbar.

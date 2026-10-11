@@ -37,6 +37,22 @@ local function available_commands(handlers)
     PreviousExecution = handlers.previous_execution,
     RemoveResult = handlers.remove_result,
     CopyResultCell = handlers.copy_result_cell,
+    InspectCell = handlers.inspect_result_cell,
+    InspectCellBuffer = handlers.inspect_result_cell_buffer,
+    InspectCellXml = handlers.inspect_result_cell_xml,
+    InspectCellJson = handlers.inspect_result_cell_json,
+    ToggleCellFormat = function()
+      require("sqlserver.results.ui.inspection").perform("format")
+    end,
+    OpenCellBuffer = function()
+      require("sqlserver.results.ui.inspection").perform("open")
+    end,
+    CloseCellInspector = function()
+      require("sqlserver.results.ui.inspection").perform("close")
+    end,
+    CellInfo = function()
+      require("sqlserver.results.ui.inspection").perform("info")
+    end,
     Find = handlers.find_object,
     ObjectDefinition = handlers.show_object_definition,
     ObjectExplorer = handlers.object_explorer,
@@ -47,7 +63,9 @@ end
 
 local function get_items()
   local workspace = workspace_registry.get()
-  if vim.b.sqlserver_plan_info then
+  if vim.b.sqlserver_cell_info then
+    return { "ToggleCellFormat", "OpenCellBuffer", "CloseCellInspector", "CellInfo" }
+  elseif vim.b.sqlserver_plan_info then
     return {
       "ShowQuery",
       "ShowPlans",
@@ -71,6 +89,10 @@ local function get_items()
       "PreviousExecution",
       "RemoveResult",
       "CopyResultCell",
+      "InspectCell",
+      "InspectCellBuffer",
+      "InspectCellXml",
+      "InspectCellJson",
       "ShowQuery",
       "ShowPlans",
     }

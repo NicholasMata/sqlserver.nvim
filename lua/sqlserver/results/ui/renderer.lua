@@ -135,7 +135,7 @@ function M.render(result_set, opts)
       if truncated[row_index][column_index] then
         table.insert(decorations, {
           line = row_index + 1,
-          start_col = start_col,
+          start_col = end_col - #"…",
           end_col = end_col,
           highlight = "SqlServerResultTruncated",
         })

@@ -198,3 +198,41 @@ be visible to the user, and destructive execution must be explicit.
   behavior that depends on SQL Tools Service or SQL Server.
 - Prefer coherent `sqlserver.nvim` behavior over compatibility shims for the
   inherited `mssql.nvim` implementation.
+
+## Retained cell inspection
+
+`results/inspection` describes an immutable cell presentation and controls
+copying of its original representation. `results/ui/inspection` owns the
+focused float or regular listed buffer, formatting, window resizing, mappings,
+and cleanup. Raw and formatted lines are cached separately so toggling or
+promoting a float preserves the snapshot without rerunning formatting. Inspection
+reads retained models and does not consult service locators, including after
+disconnect or query replacement. It is separate from Showplan capture.
+
+SQL Tools Service `6.0.20260902.1` returns cached representations through
+[`ResultSet.GetSubset`](https://github.com/microsoft/sqltoolsservice/blob/6.0.20260902.1/src/Microsoft.SqlTools.ServiceLayer/QueryExecution/ResultSet.cs).
+Its [`storage writer`](https://github.com/microsoft/sqltoolsservice/blob/6.0.20260902.1/src/Microsoft.SqlTools.ServiceLayer/QueryExecution/DataStorage/ServiceBufferFileStreamWriter.cs)
+discards long-value tails at the configured `MaxCharsToStore` /
+`MaxXmlCharsToStore` thresholds before subset retrieval. The cell contract has
+no truncation flag. The adapter records `possibly_truncated` at or above the
+threshold rather than promising completeness, and no inspection path retries
+SQL. Integration fixtures characterize 60,003-character retained text,
+65,535-character clipped text, 70,013-character native XML, and XML at the
+2,097,152-character storage boundary (the pinned XML writer can return one
+additional character). Both the representation and its completeness survive
+history retention; the inspector refuses to copy unavailable content as a
+complete original.
+
+For top-level `FOR JSON` and `FOR XML` text results, the service concatenates
+cached chunks into one subset cell. The adapter recognizes the service's
+special single-column names and applies storage limits to the SQL Server
+chunks (2033 UTF-16 units), rather than to the combined document. Low custom
+limits that could clip a chunk remain conservative; native XML values,
+including `FOR XML TYPE`, retain scalar limits. Integration fixtures cover
+70,016-character JSON and 2,200,030-character XML documents beyond scalar limits.
+The service's `isJson` column flag is a first-row hint, so inspection detects
+JSON objects and arrays per selected text cell instead of trusting it as a type.
+Single-column FOR documents retain a separate `aggregate_format` identity.
+This keeps large `FOR JSON` values in JSON buffers above the content detection
+limit, with explicit validation/formatting skip feedback instead of silently
+falling back to plain text.

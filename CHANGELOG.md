@@ -13,6 +13,20 @@ later releases.
 
 ### Added
 
+- Highlight only the trailing ellipsis in clipped result cells so the value
+  keeps its normal color before opening the cell inspector.
+
+- Open cell values in regular buffers with `InspectCellBuffer` or the result
+  prefix plus `V`; use the plugin prefix plus `o` to promote floats and `f`
+  to toggle raw/formatted content. The inspector menu shows only cell actions
+  and preserves native Vim keys except `q` and Escape for closing. Use standard
+  selection and yanking in either view.
+- Inspect result cells with Enter, the result-local prefix plus `v`, or
+  `InspectCell`, with explicit XML/JSON commands and the `inspect_cell()` Lua
+  API. Focused read-only floats preserve original values for copying, report
+  SQL NULL/empty values and service storage limits, and follow retained-result
+  ownership. Configured Neovim formatting affects presentation only.
+
 - Add read-only SQL Agent Jobs to Object Explorer and a callback API for
   jobs. Inspect steps, schedules, and linked alerts in a scrollable Job
   Properties window, and search job history in a separate picker that opens
@@ -45,6 +59,11 @@ later releases.
   based on the source query, plan kind, and plan number.
 
 ### Fixed
+
+- Keep concatenated `FOR JSON` / `FOR XML` results copyable beyond scalar
+  storage limits and detect JSON per text cell instead of using a first-row
+  hint. Preserve JSON filetype and skip feedback for `FOR JSON` above 1 MiB.
+  Failed cell-float promotion restores focus and scratch-buffer cleanup.
 
 - Filter `:SQLServer` command completion by the typed prefix, ignoring case
   while preserving context-sensitive suggestions and command capitalization.

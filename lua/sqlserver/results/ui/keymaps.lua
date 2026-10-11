@@ -1,6 +1,6 @@
 local M = {}
 
-local configured_suffixes = { "s", "n", "p", "d", "y", "o" }
+local configured_suffixes = { "s", "n", "p", "d", "y", "o", "v", "V" }
 local cell_navigation = true
 local configured_prefix
 local configured_handlers
@@ -64,6 +64,16 @@ function M.attach(bufnr)
       end,
       "Previous SQL result column",
     },
+    {
+      "<CR>",
+      function()
+        local ok, err = pcall(view.inspect_cell)
+        if not ok then
+          vim.notify(type(err) == "table" and err.message or tostring(err), vim.log.levels.WARN)
+        end
+      end,
+      "Inspect SQL result cell",
+    },
     { "K", view.show_column_info, "Show SQL result column type" },
     { "yic", view.copy_cell, "Yank complete SQL result cell" },
   }
@@ -112,6 +122,8 @@ local function attach_configured(prefix, handlers, bufnr)
   if is_plan then
     table.insert(mappings, { "s", handlers.export_plan, "Export SQL execution plan" })
   else
+    table.insert(mappings, { "v", handlers.inspect_result_cell, "Inspect SQL result cell" })
+    table.insert(mappings, { "V", handlers.inspect_result_cell_buffer, "Open SQL result cell in buffer" })
     table.insert(mappings, { "s", handlers.export_query_results, "Export SQL result" })
   end
   for _, mapping in ipairs(mappings) do
@@ -161,6 +173,8 @@ end
 
 function M.which_key_items(handlers)
   return {
+    { "v", handlers.inspect_result_cell, desc = "Inspect Cell" },
+    { "V", handlers.inspect_result_cell_buffer, desc = "Open Cell in Buffer" },
     { "s", handlers.export_query_results, desc = "Export Query Result", icon = { icon = "", color = "green" } },
     { "n", handlers.next_execution, desc = "Next Execution" },
     { "p", handlers.previous_execution, desc = "Previous Execution" },

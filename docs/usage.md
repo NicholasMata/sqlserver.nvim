@@ -220,6 +220,9 @@ enabled, result values remain checked while the column header is excluded.
 | Normal | `<keymap_prefix>o` | `ShowQuery` | Focus or restore the source query |
 | Normal, Visual | `]c` | — | Move to the next result column |
 | Normal, Visual | `[c` | — | Move to the previous result column |
+| Normal | `<CR>` / `<keymap_prefix>v` | `InspectCell` | Inspect the selected cell in a focused float |
+| Normal | `<keymap_prefix>V` | `InspectCellBuffer` | Open the selected cell in a regular read-only buffer |
+| Normal | — | `InspectCellXml` / `InspectCellJson` | Inspect with an explicit XML or JSON filetype |
 | Normal | `K` | — | Inspect the current column's SQL type and metadata |
 | Normal | `yic` | `CopyResultCell` | Yank the complete value under the cursor |
 | Normal | `<keymap_prefix>d` | `RemoveResult` | Remove the current result after confirmation |
@@ -227,7 +230,6 @@ enabled, result values remain checked while the column header is excluded.
 | Visual | `<keymap_prefix>s` | `ExportQueryResults` | Export the selected rows and columns |
 | Visual | `<keymap_prefix>y` | — | Copy the selected cells as a rich HTML table |
 | Normal | `vic` | — | Select the current cell's rendered contents |
-| Normal | — | `CopyResultCell` | Copy the complete value under the cursor |
 
 Normal-mode cell motions accept Vim counts, keep the current column while
 moving between rows, and skip the rendered header divider. Vertical movement
@@ -243,6 +245,71 @@ even when the displayed cell is truncated. It follows normal Vim register
 selection: use `"+yic` for the system clipboard, `"*yic` for the primary
 selection, or a prefix such as `"ayic` for a named register. Plain `yic` uses
 the unnamed register and follows the user's `clipboard` option.
+
+Press Enter on any result cell to open its retained representation in a
+read-only float. Use normal text movement and scrolling; `q` or Escape closes
+it and restores the originating cell when that result window still exists.
+`<keymap_prefix>o` opens the same value in a regular buffer, preserving its current presentation
+and cursor. From the results grid, use `<keymap_prefix>V` or
+`:SQLServer InspectCellBuffer` to open directly in a regular buffer. Both paths
+use `open_results_in`, including custom presenters and Vim split direction preferences. These listed
+buffers remain available after closing their window; `q` or Escape deletes
+them. If presentation reuses an existing window, closing restores its previous
+buffer and view instead of closing that window. Both views support normal
+Visual selection and yank commands.
+The title shows the column and row. Use `:SQLServer CellInfo`
+for the source query, execution, result, full status, and key reference.
+A status line appears only for NULL/empty values, availability warnings, or
+formatting/validation problems.
+The float sizes to the displayed content, including wrapped lines, with a
+minimum viewport of 72 columns by 8 rows when space permits. It grows to at
+most 90% of the editor width and available height, including its border, and
+stays above the command area when resizing. Larger values scroll within that
+limit. It closes when its result or source is removed from retained history. Regular cell buffers follow the same ownership.
+Spell checking is disabled in both views.
+
+Inside either cell view, the plugin-prefix menu shows only cell actions: `f`
+toggles raw/formatted when available and `o` opens a float in a regular buffer.
+Native Vim keys remain
+unmapped except `q` and Escape for closing. Without a configured prefix, use
+`:SQLServer ToggleCellFormat`, `:SQLServer OpenCellBuffer`,
+`:SQLServer CellInfo`, and `:SQLServer CloseCellInspector`.
+
+Ordinary values use `text`. Native XML/JSON metadata selects the corresponding
+filetype; valid JSON objects and arrays in text columns are detected. Text that
+looks like XML, malformed JSON, and ambiguous JSON scalars remain plain text.
+The service's first-row JSON hint does not force later text cells to use JSON.
+Use `:SQLServer InspectCellXml` or `:SQLServer InspectCellJson` to select a
+format explicitly. XML validation is left to configured tools; malformed XML
+remains accessible as raw content.
+
+XML/JSON presentation uses the buffer's configured `formatexpr` or `formatprg`
+through Neovim's formatting operator. No formatter is required. A failed
+formatter restores raw content; `<keymap_prefix>f` toggles between the original and the cached
+formatted display in either view without rerunning the formatter. Use `yic`
+from the results grid to copy the complete original, including Unicode,
+newlines, and trailing newlines, regardless of presentation. SQL NULL has no
+textual original and produces feedback instead of copying a misleading string; empty strings
+copy as empty strings, and explicit JSON `null` remains distinct from SQL NULL.
+
+Grid clipping (`max_cell_width`) colors only the trailing `…` warning marker
+and does not clip retained values. The pinned
+service's storage limits are separate: long text and binary default to 65,535
+UTF-16 code units / bytes, and native XML to 2,097,152 UTF-16 code units. Values
+at those limits are conservatively marked potentially truncated, including
+values whose actual length happens to equal the limit. Discarded content cannot
+be recovered through the service's stored results. Copying a complete original
+is refused for these values. Top-level `FOR JSON` / `FOR XML` text results join
+multiple stored chunks and can exceed these scalar limits while remaining
+complete. Custom limits small enough to clip individual chunks still produce
+a warning. Native `FOR XML TYPE` values retain the scalar XML limit.
+`FOR JSON` documents retain JSON filetype above the 1 MiB detection limit,
+with explicit feedback that validation and formatting were skipped.
+Inspection never executes SQL or fetches an
+expired locator; complete retained values work after newer queries and
+disconnects. Binary inspection shows the service's representation (usually
+hex), without decoding bytes. Inspection is limited to 8 MiB per value and
+formatting/JSON validation to 1 MiB, with explicit feedback when skipped.
 
 In contrast, `vic` selects only the rendered text, without column padding or
 separators; an empty cell selects its first padding space because Visual mode
