@@ -232,7 +232,7 @@ Omit row/column to inspect the current cursor cell. Supply both for a result
 buffer that is not current. This presentation operation reads retained result
 cells, never reruns SQL, and does not require a connection or a live result
 locator. Both presentations are owned by the retained result and source buffers.
-Regular cell buffers are listed and survive closing their window; Escape
+Regular cell buffers are listed and survive closing their window; `q` or Escape
 deletes them. The plugin prefix plus `f` toggles raw/formatted content; prefix
 plus `o` promotes a float to a
 regular buffer without changing the displayed value.

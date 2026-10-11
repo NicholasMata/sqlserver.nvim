@@ -202,6 +202,7 @@ function M.open(snapshot, context, opts)
     if floating then
       config = geometry(bufnr, notice)
       config.title = " Cell value "
+      config.title_pos = "center"
       winid = vim.api.nvim_open_win(bufnr, true, config)
     else
       winid = present_buffer()
@@ -274,7 +275,7 @@ function M.open(snapshot, context, opts)
           label,
           status,
           "",
-          "Esc / :SQLServer CloseCellInspector  Close and return to results",
+          "q / Esc / :SQLServer CloseCellInspector  Close and return to results",
           can_toggle and ":SQLServer ToggleCellFormat  Toggle raw / formatted content"
             or "No alternative formatted representation available",
           floating and ":SQLServer OpenCellBuffer  Open in a regular buffer"
@@ -358,6 +359,7 @@ function M.open(snapshot, context, opts)
     inspectors[bufnr] = { actions = actions, items = items, attach = attach }
     attach()
     vim.keymap.set("n", "<Esc>", close, { buffer = bufnr, desc = "Close cell inspector" })
+    vim.keymap.set("n", "q", close, { buffer = bufnr, desc = "Close cell inspector" })
     vim.api.nvim_create_autocmd("VimResized", {
       group = group,
       callback = function()

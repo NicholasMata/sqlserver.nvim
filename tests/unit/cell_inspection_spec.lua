@@ -166,7 +166,7 @@ T["Cell inspector focuses resizes returns and follows result ownership"] = funct
   assert(vim.b[opened.bufnr].sqlserver_cell_info.row == 1)
   vim.api.nvim_exec_autocmds("VimResized", {})
   assert(vim.api.nvim_win_get_width(opened.winid) <= vim.o.columns)
-  require("sqlserver.results.ui.inspection").perform("close")
+  vim.fn.maparg("q", "n", false, true).callback()
   assert(not vim.api.nvim_buf_is_valid(opened.bufnr))
   assert(
     vim.api.nvim_get_current_win() == origin and vim.api.nvim_get_current_buf() == result,
@@ -336,7 +336,7 @@ T["Cells open in regular buffers and floats promote without losing their present
     mappings[mapping.lhs] = true
   end
   assert(not mappings.yic and not mappings.o)
-  require("sqlserver.results.ui.inspection").perform("close")
+  vim.fn.maparg("q", "n", false, true).callback()
   assert(vim.api.nvim_get_current_win() == origin)
   assert(not vim.api.nvim_buf_is_valid(opened.bufnr))
   vim.api.nvim_buf_delete(source, { force = true })
@@ -366,9 +366,10 @@ T["Inspector plugin menu replaces unrelated actions and preserves native command
     end
     assert(keys.o and not keys.q and not keys.i and not keys.f and not keys.n and not keys.d and not keys.v)
     assert(#menus[2].expand() == 0)
-    for _, key in ipairs({ "R", "o", "q", "?", "f" }) do
+    for _, key in ipairs({ "R", "o", "?", "f" }) do
       assert(vim.fn.maparg(key, "n") == "", "Inspector should preserve native " .. key)
     end
+    assert(vim.fn.maparg("q", "n", false, true).buffer == 1)
     assert(vim.fn.maparg("\\mo", "n", false, true).buffer == 1)
     ui.setup_keymaps("\\s")
     assert(vim.fn.maparg("\\mo", "n") == "")

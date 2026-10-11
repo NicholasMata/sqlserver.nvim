@@ -247,14 +247,14 @@ selection, or a prefix such as `"ayic` for a named register. Plain `yic` uses
 the unnamed register and follows the user's `clipboard` option.
 
 Press Enter on any result cell to open its retained representation in a
-read-only float. Use normal text movement and scrolling; Escape closes
+read-only float. Use normal text movement and scrolling; `q` or Escape closes
 it and restores the originating cell when that result window still exists.
 `<keymap_prefix>o` opens the same value in a regular buffer, preserving its current presentation
 and cursor. From the results grid, use `<keymap_prefix>V` or
 `:SQLServer InspectCellBuffer` to open directly in a regular buffer. Both paths
 use `open_results_in`, including custom presenters and Vim split direction preferences. These listed
-buffers remain available after closing their window; Escape deletes
-them. If presentation reuses an existing window, Escape restores its previous
+buffers remain available after closing their window; `q` or Escape deletes
+them. If presentation reuses an existing window, closing restores its previous
 buffer and view instead of closing that window. Both views support normal
 Visual selection and yank commands.
 The title shows the column and row. Use `:SQLServer CellInfo`
@@ -271,7 +271,7 @@ Spell checking is disabled in both views.
 Inside either cell view, the plugin-prefix menu shows only cell actions: `f`
 toggles raw/formatted when available and `o` opens a float in a regular buffer.
 Native Vim keys remain
-unmapped except Escape for closing. Without a configured prefix, use
+unmapped except `q` and Escape for closing. Without a configured prefix, use
 `:SQLServer ToggleCellFormat`, `:SQLServer OpenCellBuffer`,
 `:SQLServer CellInfo`, and `:SQLServer CloseCellInspector`.
 

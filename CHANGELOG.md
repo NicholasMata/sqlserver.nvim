@@ -19,7 +19,8 @@ later releases.
 - Open cell values in regular buffers with `InspectCellBuffer` or the result
   prefix plus `V`; use the plugin prefix plus `o` to promote floats and `f`
   to toggle raw/formatted content. The inspector menu shows only cell actions
-  and preserves native Vim keys. Use standard selection and yanking in either view.
+  and preserves native Vim keys except `q` and Escape for closing. Use standard
+  selection and yanking in either view.
 - Inspect result cells with Enter, the result-local prefix plus `v`, or
   `InspectCell`, with explicit XML/JSON commands and the `inspect_cell()` Lua
   API. Focused read-only floats preserve original values for copying, report
