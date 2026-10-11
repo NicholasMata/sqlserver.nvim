@@ -17,6 +17,7 @@ function M.describe(result, max_rows)
         and result_set.specialAction.expectYukonXMLShowPlan == true
       if not is_plan and #(result_set.columnInfo or {}) > 0 and not (batch.hasError and result_set.rowCount == 0) then
         local column_metadata = vim.iter(result_set.columnInfo or {}):map(result_column.from_protocol):totable()
+        column_metadata[1].aggregate_format = result_column.aggregate_format(column_metadata)
         table.insert(descriptors, {
           columns = vim
             .iter(column_metadata)

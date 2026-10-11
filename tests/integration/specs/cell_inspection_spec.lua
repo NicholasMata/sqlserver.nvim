@@ -169,4 +169,57 @@ SELECT payload FROM (VALUES
   end
 )
 
+T["Cell inspection keeps FOR JSON identity above the validation limit"] = require("tests.helpers").async(function()
+  local source = vim.api.nvim_get_current_buf()
+  local result = integration.await(function(callback)
+    sqlserver.execute({
+      scope = "buffer",
+      bufnr = source,
+      text = "SELECT REPLICATE(CAST(N'x' AS nvarchar(max)), 1100000) AS payload FOR JSON PATH;",
+    }, callback)
+  end)
+  local set = result.result_sets[1]
+  local value = set.rows[1][1]
+  local expected = '[{"payload":"' .. string.rep("x", 1100000) .. '"}]'
+  assert(value.display_value == expected and value.completeness == "complete")
+  assert(set.column_metadata[1].aggregate_format == "json")
+  local snapshot = require("sqlserver.results.inspection").create(value, set.column_metadata[1])
+  assert(snapshot.filetype == "json" and snapshot.notice:find("validation skipped", 1, true))
+  assert(require("sqlserver.results.inspection").copy(snapshot, "a") and vim.fn.getreg("a") == expected)
+  local calls = 0
+  _G.sqlserver_test_large_json_format = function()
+    calls = calls + 1
+    return 0
+  end
+  local group = vim.api.nvim_create_augroup("test-large-json-format", { clear = true })
+  vim.api.nvim_create_autocmd("FileType", {
+    group = group,
+    pattern = "json",
+    callback = function()
+      vim.bo.formatexpr = "v:lua.sqlserver_test_large_json_format()"
+    end,
+  })
+  local ok, err = pcall(function()
+    view.show(result.result_sets, {
+      results = { max_cell_width = 10, history_limit = 2 },
+      open_results_in = function(buf)
+        vim.api.nvim_set_current_buf(buf)
+      end,
+    }, source)
+    local opened = view.inspect_cell({ row = 1, column = 1 })
+    assert(vim.bo[opened.bufnr].filetype == "json")
+    assert(opened.status:find("JSON validation skipped", 1, true))
+    assert(opened.status:find("formatting skipped", 1, true))
+    assert(vim.wo[opened.winid].winbar:find("validation skipped", 1, true))
+    assert(calls == 0, "Large JSON should retain its filetype without invoking a formatter")
+    assert(vim.api.nvim_buf_get_lines(opened.bufnr, 0, -1, false)[1] == expected)
+    require("sqlserver.results.ui.inspection").perform("close")
+  end)
+  _G.sqlserver_test_large_json_format = nil
+  vim.api.nvim_del_augroup_by_id(group)
+  view.clear(source)
+  vim.api.nvim_set_current_buf(source)
+  assert(ok, err)
+end)
+
 return T

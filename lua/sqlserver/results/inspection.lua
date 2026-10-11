@@ -24,9 +24,9 @@ function M.create(cell, column, format)
     local kind = (column.type_name or ""):lower()
     if format then
       filetype = format
-    elseif kind == "xml" or column.is_xml then
+    elseif kind == "xml" or column.is_xml or column.aggregate_format == "xml" then
       filetype = "xml"
-    elseif kind == "json" then
+    elseif kind == "json" or column.aggregate_format == "json" then
       filetype = "json"
     -- The service's is_json hint comes from row zero for text columns.
     -- Detect each selected object/array independently instead.

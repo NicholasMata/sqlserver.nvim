@@ -61,14 +61,7 @@ function M.get_result_rows_async(locator, columns)
   -- units, so the aggregate length is not a per-cell storage boundary.
   -- Keep low custom storage limits conservative: individual chunks may
   -- have been clipped before concatenation and cannot be recovered.
-  local aggregate = columns
-    and #columns == 1
-    and (columns[1].type_name or ""):lower() ~= "xml"
-    and (columns[1].type_name or ""):lower() ~= "json"
-    and (
-      columns[1].name == "JSON_F52E2B61-18A1-11d1-B105-00805F49916B"
-      or columns[1].name == "XML_F52E2B61-18A1-11d1-B105-00805F49916B"
-    )
+  local aggregate = require("sqlserver.results.column").aggregate_format(columns or {})
   return vim
     .iter(result.resultSubset.rows)
     :map(function(row)

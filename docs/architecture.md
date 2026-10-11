@@ -232,3 +232,7 @@ including `FOR XML TYPE`, retain scalar limits. Integration fixtures cover
 70,016-character JSON and 2,200,030-character XML documents beyond scalar limits.
 The service's `isJson` column flag is a first-row hint, so inspection detects
 JSON objects and arrays per selected text cell instead of trusting it as a type.
+Single-column FOR documents retain a separate `aggregate_format` identity.
+This keeps large `FOR JSON` values in JSON buffers above the content detection
+limit, with explicit validation/formatting skip feedback instead of silently
+falling back to plain text.

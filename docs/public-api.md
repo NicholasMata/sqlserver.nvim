@@ -248,3 +248,7 @@ an explicit status and refuses to copy it as a complete original. Concatenated
 that could clip their individual chunks remain conservative. SQL NULL and
 empty strings retain their distinct model identities. See [usage](usage.md)
 for formatting, copying, limits, and float navigation.
+
+Column metadata exposes `aggregate_format` (`json` or `xml`) for recognized
+single-column FOR documents, independently of the first-row `is_json` hint.
+This format identity remains available above the content detection limit.

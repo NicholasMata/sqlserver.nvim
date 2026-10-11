@@ -64,6 +64,34 @@ T["Text columns use per-cell JSON detection instead of the first-row hint"] = fu
   assert(native.filetype == "json" and native.status:find("invalid JSON", 1, true))
 end
 
+T["Normalized FOR JSON identity survives the content detection limit"] = function()
+  local collection = require("sqlserver.results.collection")
+  local protocol =
+    { columnName = "JSON_F52E2B61-18A1-11d1-B105-00805F49916B", dataTypeName = "nvarchar", isJson = true }
+  local descriptors = collection.describe({
+    batchSummaries = {
+      {
+        resultSetSummaries = {
+          { rowCount = 1, columnInfo = { protocol } },
+          { rowCount = 1, columnInfo = { protocol, { columnName = "Other", dataTypeName = "int" } } },
+          { rowCount = 1, columnInfo = { { columnName = "Payload", dataTypeName = "nvarchar", isJson = true } } },
+        },
+      },
+    },
+  }, 100)
+  assert(descriptors[1].column_metadata[1].aggregate_format == "json")
+  assert(not descriptors[2].column_metadata[1].aggregate_format)
+  assert(not descriptors[3].column_metadata[1].aggregate_format)
+  local value = cell.create({ display_value = '[{"payload":"' .. string.rep("x", 1100000) .. '"}]' })
+  local snapshot = inspection.create(value, descriptors[1].column_metadata[1])
+  assert(snapshot.complete and snapshot.filetype == "json")
+  assert(snapshot.status:find("JSON validation skipped", 1, true))
+  assert(snapshot.notice:find("JSON validation skipped", 1, true))
+  assert(inspection.copy(snapshot, "a") and vim.fn.getreg("a") == value.display_value)
+  assert(inspection.create(value, descriptors[1].column_metadata[1], "text").filetype == "text")
+  assert(inspection.create(value, descriptors[3].column_metadata[1]).filetype == "text")
+end
+
 T["Failed promotion restores float lifetime focus and content"] = function()
   local ui = require("sqlserver.results.ui.inspection")
   local notify = vim.notify

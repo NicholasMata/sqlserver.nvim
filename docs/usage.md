@@ -303,6 +303,8 @@ is refused for these values. Top-level `FOR JSON` / `FOR XML` text results join
 multiple stored chunks and can exceed these scalar limits while remaining
 complete. Custom limits small enough to clip individual chunks still produce
 a warning. Native `FOR XML TYPE` values retain the scalar XML limit.
+`FOR JSON` documents retain JSON filetype above the 1 MiB detection limit,
+with explicit feedback that validation and formatting were skipped.
 Inspection never executes SQL or fetches an
 expired locator; complete retained values work after newer queries and
 disconnects. Binary inspection shows the service's representation (usually
