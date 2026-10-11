@@ -48,8 +48,8 @@ execution while keeping protocol, workspace, result, and UI concerns separate.
 - Search, browse, and script tables, views, procedures, and functions in the
   connected database. The [hierarchical Object Explorer](docs/object-explorer.md)
   is available when `snacks.nvim` is installed with its picker enabled.
-- Browse SQL Server Agent jobs, inspect properties, and search execution
-  history through Object Explorer.
+- Browse SQL Server Agent jobs and alerts, inspect properties, and search
+  job execution history through Object Explorer.
 - Execute the statement under the cursor, a visual selection, or the complete
   buffer.
 - Capture estimated or actual execution plans, inspect their XML, and save
@@ -85,8 +85,8 @@ Requires Neovim 0.11.7 or newer. With [lazy.nvim](https://github.com/folke/lazy.
 The tested SQL Tools Service release is pinned and installed automatically on
 first setup unless `tools_file` points to an existing executable. Override
 `tools_version` only when intentionally testing another upstream release.
-`snacks.nvim` is optional; Object Explorer and its `:SQLServer Jobs`
-shortcut require it.
+`snacks.nvim` is optional; Object Explorer and its `:SQLServer Jobs` and
+`:SQLServer Alerts` shortcuts require it.
 Create or edit connection profiles with:
 
 ```vim

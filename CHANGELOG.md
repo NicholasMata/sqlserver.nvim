@@ -27,6 +27,9 @@ later releases.
   SQL NULL/empty values and service storage limits, and follow retained-result
   ownership. Configured Neovim formatting affects presentation only.
 
+- Add an Alerts branch, read-only alert properties, `:SQLServer Alerts`,
+  and a UI-independent `list_alerts` callback API. Include independent
+  alerts in Search All and preserve properties during failed refreshes.
 - Add read-only SQL Agent Jobs to Object Explorer and a callback API for
   jobs. Inspect steps, schedules, and linked alerts in a scrollable Job
   Properties window, and search job history in a separate picker that opens

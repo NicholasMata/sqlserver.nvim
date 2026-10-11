@@ -1329,6 +1329,18 @@ command_handlers = {
     end
     command_handlers.object_explorer({ focus_target = "jobs" })
   end,
+  show_alerts = function()
+    local workspace = workspace_registry.get()
+    if not workspace then
+      utils.log_error("No SQL Server workspace is attached to this buffer")
+      return
+    end
+    if workspace.get_state() ~= workspace_module.states.connected then
+      utils.log_error("Connect before viewing SQL Agent alerts")
+      return
+    end
+    command_handlers.object_explorer({ focus_target = "alerts" })
+  end,
 
   backup_database = function()
     local workspace = workspace_registry.get()
@@ -1512,6 +1524,7 @@ command_handlers = {
         on_close = function()
           workspace.close_object_explorer_session(session)
           workspace.close_agent_view("jobs")
+          workspace.close_agent_view("alerts")
           workspace.close_agent_view("details")
         end,
         on_copy = function(text)
@@ -1524,6 +1537,10 @@ command_handlers = {
         on_expand = function(node, force, callback)
           if node.agent_kind == "jobs" then
             public_api.list_jobs({ bufnr = workspace.bufnr }, callback)
+            return
+          end
+          if node.agent_kind == "alerts" then
+            public_api.list_alerts({ bufnr = workspace.bufnr }, callback)
             return
           end
           if node.agent_kind == "job" then
@@ -1655,6 +1672,7 @@ local M = {
   refresh_objects = public_api.refresh_objects,
   list_objects = public_api.list_objects,
   list_jobs = public_api.list_jobs,
+  list_alerts = public_api.list_alerts,
   job_details = public_api.job_details,
   script_object = public_api.script_object,
   export_results = public_api.export_results,

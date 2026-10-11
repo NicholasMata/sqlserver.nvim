@@ -66,6 +66,7 @@ windows, result buffers, and execution history are preserved.
 | Normal | `<keymap_prefix>a` | `Activity` | Toggle workspace activity |
 | Normal | `<keymap_prefix>i` | `ConnectionInfo` | Show connection and server information |
 | Normal | — | `Jobs` | Inspect read-only SQL Agent jobs and their details |
+| Normal | — | `Alerts` | Inspect all visible SQL Agent alerts |
 
 If a disconnected query is executed, the plugin attempts to use the connection
 profile named `default`. Current-statement parsing is delegated to SQL Tools
@@ -188,8 +189,16 @@ unavailable-Agent, permission, timeout, and request-failure states are shown
 when the service provides enough evidence to distinguish them. No mutating
 Agent actions are available.
 
-The equivalent `list_jobs` and `job_details` callback APIs work without
-Snacks; see the [public API](public-api.md#sql-agent-jobs).
+`:SQLServer Alerts` focuses the sibling Alerts branch. Expand it to list all
+visible alerts, including alerts without a job. Press `<CR>` on an alert to
+inspect its enabled state, type, trigger condition, associated job, and
+available occurrence and response details. `K` offers inspection, refresh,
+and copying its name. `r` refreshes the list or selected alert; open alert
+properties remain visible during a pending or failed refresh. `q` closes the
+properties window. Listing resources does not establish Agent service status.
+
+The equivalent `list_jobs`, `job_details`, and `list_alerts` callback APIs
+work without Snacks; see the [public API](public-api.md#sql-agent-jobs).
 
 ## Result view workflow
 
@@ -509,6 +518,7 @@ scope, screenshot, and configuration.
 | `Activity` | Toggle workspace activity |
 | `ConnectionInfo` | Show connection and server information |
 | `Jobs` | Inspect read-only SQL Agent jobs and their details |
+| `Alerts` | Inspect all visible SQL Agent alerts |
 | `Connect` | Connect the current query buffer |
 | `Reconnect` | Retry the query buffer's previous connection |
 | `Disconnect` | Disconnect the current query buffer |

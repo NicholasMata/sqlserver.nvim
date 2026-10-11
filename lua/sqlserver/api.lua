@@ -170,6 +170,15 @@ function M.list_jobs(opts, callback)
   end)
 end
 
+---@param opts? { bufnr?: integer }
+---@param callback fun(alerts?: table[], error?: table)
+function M.list_alerts(opts, callback)
+  opts = opts or {}
+  run("agent_request_failed", callback, function()
+    return agent_result(get_workspace(opts.bufnr).list_agent_alerts_async())
+  end)
+end
+
 ---@param opts { bufnr?: integer, job: table }
 ---@param callback fun(details?: table, error?: table)
 function M.job_details(opts, callback)

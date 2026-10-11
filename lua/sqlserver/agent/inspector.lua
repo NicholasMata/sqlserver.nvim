@@ -1,3 +1,5 @@
+local labels = require("sqlserver.agent.labels")
+
 local M = {}
 
 local function display(value)
@@ -99,7 +101,7 @@ function M.properties(job, data)
   for _, alert in ipairs(data.linked_alerts or {}) do
     alerts[#alerts + 1] = entry("Linked alert · " .. display(alert.name), {
       { "Name", alert.name },
-      { "Type", alert.type },
+      { "Type", labels.alert_type(alert.type) },
       { "Enabled", alert.enabled },
       { "Description", alert.event_description_keyword },
     })
@@ -109,6 +111,44 @@ function M.properties(job, data)
     { label = "Steps", entries = steps },
     { label = "Schedules", entries = schedules },
     { label = "Linked alerts", entries = alerts },
+  }
+end
+
+function M.alert_properties(alert)
+  return {
+    {
+      label = "General",
+      entries = {
+        entry("General", {
+          { "Name", alert.name },
+          { "ID", alert.id },
+          { "Enable", alert.enabled },
+          { "Type", labels.alert_type(alert.type) },
+          { "Category", alert.category },
+          { "Database name", alert.database },
+          { "Event source", alert.event_source },
+          { "Severity", labels.severity(alert.severity) },
+          { "Error number", alert.message_id ~= 0 and alert.message_id or nil },
+          { "Message text", alert.event_description_keyword },
+          { "Performance condition", alert.performance_condition },
+          { "Namespace", alert.wmi_event_namespace },
+          { "Query", alert.wmi_event_query },
+          { "Execute job", alert.job_name },
+          { "Job ID", alert.job_id },
+          { "Number of occurrences", alert.occurrence_count },
+          { "Date of last alert", alert.last_occurrence_at },
+          { "Date of last response", alert.last_response_at },
+          { "Count reset", alert.count_reset_at },
+          { "Delay between responses (seconds)", alert.delay_between_responses },
+          { "Notify operators", alert.has_notification },
+          { "Additional notification message to send", alert.notification_message },
+          {
+            "Include alert error text in",
+            labels.notification_methods(alert.include_event_description),
+          },
+        }),
+      },
+    },
   }
 end
 

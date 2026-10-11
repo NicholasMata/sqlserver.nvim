@@ -25,15 +25,16 @@ Connect a SQL buffer, then run:
 With `keymap_prefix = "<leader>s"`, the default mapping is `<leader>sb`.
 Opening Object Explorer again for the same SQL buffer focuses the existing
 sidebar.
-`:SQLServer Jobs` opens the same sidebar and focuses SQL Server Agent's Jobs
-branch.
+`:SQLServer Jobs` and `:SQLServer Alerts` open the same sidebar and focus
+the corresponding SQL Server Agent branch.
 
 ## Hierarchy and loading
 
 The initial tree contains the SQL Tools Service hierarchy and a plugin-owned
-`SQL Server Agent → Jobs` branch under the server. When the service supplies
-a database root, the explorer shows that database beneath a Databases folder
-beside Agent. Expanding a service node or Jobs requests its children lazily.
+`SQL Server Agent` branch with lazy `Jobs` and `Alerts` children under the
+server. When the service supplies a database root, the explorer shows that database beneath a Databases folder
+beside Agent. Expanding a service node, Jobs, or Alerts requests its children
+lazily.
 This keeps startup fast and avoids requesting an entire large database or job
 list before it is needed.
 
@@ -101,8 +102,8 @@ side effects. Definitions open in dedicated editable SQL buffers. Existing
 definition-buffer collisions use the same focus-or-create workflow as
 `:SQLServer ObjectDefinition`.
 
-Press `K` on SQL Server Agent or Jobs to refresh the job list. On a job,
-the menu offers **Inspect job**, **View history**, **Refresh details**, and
+Press `K` on SQL Server Agent to refresh Jobs or Alerts, or on either folder
+to refresh its list. On a job, the menu offers **Inspect job**, **View history**, **Refresh details**, and
 **Copy name**. `<CR>` on a job opens the inspector directly. The inspector
 opens a scrollable Job Properties window with Overview, Steps, Schedules,
 and Linked alerts. Press `1`–`4` or `h`/`l` to switch sections, `[`/`]` to
@@ -122,15 +123,25 @@ status labels, last outcome, and run times. The Agent branch uses separate
 read-only SQL Tools Service requests; its plugin-owned node paths are never
 sent to Object Explorer requests. No service or job mutation is offered.
 
-Refreshing Jobs or job details supersedes an earlier pending request. Failed
-refreshes retain the last successful content. Search All includes jobs through
-the Agent request path. Closing the explorer or disconnecting also closes its
-job properties, history picker, and run windows.
+The Alerts branch includes all visible alerts, including those without jobs. Rows show
+enabled state, type, trigger conditions, and an associated job when available.
+Press `<CR>` or choose **Inspect alert** from `K` to open read-only Alert
+Properties, including occurrence and response details supplied by the service.
+Alert fields use SSMS terminology, with severity descriptions such as
+`016 - Miscellaneous User Error` and notification methods such as `E-mail`.
+Press `q` to return. **Refresh details** on an alert reloads the Alerts list;
+an open properties window retains its content until the refresh succeeds.
+The plugin does not infer the Agent service's running status from these lists.
+
+Refreshing Jobs, Alerts, or job details supersedes an earlier pending request.
+Failed refreshes retain the last successful content. Search All includes jobs
+and alerts through the Agent request path. Closing the explorer or disconnecting also closes its
+job and alert properties, history picker, and run windows.
 
 ## Supported scope
 
 Object Explorer covers query and object-scripting workflows plus read-only
-SQL Server Agent Jobs inspection. Actionable objects are tables, views,
+SQL Server Agent Jobs and Alerts inspection. Actionable objects are tables, views,
 stored procedures, scalar-valued functions, and table-valued functions. Their
 folder placement and ordering come from SQL Tools Service.
 

@@ -1,3 +1,5 @@
+local labels = require("sqlserver.agent.labels")
+
 local M = {}
 
 local execution_icons = {
@@ -45,7 +47,9 @@ end
 function M.attach(service_root, server_name)
   local jobs = node("jobs", "Jobs", "jobs", "󰒋")
   jobs.isLeaf = false
-  local agent = node("service", "SQL Server Agent", "service", "󰒋", { jobs })
+  local alerts = node("alerts", "Alerts", "alerts", "󰀦")
+  alerts.isLeaf = false
+  local agent = node("service", "SQL Server Agent", "service", "󰒋", { jobs, alerts })
   if service_root.objectType == "Server" then
     service_root.children = service_root.children or {}
     service_root.children[#service_root.children + 1] = agent
@@ -86,6 +90,48 @@ function M.set_jobs(parent, jobs)
   parent.loading = false
   parent.errorMessage = nil
   parent.annotations = #jobs == 0 and { "No jobs" } or nil
+  with_paths(parent)
+end
+
+function M.set_alerts(parent, alerts)
+  local previous = {}
+  for _, child in ipairs(parent.children or {}) do
+    previous[child.id] = child
+  end
+  local children = {}
+  for _, alert in ipairs(alerts) do
+    local id = "alerts/" .. tostring(alert.id or alert.name)
+    local child = previous["sqlserver-agent://" .. id] or node(id, alert.name, "alert", "󰀦")
+    child.alert = alert
+    child.label = value(alert.name)
+    child.icon = alert.enabled == true and "󰄬" or alert.enabled == false and "󰅙" or "?"
+    child.annotations = {}
+    for _, field in ipairs({
+      "type",
+      "performance_condition",
+      "event_description_keyword",
+      "wmi_event_query",
+      "job_name",
+    }) do
+      if value(alert[field]) then
+        child.annotations[#child.annotations + 1] = field == "type" and labels.alert_type(alert[field])
+          or value(alert[field])
+      end
+    end
+    if alert.severity and alert.severity ~= 0 then
+      child.annotations[#child.annotations + 1] = labels.severity(alert.severity)
+    end
+    if alert.message_id and alert.message_id ~= 0 then
+      child.annotations[#child.annotations + 1] = "Error " .. tostring(alert.message_id)
+    end
+    child.isLeaf = true
+    children[#children + 1] = child
+  end
+  parent.children = children
+  parent.loaded = true
+  parent.loading = false
+  parent.errorMessage = nil
+  parent.annotations = #alerts == 0 and { "No alerts" } or nil
   with_paths(parent)
 end
 

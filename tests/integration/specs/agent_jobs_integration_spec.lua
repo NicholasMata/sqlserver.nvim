@@ -9,8 +9,9 @@ local function find_named(items, name)
   end)
 end
 
-T["Jobs command and public API inspect seeded jobs"] = require("tests.helpers").async(function()
+T["Agent commands and public API inspect seeded jobs and alerts"] = require("tests.helpers").async(function()
   local source = vim.api.nvim_get_current_buf()
+  local source_win = vim.api.nvim_get_current_win()
   integration.await(function(callback)
     sqlserver.disconnect(source, callback)
   end)
@@ -33,6 +34,12 @@ T["Jobs command and public API inspect seeded jobs"] = require("tests.helpers").
   end)
   assert(empty.history_state == "empty" and #empty.steps > 0 and #empty.schedules > 0)
 
+  local alerts = integration.await(function(callback)
+    sqlserver.list_alerts({ bufnr = source }, callback)
+  end)
+  assert(find_named(alerts, "sqlserver.nvim fixture linked alert").job_id == history_job.id)
+  assert(find_named(alerts, "sqlserver.nvim fixture independent alert").job_id == nil)
+  assert(vim.list_contains(vim.fn.getcompletion("SQLServer A", "cmdline"), "Alerts"))
   assert(vim.list_contains(vim.fn.getcompletion("SQLServer J", "cmdline"), "Jobs"))
   vim.opt.runtimepath:prepend(vim.fs.joinpath(vim.fn.getcwd(), ".tests", "deps", "snacks.nvim"))
   local snacks = require("snacks")
@@ -225,6 +232,45 @@ T["Jobs command and public API inspect seeded jobs"] = require("tests.helpers").
       end),
       "Object Explorer did not regain focus"
     )
+    vim.api.nvim_set_current_win(source_win)
+    vim.cmd("SQLServer Alerts")
+    assert(not picker.closed and find_item("Alerts"), "Alerts did not reuse the explorer")
+    local alerts_node = find_item("Alerts")
+    picker.opts.actions.object_toggle(picker, alerts_node)
+    assert(
+      vim.wait(10000, function()
+        return find_item("sqlserver.nvim fixture independent alert") ~= nil
+      end, 20),
+      "Agent alerts did not load"
+    )
+    local independent = find_item("sqlserver.nvim fixture independent alert")
+    assert(find_item("sqlserver.nvim fixture linked alert"))
+    assert(independent.node.nodePath == nil and independent.node.alert.severity == 17)
+    picker.opts.confirm(picker, independent)
+    local alert_win = vim.api.nvim_get_current_win()
+    assert(vim.bo.filetype == "sqlserver-alert-properties")
+    assert(
+      table
+        .concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n")
+        :find("Severity: 017 - Insufficient Resources", 1, true)
+    )
+    picker.opts.actions.object_refresh(picker, independent)
+    assert(vim.api.nvim_win_is_valid(alert_win), "Pending refresh discarded alert properties")
+    assert(
+      vim.wait(10000, function()
+        return not alerts_node.node.loading and not vim.api.nvim_win_is_valid(alert_win)
+      end, 20),
+      "Alert properties did not refresh"
+    )
+    assert(vim.bo.filetype == "sqlserver-alert-properties")
+    vim.api.nvim_feedkeys("q", "xt", false)
+    assert(
+      vim.wait(1000, function()
+        return vim.api.nvim_get_current_win() == picker.input.win.win
+      end),
+      "Closing alert properties did not return to Object Explorer"
+    )
+
     picker.opts.confirm(picker, find_item("sqlserver.nvim fixture no history"))
     local disconnect_win = vim.api.nvim_get_current_win()
     assert(vim.bo[vim.api.nvim_win_get_buf(disconnect_win)].filetype == "sqlserver-job-properties")
