@@ -502,6 +502,41 @@ function M.show_column_info()
   return true
 end
 
+function M.inspect_cell(opts)
+  opts = opts or {}
+  if opts.display and opts.display ~= "float" and opts.display ~= "buffer" then
+    error({ code = "invalid_argument", message = "Cell display must be float or buffer" }, 0)
+  end
+  local bufnr = opts.bufnr or vim.api.nvim_get_current_buf()
+  local session = result_sessions[bufnr]
+  if not session or session.plan then
+    error({ code = "cell_not_found", message = "Move the cursor to a query result cell" }, 0)
+  end
+  if bufnr ~= vim.api.nvim_get_current_buf() and (not opts.row or not opts.column) then
+    error({ code = "invalid_argument", message = "Supply row and column when inspecting another result buffer" }, 0)
+  end
+  local cursor = vim.api.nvim_win_get_cursor(0)
+  local ranges = session.cell_ranges and session.cell_ranges[cursor[1]]
+  local row_index = opts.row or (cursor[1] - 2)
+  local column_index = opts.column or (ranges and current_column(ranges, cursor[2]))
+  local row = session.result_set.rows[row_index]
+  local cell = row and column_index and row[column_index]
+  if not cell then
+    error({ code = "cell_not_found", message = "Move the cursor to a query result cell" }, 0)
+  end
+  local metadata = (session.result_set.column_metadata or {})[column_index]
+  local snapshot = require("sqlserver.results.inspection").create(cell, metadata, opts.format)
+  return require("sqlserver.results.ui.inspection").open(snapshot, {
+    source_bufnr = session.source_bufnr,
+    result_bufnr = bufnr,
+    execution_id = session.execution.id,
+    result = session.result_set.ordinal,
+    row = row_index,
+    column = column_index,
+    column_name = session.result_set.columns[column_index],
+  }, opts)
+end
+
 function M.copy_cell()
   local bufnr = vim.api.nvim_get_current_buf()
   local session = result_sessions[bufnr]
@@ -520,7 +555,11 @@ function M.copy_cell()
     return false
   end
   local register = vim.v.register ~= "" and vim.v.register or '"'
-  vim.fn.setreg(register, cell.display_value, "v")
+  local snapshot = require("sqlserver.results.inspection").create(cell)
+  local copied, message = require("sqlserver.results.inspection").copy(snapshot, register)
+  if not copied then
+    vim.notify(message, vim.log.levels.WARN)
+  end
   return true
 end
 

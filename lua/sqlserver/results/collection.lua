@@ -44,7 +44,7 @@ end
 
 ---@param result table
 ---@param max_rows integer
----@param fetch_rows fun(locator: table): SqlServerResultCell[][]
+---@param fetch_rows fun(locator: table, columns: SqlServerResultColumn[]): SqlServerResultCell[][]
 ---@return SqlServerResultSet[]
 function M.collect_async(result, max_rows, fetch_rows)
   return vim
@@ -53,7 +53,7 @@ function M.collect_async(result, max_rows, fetch_rows)
       return query_result.create({
         columns = descriptor.columns,
         column_metadata = descriptor.column_metadata,
-        rows = fetch_rows(descriptor.locator),
+        rows = fetch_rows(descriptor.locator, descriptor.column_metadata),
         row_count = descriptor.row_count,
         duration_ms = descriptor.duration_ms,
         locator = descriptor.locator,

@@ -36,8 +36,9 @@ local function query_timeout_error(timeout_ms, cancellation_error)
 end
 
 ---@param locator table
+---@param columns? SqlServerResultColumn[]
 ---@return SqlServerResultCell[][]
-function M.get_result_rows_async(locator)
+function M.get_result_rows_async(locator, columns)
   if not (locator and locator.rowsCount and locator.rowsCount > 0) then
     return {}
   end
@@ -51,13 +52,29 @@ function M.get_result_rows_async(locator)
     error("SQL Tools Service returned no result rows", 0)
   end
 
+  -- The pinned service discards long values while writing its cache, before
+  -- query/subset. It returns no truncation flag and cannot recover that tail.
+  -- Treat values at the storage boundary conservatively, including exact fits.
+  local settings = (((client.config or {}).settings or {}).mssql or {}).query or {}
   return vim
     .iter(result.resultSubset.rows)
     :map(function(row)
+      local column_index = 0
       return vim
         .iter(row)
         :map(function(cell)
+          column_index = column_index + 1
+          local column = (columns or {})[column_index] or {}
+          local is_xml = column.is_xml or (column.type_name or ""):lower() == "xml"
+          local limit = is_xml and (settings.maxXmlCharsToStore or 2097152) or (settings.maxCharsToStore or 65535)
+          local type_name = (column.type_name or ""):lower()
+          local is_binary = type_name == "image" or type_name:find("binary", 1, true)
+          local length = is_binary and math.max(0, (#(cell.displayValue or "") - 2) / 2)
+            or vim.str_utfindex(cell.displayValue or "", "utf-16")
+          local uncertain = column.is_long and not cell.isNull and length >= limit
           return result_cell.create({
+            completeness = uncertain and "possibly_truncated" or "complete",
+            limit = uncertain and limit or nil,
             display_value = cell.displayValue,
             invariant_value = cell.invariantCultureDisplayValue ~= vim.NIL and cell.invariantCultureDisplayValue or nil,
             is_null = cell.isNull,

@@ -16,6 +16,7 @@ local modules = {
   "connection_profiles_spec",
   "public_api_spec",
   "plans_spec",
+  "cell_inspection_spec",
   "query_lifecycle_spec",
   "connection_lifecycle_spec",
   "object_lifecycle_spec",

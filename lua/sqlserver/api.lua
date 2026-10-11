@@ -417,6 +417,15 @@ function M.export_results(opts, callback)
   end)
 end
 
+---@param opts? { bufnr?: integer, row?: integer, column?: integer, format?: string, display?: string }
+---@param callback fun(result?: table, error?: table)
+function M.inspect_cell(opts, callback)
+  run("cell_inspection_failed", callback, function()
+    require_config()
+    return require("sqlserver.results.ui.view").inspect_cell(opts)
+  end)
+end
+
 ---@param opts { plan: SqlServerPlan }
 ---@param callback fun(result?: table, error?: table)
 function M.open_plan(opts, callback)

@@ -7,6 +7,7 @@ local result_keymaps = require("sqlserver.results.ui.keymaps")
 
 return {
   set_keymaps = function(prefix, M)
+    require("sqlserver.results.ui.inspection").setup_keymaps(prefix)
     if not prefix then
       return
     end
@@ -98,6 +99,9 @@ return {
 
       local normal_group = vim.tbl_deep_extend("keep", wkeygroup, {})
       normal_group.expand = function()
+        if vim.b.sqlserver_cell_info then
+          return require("sqlserver.results.ui.inspection").which_key_items()
+        end
         if vim.b.sqlserver_plan_info then
           return result_keymaps.which_key_plan_items(M)
         end
@@ -199,6 +203,9 @@ return {
       local visual_group = vim.tbl_deep_extend("keep", wkeygroup, {})
       visual_group.mode = "v"
       visual_group.expand = function()
+        if vim.b.sqlserver_cell_info then
+          return {}
+        end
         if vim.b.sqlserver_plan_info then
           return {}
         end

@@ -24,6 +24,7 @@ M.connected = {
     "mixed_query_results_spec",
     "failed_statement_results_spec",
     "result_value_fidelity_spec",
+    "cell_inspection_spec",
     "result_limits_spec",
     "query_error_presentation_spec",
     "query_zero_rows_spec",

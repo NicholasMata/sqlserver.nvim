@@ -1412,6 +1412,38 @@ command_handlers = {
     end)
   end,
 
+  inspect_result_cell = function(opts)
+    public_api.inspect_cell(opts, function(_, err)
+      if err then
+        utils.log_error(err.message)
+      end
+    end)
+  end,
+
+  inspect_result_cell_buffer = function()
+    public_api.inspect_cell({ display = "buffer" }, function(_, err)
+      if err then
+        utils.log_error(err.message)
+      end
+    end)
+  end,
+
+  inspect_result_cell_xml = function()
+    public_api.inspect_cell({ format = "xml" }, function(_, err)
+      if err then
+        utils.log_error(err.message)
+      end
+    end)
+  end,
+
+  inspect_result_cell_json = function()
+    public_api.inspect_cell({ format = "json" }, function(_, err)
+      if err then
+        utils.log_error(err.message)
+      end
+    end)
+  end,
+
   copy_result_cell = function()
     if not query_results.copy_cell() then
       utils.log_error("Move the cursor to a query result cell")
@@ -1626,6 +1658,7 @@ local M = {
   job_details = public_api.job_details,
   script_object = public_api.script_object,
   export_results = public_api.export_results,
+  inspect_cell = public_api.inspect_cell,
   open_plan = public_api.open_plan,
   export_plan = public_api.export_plan,
   status = status_ui.component,

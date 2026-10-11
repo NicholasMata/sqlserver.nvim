@@ -14,6 +14,8 @@ local M = {}
 ---@field scale? integer
 ---@field nullable? boolean
 ---@field is_long boolean
+---@field is_xml? boolean
+---@field is_json? boolean
 ---@field source? SqlServerResultColumnSource
 
 ---@param value table SQL Tools Service DbColumnWrapper
@@ -40,6 +42,8 @@ function M.from_protocol(value)
     scale = type(value.numericScale) == "number" and value.numericScale or nil,
     nullable = nullable,
     is_long = value.isLong == true,
+    is_xml = value.isXml == true or nil,
+    is_json = value.isJson == true or nil,
     source = source,
   }
 end

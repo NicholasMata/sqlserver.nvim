@@ -198,3 +198,27 @@ be visible to the user, and destructive execution must be explicit.
   behavior that depends on SQL Tools Service or SQL Server.
 - Prefer coherent `sqlserver.nvim` behavior over compatibility shims for the
   inherited `mssql.nvim` implementation.
+
+## Retained cell inspection
+
+`results/inspection` describes an immutable cell presentation and controls
+copying of its original representation. `results/ui/inspection` owns the
+focused float or regular listed buffer, formatting, window resizing, mappings,
+and cleanup. Raw and formatted lines are cached separately so toggling or
+promoting a float preserves the snapshot without rerunning formatting. Inspection
+reads retained models and does not consult service locators, including after
+disconnect or query replacement. It is separate from Showplan capture.
+
+SQL Tools Service `6.0.20260902.1` returns cached representations through
+[`ResultSet.GetSubset`](https://github.com/microsoft/sqltoolsservice/blob/6.0.20260902.1/src/Microsoft.SqlTools.ServiceLayer/QueryExecution/ResultSet.cs).
+Its [`storage writer`](https://github.com/microsoft/sqltoolsservice/blob/6.0.20260902.1/src/Microsoft.SqlTools.ServiceLayer/QueryExecution/DataStorage/ServiceBufferFileStreamWriter.cs)
+discards long-value tails at the configured `MaxCharsToStore` /
+`MaxXmlCharsToStore` thresholds before subset retrieval. The cell contract has
+no truncation flag. The adapter records `possibly_truncated` at or above the
+threshold rather than promising completeness, and no inspection path retries
+SQL. Integration fixtures characterize 60,003-character retained text,
+65,535-character clipped text, 70,013-character native XML, and XML at the
+2,097,152-character storage boundary (the pinned XML writer can return one
+additional character). Both the representation and its completeness survive
+history retention; the inspector refuses to copy unavailable content as a
+complete original.
