@@ -61,6 +61,8 @@ function M.open(context)
   local job_selection = 0
   local closed = false
   local job_windows, job_pickers = {}, {}
+  local job_view_node
+  local alert_view_node
   local pending_details
 
   local function remember(node)
@@ -106,6 +108,8 @@ function M.open(context)
   local function close_job_views()
     local windows, pickers = job_windows, job_pickers
     job_windows, job_pickers = {}, {}
+    alert_view_node = nil
+    job_view_node = nil
     for child in pairs(pickers) do
       if child ~= picker and not child.closed then
         child:close()
@@ -129,6 +133,26 @@ function M.open(context)
     end
     win = second and open(first, second, on_close) or open(first, on_close)
     job_windows[win] = true
+  end
+
+  local function open_alert_view(node)
+    job_selection = job_selection + 1
+    cancel_details()
+    close_job_views()
+    alert_view_node = node
+    open_job_float(agent_properties.open_alert, node.alert)
+  end
+
+  local function find_kind(parent, kind)
+    if parent.agent_kind == kind then
+      return parent
+    end
+    for _, child in ipairs(parent.children or {}) do
+      local found = find_kind(child, kind)
+      if found then
+        return found
+      end
+    end
   end
 
   local function has_unloaded(node)
@@ -271,7 +295,7 @@ function M.open(context)
   end
 
   local function load_node(node, force, callback)
-    if node.loading and not (force and node.agent_kind == "jobs") then
+    if node.loading and not (force and (node.agent_kind == "jobs" or node.agent_kind == "alerts")) then
       if callback then
         node.load_callbacks = node.load_callbacks or {}
         node.load_callbacks[#node.load_callbacks + 1] = callback
@@ -281,7 +305,6 @@ function M.open(context)
     if force and node.agent_kind == "jobs" then
       job_selection = job_selection + 1
       cancel_details()
-      close_job_views()
     end
     node.load_generation = (node.load_generation or 0) + 1
     local generation = node.load_generation
@@ -317,6 +340,18 @@ function M.open(context)
       node.errorMessage = nil
       if node.agent_kind == "jobs" then
         agent_tree.set_jobs(node, children)
+      elseif node.agent_kind == "alerts" then
+        agent_tree.set_alerts(node, children)
+        if alert_view_node and next(job_windows) then
+          local selected = vim.iter(node.children):find(function(child)
+            return child.id == alert_view_node.id
+          end)
+          if selected then
+            open_alert_view(selected)
+          else
+            close_job_views()
+          end
+        end
       else
         object_tree.set_service_children(node, children)
       end
@@ -566,6 +601,11 @@ function M.open(context)
       end
       node.errorMessage = nil
       node.details = details
+      if job_view_node == node and next(job_windows) then
+        close_job_views()
+        job_view_node = node
+        open_job_float(agent_properties.open, node.job, details)
+      end
       refresh(picker)
       for _, pending in ipairs(callbacks) do
         pending(details)
@@ -585,6 +625,7 @@ function M.open(context)
         return
       end
       if section == "properties" then
+        job_view_node = node
         open_job_float(agent_properties.open, node.job, details)
         return
       end
@@ -647,7 +688,24 @@ function M.open(context)
     local actions
     if item.object then
       actions = object_actions.for_object(item.object)
-    elseif item.node.agent_kind == "service" or item.node.agent_kind == "jobs" then
+    elseif item.node.agent_kind == "service" then
+      actions = {
+        { id = "refresh_jobs", icon = "󰑐", label = "Refresh Jobs" },
+        { id = "refresh_alerts", icon = "󰑐", label = "Refresh Alerts" },
+        { id = "copy_name", icon = "󰆏", label = "Copy name" },
+      }
+    elseif item.node.agent_kind == "alerts" then
+      actions = {
+        { id = "refresh_alerts", icon = "󰑐", label = "Refresh Alerts" },
+        { id = "copy_name", icon = "󰆏", label = "Copy name" },
+      }
+    elseif item.node.agent_kind == "alert" then
+      actions = {
+        { id = "inspect_alert", icon = "󰈙", label = "Inspect alert" },
+        { id = "refresh_alerts", icon = "󰑐", label = "Refresh details" },
+        { id = "copy_name", icon = "󰆏", label = "Copy name" },
+      }
+    elseif item.node.agent_kind == "jobs" then
       actions = {
         { id = "refresh_jobs", icon = "󰑐", label = "Refresh Jobs" },
         { id = "copy_name", icon = "󰆏", label = "Copy name" },
@@ -687,6 +745,11 @@ function M.open(context)
         local jobs = item.node.agent_kind == "jobs" and item.node or item.node.children[1]
         load_node(jobs, true)
         restore_mode()
+      elseif action.id == "refresh_alerts" then
+        load_node(find_kind(root, "alerts"), true)
+        restore_mode()
+      elseif action.id == "inspect_alert" then
+        open_alert_view(item.node)
       elseif action.id == "inspect_job" then
         open_job_view(item.node, "properties")
       elseif action.id == "job_history" then
@@ -699,27 +762,16 @@ function M.open(context)
   end
 
   local function focus_target(target)
-    if target ~= "jobs" then
+    if target ~= "jobs" and target ~= "alerts" then
       return
     end
-    local function find_jobs(node)
-      if node.agent_kind == "jobs" then
-        return node
-      end
-      for _, child in ipairs(node.children or {}) do
-        local found = find_jobs(child)
-        if found then
-          return found
-        end
-      end
-    end
-    local jobs = find_jobs(root)
-    if not jobs then
+    local branch = find_kind(root, target)
+    if not branch then
       return
     end
     local function expand_parents(node)
       for _, child in ipairs(node.children or {}) do
-        if child == jobs or expand_parents(child) then
+        if child == branch or expand_parents(child) then
           expanded[node.id] = true
           return true
         end
@@ -737,7 +789,7 @@ function M.open(context)
         return
       end
       for index, item in ipairs(items()) do
-        if item.node == jobs then
+        if item.node == branch then
           picker.list:view(index)
           return
         end
@@ -779,8 +831,9 @@ function M.open(context)
       local formatted = snacks.picker.format.tree(item, current_picker)
       local marker = item.loading and "… " or can_expand(item.node) and (item.expanded and " " or " ") or "  "
       formatted[#formatted + 1] = { marker, "SnacksPickerTree" }
-      local icon_highlight = item.node.agent_kind == "job"
-          and (item.node.job.enabled == true and "SqlServerJobEnabled" or item.node.job.enabled == false and "SqlServerJobDisabled" or "SqlServerJobUnknown")
+      local resource = item.node.job or item.node.alert
+      local icon_highlight = resource
+          and (resource.enabled == true and "SqlServerJobEnabled" or resource.enabled == false and "SqlServerJobDisabled" or "SqlServerJobUnknown")
         or "SnacksPickerIcon"
       formatted[#formatted + 1] = { item.icon .. " ", icon_highlight }
       if item.node.status_icon then
@@ -803,6 +856,10 @@ function M.open(context)
       end
       if item and item.node and item.node.agent_kind == "job" then
         open_job_view(item.node, "properties")
+        return
+      end
+      if item and item.node and item.node.agent_kind == "alert" then
+        open_alert_view(item.node)
         return
       end
       object_action(context.on_query)(current_picker, item)
@@ -843,9 +900,12 @@ function M.open(context)
         if item and item.node and not item.placeholder then
           if item.node.agent_kind == "service" then
             load_node(item.node.children[1], true)
+            load_node(item.node.children[2], true)
           elseif item.node.agent_kind == "job" then
             load_job_details(item.node, true, function() end)
-          elseif not item.node.agent_kind or item.node.agent_kind == "jobs" then
+          elseif item.node.agent_kind == "alert" then
+            load_node(find_kind(root, "alerts"), true)
+          elseif not item.node.agent_kind or item.node.agent_kind == "jobs" or item.node.agent_kind == "alerts" then
             load_node(item.node, true)
           end
         end

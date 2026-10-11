@@ -23,6 +23,9 @@ T["Jobs API returns normalized workspace data and safe failures"] = function()
     list_jobs_async = function()
       return { { id = "job-1", name = "First", enabled = false } }
     end,
+    list_alerts_async = function()
+      return { { id = 2, name = "Independent", enabled = false } }
+    end,
     get_job_details_async = function(job)
       return { job_id = job.id, job_name = job.name, steps = {}, schedules = {}, histories = {}, linked_alerts = {} }
     end,
@@ -32,6 +35,12 @@ T["Jobs API returns normalized workspace data and safe failures"] = function()
     jobs, err = value, failure
   end)
   assert(not err and #jobs == 1 and jobs[1].enabled == false)
+  local alerts
+  require("sqlserver").list_alerts({ bufnr = 712 }, function(value, failure)
+    assert(not failure)
+    alerts = value
+  end)
+  assert(#alerts == 1 and alerts[1].name == "Independent" and alerts[1].enabled == false)
   local details
   api.job_details({ bufnr = 712, job = jobs[1] }, function(value, failure)
     assert(not failure)
@@ -49,6 +58,16 @@ T["Jobs API returns normalized workspace data and safe failures"] = function()
   end)
   assert(jobs == nil and err.code == "agent_permission_denied")
   assert(workspace.get_agent_state("jobs").data[1].name == "First")
+  workspace.set_agent_backend({
+    list_alerts_async = function()
+      error({ code = "agent_timeout", message = "SQL Agent request timed out" }, 0)
+    end,
+  })
+  api.list_alerts({ bufnr = 712 }, function(value, failure)
+    alerts, err = value, failure
+  end)
+  assert(alerts == nil and err.code == "agent_timeout")
+  assert(workspace.get_agent_state("alerts").data[1].name == "Independent")
   workspace.dispose_async()
   registry.detach(712)
 end
@@ -246,7 +265,7 @@ T["Object Explorer loads Agent jobs without a service node path"] = function()
     assert(requests[1].kind == "jobs" and requests[1].path == nil)
     local job = options.finder()[6]
     assert(job.label == "Backup")
-    assert(job.node.isLeaf and #options.finder() == 6)
+    assert(job.node.isLeaf and #options.finder() == 7)
     assert(vim.iter(options.format(job, picker)):any(function(chunk)
       return chunk[2] == "SqlServerJobRunning"
     end))
@@ -343,6 +362,8 @@ local function with_explorer(test)
   object_tree.set_service_children(database, {})
   state.root = agent_tree.attach(database, "localhost")
   state.jobs = state.root.children[2].children[1]
+  state.alerts = state.root.children[2].children[2]
+  agent_tree.set_alerts(state.alerts, {})
   explorer.open({
     bufnr = 7124,
     root = state.root,
@@ -377,6 +398,98 @@ local function with_explorer(test)
   explorer.close(7124)
   package.loaded.snacks = original
   assert(ok, err)
+end
+
+T["Alerts load lazily with stable identity and complete read-only properties"] = function()
+  with_explorer(function(state)
+    state.alerts.loaded = false
+    state.options.actions.object_toggle(state.picker, state.item(state.alerts))
+    assert(#state.requests == 1 and state.requests[1].node == state.alerts)
+    assert(state.alerts.nodePath == nil)
+    state.requests[1].done({
+      { id = 1, name = "Linked", job_id = "a", job_name = "First", enabled = true },
+      {
+        id = 2,
+        name = "Independent",
+        enabled = false,
+        type = "sql_server_event",
+        severity = 16,
+        occurrence_count = 7,
+        last_occurrence_at = "Today",
+        notification_message = "Notify",
+      },
+    })
+    assert(#state.alerts.children == 2)
+    local alert = state.alerts.children[2]
+    assert(alert.id == "sqlserver-agent://alerts/2" and alert.nodePath == nil)
+    assert(alert.isLeaf and alert.icon == "󰅙")
+    state.options.confirm(state.picker, state.item(alert))
+    local win = vim.api.nvim_get_current_win()
+    local bufnr = vim.api.nvim_win_get_buf(win)
+    assert(vim.bo[bufnr].filetype == "sqlserver-alert-properties" and not vim.bo[bufnr].modifiable)
+    local text = table.concat(vim.api.nvim_buf_get_lines(bufnr, 0, -1, false), "\n")
+    for _, expected in ipairs({
+      "Name: Independent",
+      "Enable: No",
+      "Severity: 016 - Miscellaneous User Error",
+      "Number of occurrences: 7",
+      "Date of last alert: Today",
+      "Additional notification message to send: Notify",
+    }) do
+      assert(text:find(expected, 1, true), text)
+    end
+    assert(#state.requests == 1, "Inspecting an alert must use the loaded model")
+    state.action(alert, "refresh_alerts")
+    assert(vim.api.nvim_win_is_valid(win), "Pending refresh discarded successful details")
+    state.requests[2].done(nil, { message = "Permission denied" })
+    assert(vim.api.nvim_win_is_valid(win) and #state.alerts.children == 2)
+    state.options.actions.object_refresh(state.picker, state.item(alert))
+    state.requests[3].done({ { id = 2, name = "Independent renamed", occurrence_count = 8 } })
+    assert(state.alerts.children[1] == alert, "Refresh replaced stable alert identity")
+    assert(not vim.api.nvim_win_is_valid(win))
+    assert(table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n"):find("Number of occurrences: 8", 1, true))
+    explorer.close(7124)
+    assert(vim.bo.filetype ~= "sqlserver-alert-properties")
+  end)
+end
+
+T["Alert refresh supersedes search replies and ignores replies after closure"] = function()
+  with_explorer(function(state)
+    state.alerts.loaded = false
+    agent_tree.set_jobs(state.jobs, {})
+    state.options.filter.transform(state.picker, { pattern = "Independent" })
+    state.options.confirm(state.picker, state.options.finder()[1])
+    assert(#state.requests == 1 and state.requests[1].node == state.alerts)
+    state.action(state.alerts, "refresh_alerts")
+    assert(#state.requests == 2 and state.requests[2].force)
+    state.requests[1].done({ { name = "Old" } })
+    assert(state.alerts.loading and #state.alerts.children == 0)
+    state.requests[2].done({ { name = "Independent" } })
+    assert(not state.alerts.loading and not state.options.finder()[1].search_loading)
+    assert(vim.iter(state.options.finder()):any(function(item)
+      return item.label == "Independent"
+    end))
+    state.options.actions.object_refresh(state.picker, state.item(state.alerts))
+    explorer.close(7124)
+    state.requests[3].done({ { name = "Late" } })
+    assert(not state.alerts.loading and state.alerts.children[1].label == "Independent")
+    agent_tree.set_alerts(state.alerts, {})
+    assert(state.alerts.annotations[1] == "No alerts")
+  end)
+end
+
+T["Service context actions refresh each Agent source without protocol paths"] = function()
+  with_explorer(function(state)
+    local service = state.root.children[2]
+    state.action(service, "refresh_alerts")
+    assert(state.requests[1].node == state.alerts and state.requests[1].node.nodePath == nil)
+    state.requests[1].done({})
+    state.options.actions.object_refresh(state.picker, state.item(service))
+    assert(state.requests[2].node == state.jobs and state.requests[3].node == state.alerts)
+    state.requests[2].done({})
+    state.requests[3].done({})
+    assert(state.jobs.annotations[1] == "No jobs" and state.alerts.annotations[1] == "No alerts")
+  end)
 end
 
 local function fixture_jobs(state)
@@ -445,6 +558,13 @@ T["Details refresh replaces pending replies and retains cached properties on fai
     state.options.actions.object_refresh(state.picker, state.item(job))
     state.requests[3].done(nil, { message = "Permission denied" })
     assert(job.details.steps[1].name == "Latest" and state.errors[1] == "Permission denied")
+    local retained = vim.api.nvim_get_current_win()
+    state.options.actions.object_refresh(state.picker, state.item(job))
+    assert(vim.api.nvim_win_is_valid(retained))
+    state.requests[4].done({ steps = { { name = "Refreshed" } } })
+    assert(not vim.api.nvim_win_is_valid(retained))
+    vim.api.nvim_feedkeys("2", "xt", false)
+    assert(table.concat(vim.api.nvim_buf_get_lines(0, 0, -1, false), "\n"):find("Refreshed", 1, true))
     explorer.close(7124)
     assert(not vim.iter(vim.api.nvim_list_wins()):any(function(win)
       return vim.bo[vim.api.nvim_win_get_buf(win)].filetype == "sqlserver-job-properties"
@@ -567,6 +687,26 @@ T["Properties headings accept multiline Agent names and preserve their values"] 
   end)
   vim.api.nvim_win_close(win, true)
   assert(ok, err)
+end
+
+T["Switching between jobs and alerts ignores obsolete detail selections"] = function()
+  with_explorer(function(state)
+    local job = fixture_jobs(state)
+    agent_tree.set_alerts(state.alerts, { { id = 1, name = "Independent" } })
+    local alert = state.alerts.children[1]
+    state.options.confirm(state.picker, state.item(job))
+    state.options.confirm(state.picker, state.item(alert))
+    assert(state.cancellations == 1 and not job.loading)
+    state.requests[1].done({ steps = { { name = "Late" } } })
+    assert(job.details == nil and vim.bo.filetype == "sqlserver-alert-properties")
+    state.options.actions.object_refresh(state.picker, state.item(alert))
+    job.details = { steps = {} }
+    state.options.confirm(state.picker, state.item(job))
+    local job_win = vim.api.nvim_get_current_win()
+    state.requests[2].done({ { id = 1, name = "Refreshed alert" } })
+    assert(vim.api.nvim_get_current_win() == job_win and vim.bo.filetype == "sqlserver-job-properties")
+    assert(state.alerts.children[1].label == "Refreshed alert")
+  end)
 end
 
 return T

@@ -32,7 +32,7 @@ Modules are grouped by product capability rather than collected into a generic
 ```text
 lua/sqlserver/
 ├── adapters/sql_tools_service/  protocol client, query backend, and installer
-├── agent/                       read-only job models and inspection views
+├── agent/                       read-only job/alert models and inspection views
 ├── config/                      defaults and option normalization
 ├── connections/                 profiles and credential handling
 ├── objects/                     object intents and picker UI

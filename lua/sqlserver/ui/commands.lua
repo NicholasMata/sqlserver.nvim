@@ -10,6 +10,7 @@ local function available_commands(handlers)
     Activity = handlers.toggle_activity,
     ConnectionInfo = handlers.show_connection_info,
     Jobs = handlers.show_jobs,
+    Alerts = handlers.show_alerts,
     Connect = handlers.connect,
     Reconnect = handlers.reconnect,
     Disconnect = handlers.disconnect,
@@ -118,6 +119,7 @@ local function get_items()
     local items = {
       "ConnectionInfo",
       "Jobs",
+      "Alerts",
       "NewQuery",
       "NewDefaultQuery",
       "EditConnections",

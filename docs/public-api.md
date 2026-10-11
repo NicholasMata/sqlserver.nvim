@@ -165,6 +165,8 @@ SQL text and execution metadata.
 
 ## SQL Agent Jobs
 
+Jobs and Alerts APIs are UI-independent and do not require Snacks.
+
 `list_jobs({ bufnr = 0 }, callback)` returns normalized, read-only job
 descriptors for the connected workspace. Call it again to refresh the list.
 The descriptors include job identity, enabled state, current execution state,
@@ -174,6 +176,13 @@ Pass a returned job to `job_details({ bufnr = 0, job = job }, callback)` to load
 its steps, schedules, execution history, and job-linked alerts. Repeating the
 call refreshes those details. A job that has never run has an empty `histories`
 list and `history_state = "empty"` while retaining its steps and schedules.
+
+`list_alerts({ bufnr = 0 }, callback)` returns all visible normalized alerts,
+including alerts without an associated job. Call it again to refresh.
+Descriptors include identity, enabled state, type, trigger conditions,
+associated job, occurrence counts/times, and response/notification details
+when supplied by the service. An empty list is valid and does not imply that
+Agent is unavailable.
 
 The callbacks use the usual `(result, err)` form. Error codes distinguish
 `agent_unavailable`, `agent_permission_denied`, `agent_timeout`, and

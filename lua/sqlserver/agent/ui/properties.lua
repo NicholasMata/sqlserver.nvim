@@ -5,7 +5,7 @@ local M = {}
 
 local function value_highlight(mark)
   local value = mark.value:lower()
-  if mark.label == "Enabled" then
+  if mark.label == "Enabled" or mark.label == "Enable" then
     return value == "yes" and "SqlServerJobEnabled" or "SqlServerJobDisabled"
   end
   if mark.label == "Execution" then
@@ -24,8 +24,7 @@ local function value_highlight(mark)
   end
 end
 
-function M.open(job, data, on_close)
-  local pages = inspector.properties(job, data)
+local function open(resource, pages, kind, on_close)
   local page_index, entry_index = 1, 1
   local bufnr = vim.api.nvim_create_buf(false, true)
   local width = math.min(100, math.max(20, vim.o.columns - 8))
@@ -38,13 +37,13 @@ function M.open(job, data, on_close)
     height = height,
     style = "minimal",
     border = "rounded",
-    title = "Job Properties · " .. job.name,
+    title = kind .. " Properties · " .. resource.name:gsub("[%c]", " "),
     title_pos = "center",
-    footer = "1–4 sections · h/l switch · [/] entries · q close",
+    footer = #pages > 1 and "1–4 sections · h/l switch · [/] entries · q close" or "q close",
     footer_pos = "center",
   })
   vim.bo[bufnr].bufhidden = "wipe"
-  vim.bo[bufnr].filetype = "sqlserver-job-properties"
+  vim.bo[bufnr].filetype = "sqlserver-" .. kind:lower() .. "-properties"
   vim.wo[win].wrap = true
   local namespace = vim.api.nvim_create_namespace("sqlserver-agent-properties")
   vim.api.nvim_set_hl(0, "SqlServerJobPropertyLabel", { default = true, link = "Comment" })
@@ -161,6 +160,14 @@ function M.open(job, data, on_close)
   render()
   vim.cmd("stopinsert")
   return win
+end
+
+function M.open(job, data, on_close)
+  return open(job, inspector.properties(job, data), "Job", on_close)
+end
+
+function M.open_alert(alert, on_close)
+  return open(alert, inspector.alert_properties(alert), "Alert", on_close)
 end
 
 return M

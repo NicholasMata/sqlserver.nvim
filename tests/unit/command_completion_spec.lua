@@ -62,6 +62,8 @@ T["Filtering retains workspace-dependent command availability"] = function()
   }
   expect_completion("ex", { "ExecuteQuery", "ExecuteBuffer" })
   expect_completion("ca", {})
+  expect_completion("al", { "Alerts" })
+  expect_completion("jo", { "Jobs" })
 
   state = workspace_module.states.executing
   expect_completion("ex", {})
