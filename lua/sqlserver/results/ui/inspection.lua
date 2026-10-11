@@ -112,22 +112,46 @@ function M.open(snapshot, context, opts)
         options = options,
       }
     end
-    if opts.open_results_in then
-      opts.open_results_in(bufnr)
-    else
-      vim.cmd("split")
-      vim.api.nvim_win_set_buf(0, bufnr)
+    local presented, window_or_error = pcall(function()
+      if opts.open_results_in then
+        opts.open_results_in(bufnr)
+      else
+        vim.cmd("split")
+        vim.api.nvim_win_set_buf(0, bufnr)
+      end
+      -- Presenters may restore focus to the originating window. Find the
+      -- regular window explicitly, excluding the float during promotion.
+      for _, window in ipairs(vim.fn.win_findbuf(bufnr)) do
+        if vim.api.nvim_win_get_config(window).relative == "" then
+          reused_window = previous[window]
+          vim.api.nvim_set_current_win(window)
+          return window
+        end
+      end
+      error("The configured result presenter did not display the cell buffer")
+    end)
+    if presented then
+      return window_or_error
     end
-    -- Presenters may restore focus to the originating window. Find the
-    -- regular window explicitly, excluding the float during promotion.
+    -- A custom presenter may display the buffer before throwing. Undo only
+    -- its cell presentation, preserving the float and unrelated windows.
     for _, window in ipairs(vim.fn.win_findbuf(bufnr)) do
       if vim.api.nvim_win_get_config(window).relative == "" then
-        reused_window = previous[window]
-        vim.api.nvim_set_current_win(window)
-        return window
+        local saved = previous[window]
+        if saved and vim.api.nvim_buf_is_valid(saved.bufnr) then
+          vim.api.nvim_win_set_buf(window, saved.bufnr)
+          for name, value in pairs(saved.options) do
+            vim.wo[window][name] = value
+          end
+          vim.api.nvim_win_call(window, function()
+            vim.fn.winrestview(saved.view)
+          end)
+        elseif not saved then
+          pcall(vim.api.nvim_win_close, window, true)
+        end
       end
     end
-    error("The configured result presenter did not display the cell buffer")
+    error(window_or_error, 0)
   end
   local group = vim.api.nvim_create_augroup("sqlserver-cell-" .. next_id, { clear = true })
   local ok, err = pcall(function()
@@ -282,6 +306,7 @@ function M.open(snapshot, context, opts)
     actions.open = function()
       if floating then
         local previous = winid
+        local hidden, listed = vim.bo[bufnr].bufhidden, vim.bo[bufnr].buflisted
         vim.bo[bufnr].bufhidden = "hide"
         vim.bo[bufnr].buflisted = true
         local position = vim.api.nvim_win_get_cursor(previous)
@@ -290,7 +315,15 @@ function M.open(snapshot, context, opts)
         else
           vim.cmd("wincmd p")
         end
-        winid = present_buffer()
+        local presented, window_or_error = pcall(present_buffer)
+        if not presented then
+          vim.bo[bufnr].bufhidden = hidden
+          vim.bo[bufnr].buflisted = listed
+          vim.api.nvim_set_current_win(previous)
+          vim.notify("Could not open cell buffer: " .. tostring(window_or_error), vim.log.levels.ERROR)
+          return
+        end
+        winid = window_or_error
         floating = false
         configure_window()
         vim.api.nvim_win_set_cursor(winid, position)

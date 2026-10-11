@@ -26,8 +26,10 @@ function M.create(cell, column, format)
       filetype = format
     elseif kind == "xml" or column.is_xml then
       filetype = "xml"
-    elseif kind == "json" or column.is_json then
+    elseif kind == "json" then
       filetype = "json"
+    -- The service's is_json hint comes from row zero for text columns.
+    -- Detect each selected object/array independently instead.
     elseif #value <= 1024 * 1024 and value:match("^%s*[%[{]") and pcall(vim.json.decode, value) then
       filetype = "json"
     end

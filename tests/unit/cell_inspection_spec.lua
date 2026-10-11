@@ -49,6 +49,80 @@ local function show(value, metadata, presenter)
   return source, vim.api.nvim_get_current_buf(), vim.api.nvim_get_current_win()
 end
 
+T["Text columns use per-cell JSON detection instead of the first-row hint"] = function()
+  local metadata = { type_name = "nvarchar", is_json = true }
+  for _, value in ipairs({ "ordinary text", "null", "42", "true", '"text"', "{bad}" }) do
+    local snapshot = inspection.create(cell.create({ display_value = value }), metadata)
+    assert(snapshot.filetype == "text", value)
+    assert(not snapshot.status:find("invalid JSON", 1, true))
+  end
+  for _, value in ipairs({ '{"x":1}', "[1,null]" }) do
+    assert(inspection.create(cell.create({ display_value = value }), metadata).filetype == "json")
+  end
+  assert(inspection.create(cell.create({ display_value = "42" }), metadata, "json").filetype == "json")
+  local native = inspection.create(cell.create({ display_value = "{bad}" }), { type_name = "json" })
+  assert(native.filetype == "json" and native.status:find("invalid JSON", 1, true))
+end
+
+T["Failed promotion restores float lifetime focus and content"] = function()
+  local ui = require("sqlserver.results.ui.inspection")
+  local notify = vim.notify
+  local lines, height, minimum = vim.o.lines, vim.o.winheight, vim.o.winminheight
+  local errors = 0
+  vim.notify = function(_, level)
+    assert(level == vim.log.levels.ERROR)
+    errors = errors + 1
+  end
+  local ok, err = pcall(function()
+    for _, failure in ipairs({ "split", "throw", "reuse", "new" }) do
+      local source, result, origin = show("first\nsecond", nil, function(buf)
+        if not vim.b[buf].sqlserver_cell_info then
+          vim.api.nvim_set_current_buf(buf)
+        elseif failure == "split" then
+          vim.cmd("split")
+        else
+          if failure == "new" then
+            vim.cmd("split")
+          end
+          if failure ~= "throw" then
+            vim.api.nvim_win_set_buf(0, buf)
+          end
+          error("Presenter failed")
+        end
+      end)
+      local opened = view.inspect_cell()
+      vim.api.nvim_win_set_cursor(0, { 2, 2 })
+      if failure == "split" then
+        vim.o.lines = 10
+        vim.o.winheight = 5
+        vim.o.winminheight = 5
+      end
+      local count = #vim.api.nvim_list_wins()
+      ui.perform("open")
+      vim.o.winminheight = minimum
+      vim.o.winheight = height
+      vim.o.lines = lines
+      assert(vim.api.nvim_get_current_win() == opened.winid)
+      assert(vim.api.nvim_win_get_config(opened.winid).relative ~= "")
+      assert(not vim.bo[opened.bufnr].buflisted and vim.bo[opened.bufnr].bufhidden == "wipe")
+      assert(vim.deep_equal(vim.api.nvim_win_get_cursor(0), { 2, 2 }))
+      assert(#vim.api.nvim_list_wins() == count)
+      assert(vim.api.nvim_win_get_buf(origin) == result)
+      assert(vim.api.nvim_win_get_cursor(origin)[1] == 3)
+      vim.api.nvim_win_close(opened.winid, true)
+      assert(not vim.api.nvim_buf_is_valid(opened.bufnr), "Failed promotion must not orphan the scratch buffer")
+      view.clear()
+      vim.api.nvim_buf_delete(source, { force = true })
+    end
+    assert(errors == 4)
+  end)
+  vim.notify = notify
+  vim.o.winminheight = minimum
+  vim.o.winheight = height
+  vim.o.lines = lines
+  assert(ok, err)
+end
+
 T["Cell inspector focuses resizes returns and follows result ownership"] = function()
   local value = "Grüße 😀\n" .. string.rep("long value", 10000) .. "\n"
   local source, result, origin = show(value)
@@ -476,6 +550,50 @@ T["Adapter marks service storage boundaries without fetching again"] = require("
   assert(rows[1][1].completeness == "possibly_truncated")
   assert(rows[1][2].completeness == "complete")
   assert(rows[1][3].completeness == "possibly_truncated")
+end)
+
+T["Adapter separates aggregate chunk limits from scalar storage limits"] = require("tests.helpers").async(function()
+  local utils = require("sqlserver.utils")
+  local client, request = utils.get_lsp_client, utils.lsp_request_async
+  local settings = {}
+  local value = string.rep("x", 2200032)
+  utils.get_lsp_client = function()
+    return { config = { settings = { mssql = { query = settings } } } }
+  end
+  local calls = 0
+  utils.lsp_request_async = function(_, method)
+    assert(method == "query/subset")
+    calls = calls + 1
+    return { resultSubset = { rows = { { { displayValue = value } } } } }
+  end
+  local ok, err = pcall(function()
+    local adapter = require("sqlserver.adapters.sql_tools_service.query")
+    for _, format in ipairs({ "JSON", "XML" }) do
+      local column = {
+        name = format .. "_F52E2B61-18A1-11d1-B105-00805F49916B",
+        is_long = true,
+        is_xml = format == "XML",
+        type_name = format == "XML" and "ntext" or "nvarchar",
+      }
+      local function completeness()
+        return adapter.get_result_rows_async({ rowsCount = 1 }, { column })[1][1].completeness
+      end
+      assert(completeness() == "complete")
+      settings.maxCharsToStore, settings.maxXmlCharsToStore = 2034, 2034
+      assert(completeness() == "complete")
+      settings.maxCharsToStore, settings.maxXmlCharsToStore = 2033, 2033
+      assert(completeness() == "possibly_truncated", "Storage limits can clip individual aggregate chunks")
+      settings.maxCharsToStore, settings.maxXmlCharsToStore = nil, nil
+      column.name = "Payload"
+      assert(completeness() == "possibly_truncated", "Ordinary scalars still obey storage limits")
+      column.name = format .. "_F52E2B61-18A1-11d1-B105-00805F49916B"
+      column.type_name = "xml"
+      assert(completeness() == "possibly_truncated", "Native XML is a scalar even with a special name")
+    end
+    assert(calls == 10, "Inspection must not request recovery or rerun SQL")
+  end)
+  utils.get_lsp_client, utils.lsp_request_async = client, request
+  assert(ok, err)
 end)
 
 return T

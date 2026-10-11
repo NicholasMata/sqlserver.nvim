@@ -243,6 +243,8 @@ Result cells expose `completeness` (`complete`, `possibly_truncated`, or
 `unavailable`) and an optional service storage `limit`. At the pinned service's
 long-value storage boundary, completeness is conservative because the service
 returns no truncation flag. The inspector shows retained partial content with
-an explicit status and refuses to copy it as a complete original. SQL NULL and
+an explicit status and refuses to copy it as a complete original. Concatenated
+`FOR JSON` / `FOR XML` text results can exceed scalar limits; low custom limits
+that could clip their individual chunks remain conservative. SQL NULL and
 empty strings retain their distinct model identities. See [usage](usage.md)
 for formatting, copying, limits, and float navigation.

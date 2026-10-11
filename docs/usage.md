@@ -278,6 +278,7 @@ unmapped except Escape for closing. Without a configured prefix, use
 Ordinary values use `text`. Native XML/JSON metadata selects the corresponding
 filetype; valid JSON objects and arrays in text columns are detected. Text that
 looks like XML, malformed JSON, and ambiguous JSON scalars remain plain text.
+The service's first-row JSON hint does not force later text cells to use JSON.
 Use `:SQLServer InspectCellXml` or `:SQLServer InspectCellJson` to select a
 format explicitly. XML validation is left to configured tools; malformed XML
 remains accessible as raw content.
@@ -298,7 +299,11 @@ UTF-16 code units / bytes, and native XML to 2,097,152 UTF-16 code units. Values
 at those limits are conservatively marked potentially truncated, including
 values whose actual length happens to equal the limit. Discarded content cannot
 be recovered through the service's stored results. Copying a complete original
-is refused for these values. Inspection never executes SQL or fetches an
+is refused for these values. Top-level `FOR JSON` / `FOR XML` text results join
+multiple stored chunks and can exceed these scalar limits while remaining
+complete. Custom limits small enough to clip individual chunks still produce
+a warning. Native `FOR XML TYPE` values retain the scalar XML limit.
+Inspection never executes SQL or fetches an
 expired locator; complete retained values work after newer queries and
 disconnects. Binary inspection shows the service's representation (usually
 hex), without decoding bytes. Inspection is limited to 8 MiB per value and

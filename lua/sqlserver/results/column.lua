@@ -15,7 +15,7 @@ local M = {}
 ---@field nullable? boolean
 ---@field is_long boolean
 ---@field is_xml? boolean
----@field is_json? boolean
+---@field is_json? boolean First-row content hint; not a native JSON type
 ---@field source? SqlServerResultColumnSource
 
 ---@param value table SQL Tools Service DbColumnWrapper

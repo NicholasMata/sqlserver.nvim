@@ -222,3 +222,13 @@ SQL. Integration fixtures characterize 60,003-character retained text,
 additional character). Both the representation and its completeness survive
 history retention; the inspector refuses to copy unavailable content as a
 complete original.
+
+For top-level `FOR JSON` and `FOR XML` text results, the service concatenates
+cached chunks into one subset cell. The adapter recognizes the service's
+special single-column names and applies storage limits to the SQL Server
+chunks (2033 UTF-16 units), rather than to the combined document. Low custom
+limits that could clip a chunk remain conservative; native XML values,
+including `FOR XML TYPE`, retain scalar limits. Integration fixtures cover
+70,016-character JSON and 2,200,030-character XML documents beyond scalar limits.
+The service's `isJson` column flag is a first-row hint, so inspection detects
+JSON objects and arrays per selected text cell instead of trusting it as a type.

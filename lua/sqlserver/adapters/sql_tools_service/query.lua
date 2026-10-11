@@ -56,6 +56,19 @@ function M.get_result_rows_async(locator, columns)
   -- query/subset. It returns no truncation flag and cannot recover that tail.
   -- Treat values at the storage boundary conservatively, including exact fits.
   local settings = (((client.config or {}).settings or {}).mssql or {}).query or {}
+  -- GetSubset concatenates FOR JSON/XML chunks identified by these exact
+  -- single-column names. SQL Server emits chunks of at most 2033 UTF-16
+  -- units, so the aggregate length is not a per-cell storage boundary.
+  -- Keep low custom storage limits conservative: individual chunks may
+  -- have been clipped before concatenation and cannot be recovered.
+  local aggregate = columns
+    and #columns == 1
+    and (columns[1].type_name or ""):lower() ~= "xml"
+    and (columns[1].type_name or ""):lower() ~= "json"
+    and (
+      columns[1].name == "JSON_F52E2B61-18A1-11d1-B105-00805F49916B"
+      or columns[1].name == "XML_F52E2B61-18A1-11d1-B105-00805F49916B"
+    )
   return vim
     .iter(result.resultSubset.rows)
     :map(function(row)
@@ -71,7 +84,10 @@ function M.get_result_rows_async(locator, columns)
           local is_binary = type_name == "image" or type_name:find("binary", 1, true)
           local length = is_binary and math.max(0, (#(cell.displayValue or "") - 2) / 2)
             or vim.str_utfindex(cell.displayValue or "", "utf-16")
-          local uncertain = column.is_long and not cell.isNull and length >= limit
+          local uncertain = (aggregate or column.is_long)
+            and not cell.isNull
+            and length >= limit
+            and (not aggregate or limit <= 2033)
           return result_cell.create({
             completeness = uncertain and "possibly_truncated" or "complete",
             limit = uncertain and limit or nil,

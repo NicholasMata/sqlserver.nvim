@@ -59,6 +59,10 @@ later releases.
 
 ### Fixed
 
+- Keep concatenated `FOR JSON` / `FOR XML` results copyable beyond scalar
+  storage limits and detect JSON per text cell instead of using a first-row
+  hint. Failed cell-float promotion restores focus and scratch-buffer cleanup.
+
 - Filter `:SQLServer` command completion by the typed prefix, ignoring case
   while preserving context-sensitive suggestions and command capitalization.
 
