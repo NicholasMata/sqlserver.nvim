@@ -254,7 +254,9 @@ and cursor. From the results grid, use `<keymap_prefix>V` or
 `:SQLServer InspectCellBuffer` to open directly in a regular buffer. Both paths
 use `open_results_in`, including custom presenters and Vim split direction preferences. These listed
 buffers remain available after closing their window; Escape deletes
-them. Both views support normal Visual selection and yank commands.
+them. If presentation reuses an existing window, Escape restores its previous
+buffer and view instead of closing that window. Both views support normal
+Visual selection and yank commands.
 The title shows the column and row. Use `:SQLServer CellInfo`
 for the source query, execution, result, full status, and key reference.
 A status line appears only for NULL/empty values, availability warnings, or

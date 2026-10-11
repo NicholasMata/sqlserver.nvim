@@ -365,6 +365,10 @@ T["Direct and promoted cell buffers use the result presenter and split direction
               vim.api.nvim_set_current_buf(buf)
             end
           end)
+          vim.cmd("vsplit")
+          local unrelated = vim.api.nvim_get_current_win()
+          vim.api.nvim_win_set_buf(unrelated, source)
+          vim.api.nvim_set_current_win(origin)
           local opened = view.inspect_cell({ display = promote and "float" or "buffer" })
           if promote then
             vim.api.nvim_win_set_cursor(0, { 2, 2 })
@@ -384,6 +388,12 @@ T["Direct and promoted cell buffers use the result presenter and split direction
             assert(after and position[axis] > original[axis] or not after and position[axis] < original[axis])
           end
           require("sqlserver.results.ui.inspection").perform("close")
+          assert(vim.api.nvim_win_is_valid(origin), "Closing the inspector must preserve the result window")
+          assert(vim.api.nvim_get_current_win() == origin)
+          assert(vim.api.nvim_win_get_buf(origin) == result)
+          assert(vim.deep_equal(vim.api.nvim_win_get_cursor(origin), { 3, 0 }))
+          assert(vim.api.nvim_win_get_buf(unrelated) == source)
+          vim.api.nvim_win_close(unrelated, true)
           view.clear()
           vim.api.nvim_buf_delete(source, { force = true })
         end
@@ -392,6 +402,48 @@ T["Direct and promoted cell buffers use the result presenter and split direction
   end)
   vim.o.splitbelow, vim.o.splitright = below, right
   assert(ok, err)
+end
+
+T["Closing a custom reused presentation window restores its buffer view and options"] = function()
+  for _, promote in ipairs({ false, true }) do
+    local target
+    local source, result, origin = show("first\nsecond", nil, function(buf)
+      if vim.b[buf].sqlserver_cell_info then
+        vim.api.nvim_win_set_buf(target, buf)
+      else
+        vim.api.nvim_set_current_buf(buf)
+      end
+    end)
+    vim.api.nvim_buf_set_lines(source, 0, -1, false, { "query line one", "query line two" })
+    vim.cmd("vsplit")
+    target = vim.api.nvim_get_current_win()
+    vim.api.nvim_win_set_buf(target, source)
+    vim.api.nvim_win_set_cursor(target, { 2, 4 })
+    local options =
+      { spell = true, wrap = false, linebreak = true, breakindent = true, showbreak = "> ", winbar = "Query" }
+    for name, value in pairs(options) do
+      vim.wo[target][name] = value
+    end
+    vim.api.nvim_set_current_win(origin)
+    local opened = view.inspect_cell({ display = promote and "float" or "buffer" })
+    if promote then
+      require("sqlserver.results.ui.inspection").perform("open")
+    end
+    assert(vim.api.nvim_get_current_win() == target)
+    assert(vim.api.nvim_get_current_buf() == opened.bufnr)
+    require("sqlserver.results.ui.inspection").perform("close")
+    assert(vim.api.nvim_win_is_valid(target))
+    assert(vim.api.nvim_win_get_buf(target) == source)
+    assert(vim.deep_equal(vim.api.nvim_win_get_cursor(target), { 2, 4 }))
+    for name, value in pairs(options) do
+      assert(vim.wo[target][name] == value, "Reused window should restore " .. name)
+    end
+    assert(vim.api.nvim_get_current_win() == origin)
+    assert(vim.api.nvim_get_current_buf() == result)
+    vim.api.nvim_win_close(target, true)
+    view.clear()
+    vim.api.nvim_buf_delete(source, { force = true })
+  end
 end
 
 T["Adapter marks service storage boundaries without fetching again"] = require("tests.helpers").async(function()

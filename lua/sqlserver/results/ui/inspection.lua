@@ -97,7 +97,21 @@ function M.open(snapshot, context, opts)
     generated_buffer.create({ name = "sqlserver-cell://" .. next_id, scratch = true, listed = not floating })
   local bufnr = transaction.bufnr
   local winid
+  local reused_window
+  local window_options = { "spell", "wrap", "linebreak", "breakindent", "showbreak", "winbar" }
   local function present_buffer()
+    local previous = {}
+    for _, window in ipairs(vim.api.nvim_list_wins()) do
+      local options = {}
+      for _, name in ipairs(window_options) do
+        options[name] = vim.wo[window][name]
+      end
+      previous[window] = {
+        bufnr = vim.api.nvim_win_get_buf(window),
+        view = vim.api.nvim_win_call(window, vim.fn.winsaveview),
+        options = options,
+      }
+    end
     if opts.open_results_in then
       opts.open_results_in(bufnr)
     else
@@ -108,6 +122,7 @@ function M.open(snapshot, context, opts)
     -- regular window explicitly, excluding the float during promotion.
     for _, window in ipairs(vim.fn.win_findbuf(bufnr)) do
       if vim.api.nvim_win_get_config(window).relative == "" then
+        reused_window = previous[window]
         vim.api.nvim_set_current_win(window)
         return window
       end
@@ -200,11 +215,20 @@ function M.open(snapshot, context, opts)
     local function close()
       local restore_focus = vim.api.nvim_get_current_win() == winid
       if vim.api.nvim_win_is_valid(winid) and vim.api.nvim_win_get_buf(winid) == bufnr then
-        local closed = pcall(vim.api.nvim_win_close, winid, true)
+        local closed = not reused_window and pcall(vim.api.nvim_win_close, winid, true)
         if not closed then
-          local replacement = vim.api.nvim_buf_is_loaded(context.result_bufnr) and context.result_bufnr
+          local replacement = reused_window and vim.api.nvim_buf_is_valid(reused_window.bufnr) and reused_window.bufnr
+            or vim.api.nvim_buf_is_loaded(context.result_bufnr) and context.result_bufnr
             or vim.api.nvim_create_buf(true, true)
           vim.api.nvim_win_set_buf(winid, replacement)
+          if reused_window then
+            for name, value in pairs(reused_window.options) do
+              vim.wo[winid][name] = value
+            end
+            vim.api.nvim_win_call(winid, function()
+              vim.fn.winrestview(reused_window.view)
+            end)
+          end
         end
       end
       if vim.api.nvim_buf_is_valid(bufnr) then
