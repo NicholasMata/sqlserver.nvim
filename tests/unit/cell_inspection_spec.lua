@@ -25,7 +25,7 @@ T["Cell inspection distinguishes NULL empty and structured values"] = function()
   assert(not inspection.create(cell.create({ display_value = "<x/>" }), { type_name = "xml" }).notice)
 end
 
-local function show(value, metadata)
+local function show(value, metadata, presenter)
   view.clear()
   local source = vim.api.nvim_create_buf(false, true)
   view.show({
@@ -38,7 +38,10 @@ local function show(value, metadata)
     }),
   }, {
     results = { max_cell_width = 8, history_limit = 2 },
-    open_results_in = function(buf)
+    open_results_in = presenter or function(buf)
+      if vim.b[buf].sqlserver_cell_info then
+        vim.cmd("split")
+      end
       vim.api.nvim_set_current_buf(buf)
     end,
   }, source)
@@ -279,6 +282,115 @@ T["Inspector plugin menu replaces unrelated actions and preserves native command
   view.clear()
   vim.api.nvim_buf_delete(source, { force = true })
   assert(not vim.api.nvim_buf_is_valid(opened.bufnr))
+  assert(ok, err)
+end
+
+T["Inspector fallback prefix cannot invoke global plugin actions"] = function()
+  local source, _, origin = show("plain text")
+  local ui = require("sqlserver.results.ui.inspection")
+  local loaded, preload = package.loaded["which-key"], package.preload["which-key"]
+  package.loaded["which-key"] = nil
+  package.preload["which-key"] = function()
+    error("WhichKey unavailable in this test")
+  end
+  local calls = 0
+  local commands = setmetatable({}, {
+    __index = function()
+      return function()
+        calls = calls + 1
+      end
+    end,
+  })
+  local opened
+  local ok, err = pcall(function()
+    require("sqlserver.ui.keymaps").set_keymaps("\\z", commands)
+    opened = view.inspect_cell()
+    local function invoke(key, mode)
+      vim.fn.maparg("\\z" .. key, mode or "n", false, true).callback()
+    end
+    for _, key in ipairs({ "a", "i", "n", "c", "R", "q", "l", "x", "X", "e", "r", "d", "f", "b", "v", "s" }) do
+      invoke(key)
+    end
+    invoke("x", "x")
+    assert(calls == 0, "Unavailable cell actions must not invoke global plugin commands")
+    invoke("o")
+    assert(vim.api.nvim_get_current_buf() == opened.bufnr)
+    assert(not vim.api.nvim_win_is_valid(opened.winid))
+    invoke("o")
+    invoke("f")
+    invoke("q")
+    assert(calls == 0, "Promoted buffers must retain contextual prefix behavior")
+    ui.perform("close")
+    vim.api.nvim_set_current_win(origin)
+    invoke("f")
+    invoke("q")
+    assert(calls == 2, "Global commands must still work outside inspectors")
+  end)
+  package.loaded["which-key"], package.preload["which-key"] = loaded, preload
+  for _, mode in ipairs({ "n", "x", "s" }) do
+    for _, mapping in ipairs(vim.api.nvim_get_keymap(mode)) do
+      if mapping.lhs:sub(1, 2) == "\\z" then
+        vim.keymap.del(mode, mapping.lhs)
+      end
+    end
+  end
+  ui.setup_keymaps(nil)
+  if opened and vim.api.nvim_buf_is_valid(opened.bufnr) then
+    vim.api.nvim_set_current_buf(opened.bufnr)
+    ui.perform("close")
+  end
+  view.clear()
+  vim.api.nvim_buf_delete(source, { force = true })
+  assert(ok, err)
+end
+
+T["Direct and promoted cell buffers use the result presenter and split direction"] = function()
+  local below, right = vim.o.splitbelow, vim.o.splitright
+  local ok, err = pcall(function()
+    for _, command in ipairs({ "split", "vsplit", "current_window" }) do
+      for _, after in ipairs({ false, true }) do
+        vim.o.splitbelow, vim.o.splitright = after, after
+        for _, promote in ipairs({ false, true }) do
+          local presentations = 0
+          local source, result, origin = show("first\nsecond", nil, function(buf)
+            if vim.b[buf].sqlserver_cell_info then
+              presentations = presentations + 1
+              if command ~= "current_window" then
+                vim.cmd(command)
+              end
+              vim.api.nvim_win_set_buf(0, buf)
+              -- The built-in split presenters restore the origin's focus.
+              vim.cmd("wincmd p")
+            else
+              vim.api.nvim_set_current_buf(buf)
+            end
+          end)
+          local opened = view.inspect_cell({ display = promote and "float" or "buffer" })
+          if promote then
+            vim.api.nvim_win_set_cursor(0, { 2, 2 })
+            require("sqlserver.results.ui.inspection").perform("open")
+            assert(vim.deep_equal(vim.api.nvim_win_get_cursor(0), { 2, 2 }))
+          end
+          assert(presentations == 1)
+          assert(vim.api.nvim_get_current_buf() == opened.bufnr)
+          assert(vim.api.nvim_win_get_config(0).relative == "")
+          local position = vim.api.nvim_win_get_position(0)
+          local original = vim.api.nvim_win_get_position(origin)
+          if command == "current_window" then
+            assert(vim.api.nvim_get_current_win() == origin)
+          else
+            assert(vim.api.nvim_win_get_buf(origin) == result)
+            local axis = command == "split" and 1 or 2
+            assert(after and position[axis] > original[axis] or not after and position[axis] < original[axis])
+          end
+          require("sqlserver.results.ui.inspection").perform("close")
+          view.clear()
+          vim.api.nvim_buf_delete(source, { force = true })
+        end
+      end
+    end
+  end)
+  vim.o.splitbelow, vim.o.splitright = below, right
   assert(ok, err)
 end
 

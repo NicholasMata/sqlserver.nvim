@@ -534,7 +534,7 @@ function M.inspect_cell(opts)
     row = row_index,
     column = column_index,
     column_name = session.result_set.columns[column_index],
-  }, opts)
+  }, vim.tbl_extend("force", opts, { open_results_in = session.open_results_in }))
 end
 
 function M.copy_cell()
@@ -824,6 +824,7 @@ function M.show(result_sets, opts, source_bufnr, dispose, plans)
     vim.api.nvim_set_option_value("modifiable", false, { buf = bufnr })
     result_sessions[bufnr] = {
       source_bufnr = source_bufnr,
+      open_results_in = opts.open_results_in,
       execution = execution,
       result_index = index,
       cell_ranges = rendered.cell_ranges,

@@ -249,9 +249,10 @@ the unnamed register and follows the user's `clipboard` option.
 Press Enter on any result cell to open its retained representation in a
 read-only float. Use normal text movement and scrolling; Escape closes
 it and restores the originating cell when that result window still exists.
-`<keymap_prefix>o` opens the same value in a regular split, preserving its current presentation
+`<keymap_prefix>o` opens the same value in a regular buffer, preserving its current presentation
 and cursor. From the results grid, use `<keymap_prefix>V` or
-`:SQLServer InspectCellBuffer` to open directly in a regular split. These listed
+`:SQLServer InspectCellBuffer` to open directly in a regular buffer. Both paths
+use `open_results_in`, including custom presenters and Vim split direction preferences. These listed
 buffers remain available after closing their window; Escape deletes
 them. Both views support normal Visual selection and yank commands.
 The title shows the column and row. Use `:SQLServer CellInfo`

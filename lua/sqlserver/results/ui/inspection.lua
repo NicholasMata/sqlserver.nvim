@@ -97,6 +97,23 @@ function M.open(snapshot, context, opts)
     generated_buffer.create({ name = "sqlserver-cell://" .. next_id, scratch = true, listed = not floating })
   local bufnr = transaction.bufnr
   local winid
+  local function present_buffer()
+    if opts.open_results_in then
+      opts.open_results_in(bufnr)
+    else
+      vim.cmd("split")
+      vim.api.nvim_win_set_buf(0, bufnr)
+    end
+    -- Presenters may restore focus to the originating window. Find the
+    -- regular window explicitly, excluding the float during promotion.
+    for _, window in ipairs(vim.fn.win_findbuf(bufnr)) do
+      if vim.api.nvim_win_get_config(window).relative == "" then
+        vim.api.nvim_set_current_win(window)
+        return window
+      end
+    end
+    error("The configured result presenter did not display the cell buffer")
+  end
   local group = vim.api.nvim_create_augroup("sqlserver-cell-" .. next_id, { clear = true })
   local ok, err = pcall(function()
     local raw = vim.split(snapshot.is_null and "[SQL NULL]" or snapshot.original, "\n", { plain = true })
@@ -148,9 +165,7 @@ function M.open(snapshot, context, opts)
       config.title = " Cell value "
       winid = vim.api.nvim_open_win(bufnr, true, config)
     else
-      vim.cmd("belowright split")
-      winid = vim.api.nvim_get_current_win()
-      vim.api.nvim_win_set_buf(winid, bufnr)
+      winid = present_buffer()
     end
     local function configure_window()
       vim.wo[winid].spell = false
@@ -251,9 +266,7 @@ function M.open(snapshot, context, opts)
         else
           vim.cmd("wincmd p")
         end
-        vim.cmd("belowright split")
-        winid = vim.api.nvim_get_current_win()
-        vim.api.nvim_win_set_buf(winid, bufnr)
+        winid = present_buffer()
         floating = false
         configure_window()
         vim.api.nvim_win_set_cursor(winid, position)

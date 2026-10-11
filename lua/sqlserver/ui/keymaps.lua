@@ -231,12 +231,26 @@ return {
 
       wk.add(visual_group)
     else
-      for _, m in pairs(keymaps) do
-        vim.keymap.set(m.mode or "n", prefix .. m[1], m[2], { desc = m.desc })
+      local function contextual(callback)
+        return function()
+          -- Cell actions are buffer-local. Unavailable actions must not
+          -- fall through to unrelated connection or query operations.
+          if not vim.b.sqlserver_cell_info then
+            return callback()
+          end
+        end
       end
-      vim.keymap.set("n", prefix .. "s", function()
-        M.switch_database()
-      end, { desc = "Switch Database" })
+      for _, m in pairs(keymaps) do
+        vim.keymap.set(m.mode or "n", prefix .. m[1], contextual(m[2]), { desc = m.desc })
+      end
+      vim.keymap.set(
+        "n",
+        prefix .. "s",
+        contextual(function()
+          M.switch_database()
+        end),
+        { desc = "Switch Database" }
+      )
     end
   end,
 }
