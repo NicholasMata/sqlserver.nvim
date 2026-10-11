@@ -81,6 +81,7 @@ T["Result filetype should install buffer-local mappings"] = require("tests.helpe
     prefixed_mappings[mapping.desc] = true
   end
   assert(prefixed_mappings["Export SQL result"], "The configured prefix should add a result-local export mapping")
+  assert(prefixed_mappings["Show source SQL query"], "The result prefix should provide source navigation")
   assert(prefixed_mappings["Next SQL execution"])
   assert(prefixed_mappings["Previous SQL execution"])
   assert(prefixed_mappings["Remove SQL result"])

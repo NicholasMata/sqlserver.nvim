@@ -1,6 +1,7 @@
 local sqlserver = require("sqlserver")
 local test_utils = require("tests.helpers.integration")
 local utils = require("sqlserver.utils")
+local workspace_module = require("sqlserver.workspace")
 local workspace_registry = require("sqlserver.workspace.registry")
 
 local function execute_buffer_async(query_buffer, query)
@@ -16,7 +17,15 @@ local function execute_buffer_async(query_buffer, query)
   local client = test_utils.get_sql_client(query_buffer)
   local completed, err = utils.wait_for_notification_async(query_buffer, client, "query/complete", 30000)
   assert(not err, err and err.message or "Query completion timed out")
-  test_utils.defer_async(2000)
+  -- query/complete only marks service execution complete. Row fetching and
+  -- presentation continue asynchronously, especially under CI coverage.
+  local workspace = workspace_registry.get(query_buffer)
+  local deadline = vim.uv.hrtime() + 30 * 1e9
+  while workspace.get_state() == workspace_module.states.executing and vim.uv.hrtime() < deadline do
+    test_utils.defer_async(50)
+  end
+  assert(workspace.get_state() == workspace_module.states.connected, "Query presentation did not complete")
+  utils.wait_for_schedule_async()
   return completed
 end
 

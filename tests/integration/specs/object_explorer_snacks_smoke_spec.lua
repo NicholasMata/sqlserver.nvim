@@ -64,6 +64,22 @@ T["Object Explorer works with a real Snacks picker"] = require("tests.helpers").
     "Object Explorer did not open a real Snacks picker"
   )
 
+  local function assert_input_navigation()
+    assert(vim.api.nvim_get_current_win() == picker.input.win.win, "Explorer did not focus its search input")
+    assert(vim.fn.mode():find("^n"), "Explorer input did not start in Normal mode")
+    local before = picker.list.cursor
+    press_normal("j")
+    assert(picker.list.cursor == before + 1, "j did not move the tree selection")
+    press_normal("k")
+    assert(picker.list.cursor == before, "k did not restore the tree selection")
+    assert(vim.api.nvim_get_current_win() == picker.input.win.win, "Tree navigation moved focus out of the input")
+  end
+
+  assert_input_navigation()
+  vim.api.nvim_set_current_win(vim.fn.win_findbuf(source_bufnr)[1])
+  sqlserver.object_explorer()
+  assert_input_navigation()
+
   assert(picker.opts.title == "SQL Server Object Explorer")
   assert(picker.opts.win.list.keys.l == "object_toggle")
   assert(picker.opts.win.list.keys.h == "object_collapse")
@@ -95,7 +111,7 @@ T["Object Explorer works with a real Snacks picker"] = require("tests.helpers").
     filtered_labels[#filtered_labels + 1] = picker.list:get(index).label
   end
   assert(
-    picker.list:count() == 4,
+    picker.list:count() == 6,
     "Filtered Object Explorer included unrelated nodes: " .. vim.inspect(filtered_labels)
   )
   press_normal("K")
@@ -112,17 +128,47 @@ T["Object Explorer works with a real Snacks picker"] = require("tests.helpers").
     end, 20),
     "K did not open the object action menu after searching"
   )
+  local menu_windows = {}
+  for _, win in pairs(action_picker.layout.wins) do
+    if win.win then
+      menu_windows[#menu_windows + 1] = win.win
+    end
+  end
+  local original_focus = picker.focus
+  local focus_restored = false
+  picker.focus = function(self, target, ...)
+    original_focus(self, target, ...)
+    if target == "input" then
+      focus_restored = true
+    end
+  end
   action_picker:close()
+  local restored = vim.wait(10000, function()
+    return focus_restored
+      and vim.api.nvim_get_current_win() == picker.input.win.win
+      and vim.fn.mode():find("^n") ~= nil
+      and vim.iter(menu_windows):all(function(win)
+        return not vim.api.nvim_win_is_valid(win)
+      end)
+  end, 10)
+  picker.focus = original_focus
+  assert(restored, "Closing actions did not finish teardown and restore Normal mode in the search input")
 
   vim.api.nvim_set_current_win(picker.input.win.win)
   picker.input:set("NoSuchDatabaseObject")
-  picker:find()
+  local search_completed = false
+  picker:find({
+    on_done = function()
+      search_completed = true
+    end,
+  })
   assert(
-    vim.wait(1000, function()
+    vim.wait(10000, function()
       local first = picker.list:get(1)
       local second = picker.list:get(2)
-      return picker.input.filter.pattern == "NoSuchDatabaseObject"
-        and not picker.matcher:running()
+      return search_completed
+        and picker.input.filter.pattern == "NoSuchDatabaseObject"
+        and not picker:is_active()
         and picker.list:count() == 2
         and first
         and first.search_all
@@ -131,7 +177,21 @@ T["Object Explorer works with a real Snacks picker"] = require("tests.helpers").
         and second.placeholder
         and second.label == "No matching loaded objects"
     end, 20),
-    "Empty object search did not show its no-match row"
+    "Empty object search did not show its no-match row: "
+      .. vim.inspect({
+        pattern = picker.input.filter.pattern,
+        input = picker.input:get(),
+        active = picker:is_active(),
+        matcher_pattern = picker.matcher.pattern,
+        search_completed = search_completed,
+        focus_restored = focus_restored,
+        count = picker.list:count(),
+        first = picker.list:get(1) and picker.list:get(1).label,
+        second = picker.list:get(2) and picker.list:get(2).label,
+        items = vim.tbl_map(function(item)
+          return item.label
+        end, picker.list.items),
+      })
   )
 
   picker.opts.actions.object_toggle(picker, picker:current({ resolve = false }))

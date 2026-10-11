@@ -7,6 +7,7 @@ local result_keymaps = require("sqlserver.results.ui.keymaps")
 
 return {
   set_keymaps = function(prefix, M)
+    require("sqlserver.results.ui.inspection").setup_keymaps(prefix)
     if not prefix then
       return
     end
@@ -98,6 +99,12 @@ return {
 
       local normal_group = vim.tbl_deep_extend("keep", wkeygroup, {})
       normal_group.expand = function()
+        if vim.b.sqlserver_cell_info then
+          return require("sqlserver.results.ui.inspection").which_key_items()
+        end
+        if vim.b.sqlserver_plan_info then
+          return result_keymaps.which_key_plan_items(M)
+        end
         local workspace = workspace_registry.get()
         if workspace then
           local state = workspace.get_state()
@@ -196,6 +203,12 @@ return {
       local visual_group = vim.tbl_deep_extend("keep", wkeygroup, {})
       visual_group.mode = "v"
       visual_group.expand = function()
+        if vim.b.sqlserver_cell_info then
+          return {}
+        end
+        if vim.b.sqlserver_plan_info then
+          return {}
+        end
         if vim.b.query_result_info then
           return result_keymaps.which_key_visual_items(M)
         end
@@ -218,12 +231,26 @@ return {
 
       wk.add(visual_group)
     else
-      for _, m in pairs(keymaps) do
-        vim.keymap.set(m.mode or "n", prefix .. m[1], m[2], { desc = m.desc })
+      local function contextual(callback)
+        return function()
+          -- Cell actions are buffer-local. Unavailable actions must not
+          -- fall through to unrelated connection or query operations.
+          if not vim.b.sqlserver_cell_info then
+            return callback()
+          end
+        end
       end
-      vim.keymap.set("n", prefix .. "s", function()
-        M.switch_database()
-      end, { desc = "Switch Database" })
+      for _, m in pairs(keymaps) do
+        vim.keymap.set(m.mode or "n", prefix .. m[1], contextual(m[2]), { desc = m.desc })
+      end
+      vim.keymap.set(
+        "n",
+        prefix .. "s",
+        contextual(function()
+          M.switch_database()
+        end),
+        { desc = "Switch Database" }
+      )
     end
   end,
 }

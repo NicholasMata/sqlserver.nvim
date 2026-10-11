@@ -216,6 +216,33 @@ jobs:
         if: always()
         run: make test-env-down
 
+  agent-unavailable-linux:
+    name: Agent unavailable integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Install Neovim 0.11.7
+        run: |
+          curl -fsSL "https://github.com/neovim/neovim/releases/download/${NVIM_VERSION}/nvim-linux-x86_64.tar.gz" \
+            -o "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz"
+          sudo tar -C /opt -xzf "$RUNNER_TEMP/nvim-linux-x86_64.tar.gz"
+          echo "/opt/nvim-linux-x86_64/bin" >> "$GITHUB_PATH"
+
+      - name: Run unavailable-Agent integration test
+        run: make test-agent-unavailable-local
+
+      - name: Assert clean repository
+        if: always()
+        run: test -z "$(git status --porcelain --untracked-files=all)"
+
+      - name: Stop SQL Server
+        if: always()
+        run: make test-env-down
+
   coverage-report:
     name: Combined coverage report
     needs: [unit-linux, platform-unix, platform-windows, integration-linux]

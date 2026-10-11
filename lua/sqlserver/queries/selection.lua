@@ -5,6 +5,7 @@ local M = {}
 ---@field position? { line: integer, column: integer }
 ---@field range? { startLine: integer, startColumn: integer, endLine: integer, endColumn: integer }
 ---@field text? string
+---@field plan? "estimated"|"actual"
 
 ---@param text string
 ---@return integer

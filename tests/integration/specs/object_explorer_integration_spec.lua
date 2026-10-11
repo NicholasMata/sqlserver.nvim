@@ -29,7 +29,7 @@ T["Object Explorer completes an object workflow"] = require("tests.helpers").asy
     find = function() end,
     refresh = function() end,
     focus = function(_, target)
-      assert(target == "list")
+      assert(target == "input")
       focus_count = focus_count + 1
     end,
     norm = function(_, callback)

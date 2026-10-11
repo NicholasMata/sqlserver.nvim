@@ -13,8 +13,11 @@ function M.describe(result, max_rows)
   for batch_index, batch in ipairs(result.batchSummaries or {}) do
     for result_set_index, result_set in ipairs(batch.resultSetSummaries or {}) do
       ordinal = ordinal + 1
-      if #(result_set.columnInfo or {}) > 0 and not (batch.hasError and result_set.rowCount == 0) then
+      local is_plan = type(result_set.specialAction) == "table"
+        and result_set.specialAction.expectYukonXMLShowPlan == true
+      if not is_plan and #(result_set.columnInfo or {}) > 0 and not (batch.hasError and result_set.rowCount == 0) then
         local column_metadata = vim.iter(result_set.columnInfo or {}):map(result_column.from_protocol):totable()
+        column_metadata[1].aggregate_format = result_column.aggregate_format(column_metadata)
         table.insert(descriptors, {
           columns = vim
             .iter(column_metadata)
@@ -42,7 +45,7 @@ end
 
 ---@param result table
 ---@param max_rows integer
----@param fetch_rows fun(locator: table): SqlServerResultCell[][]
+---@param fetch_rows fun(locator: table, columns: SqlServerResultColumn[]): SqlServerResultCell[][]
 ---@return SqlServerResultSet[]
 function M.collect_async(result, max_rows, fetch_rows)
   return vim
@@ -51,7 +54,7 @@ function M.collect_async(result, max_rows, fetch_rows)
       return query_result.create({
         columns = descriptor.columns,
         column_metadata = descriptor.column_metadata,
-        rows = fetch_rows(descriptor.locator),
+        rows = fetch_rows(descriptor.locator, descriptor.column_metadata),
         row_count = descriptor.row_count,
         duration_ms = descriptor.duration_ms,
         locator = descriptor.locator,

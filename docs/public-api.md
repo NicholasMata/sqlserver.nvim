@@ -19,7 +19,8 @@ immediately through `err` instead of only being displayed as notifications.
 
 The callback runs exactly once. Errors are tables with `code`, `message`, and an
 optional redacted `cause`. API methods do not prompt, open result windows, or
-turn failures into notifications. Ex commands and mappings use separate UI
+turn failures into notifications. The explicit `open_plan()` method opens
+a plan XML window. Ex commands and mappings use separate UI
 handlers available under `require("sqlserver").commands`.
 
 ## Connections
@@ -70,6 +71,67 @@ query or object-scripting operation owned by the workspace. The callback
 confirms the request; the operation callback completes after SQL Tools Service
 reports cancellation.
 
+## Execution plans
+
+Use the `plan` option on `execute()` for the same statement, selection,
+buffer, and explicit-text scopes:
+
+```lua
+sqlserver.execute({ bufnr = 0, scope = "buffer", plan = "estimated" }, function(execution, err)
+  if err or execution.cancelled then return end
+  local plan = execution.plans[1]
+  if not plan then return end -- plan_status == "none"
+  sqlserver.open_plan({ plan = plan }, function(view, open_error) end)
+  sqlserver.export_plan({ plan = plan, path = "/tmp/query.sqlplan" }, function(saved, save_error) end)
+end)
+```
+
+`plan = "estimated"` does not execute SQL. `plan = "actual"` executes it
+once and collects runtime plans alongside ordinary results. The callback
+result includes `plans` and `plan_status` (`"captured"` or `"none"`).
+Ordinary executions return an empty `plans` list without a `plan_status`.
+Plan result sets do not contribute to summary row/result counts or table
+results. Cancellation returns `cancelled = true` without publishing plans.
+Permission, retrieval, unsupported-response, and malformed-response failures
+return structured errors, separately from a successful no-plan result.
+
+Each snapshot contains:
+
+- `xml`: original, unformatted Showplan XML;
+- `kind`: `"estimated"` or `"actual"`;
+- `ordinal`: one-based plan position;
+- `batch_index` and `result_index`: zero-based identities within the execution;
+- `batch_range`: zero-based `start_line`, `start_column`, `end_line`,
+  and `end_column` when the service reports the executed batch range;
+- `source_bufnr` and `execution_id`: originating workspace and its execution ID;
+- `connection`: source connection/database context captured before execution,
+  with passwords and access tokens removed.
+
+A document may contain multiple statements. `batch_range` describes the
+batch, not a per-statement range. Plan ordinals identify documents, not
+individual XML operators or statements. Execution IDs are local to each
+workspace. Captured snapshots remain usable after service-side query
+disposal, subsequent execution, or disconnect.
+
+`open_plan({ plan = snapshot }, callback)` opens a separate read-only XML
+buffer and returns `{ bufnr }`. Closing its window wipes the temporary
+view; deleting its source also clears it. The snapshot itself remains owned
+by the caller. No connection is required.
+
+`export_plan({ plan = snapshot, path = "...sqlplan", overwrite = false }, callback)`
+returns `{ path, format = "sqlplan" }`. Paths must end in `.sqlplan`.
+It writes the captured XML bytes directly as UTF-8, preserving whitespace
+and Unicode, with no SQL execution or table export. Existing files are
+rejected unless `overwrite = true`; replacement uses a temporary sibling
+file so failed writes preserve the existing file.
+
+Plan retrieval uses `timeouts.export`; execution uses `timeouts.query`.
+The workspace stays busy through plan and result collection, preventing a
+new query from invalidating in-progress retrieval. Built-in commands retain
+plan views in the same bounded history as results; public API callers own
+their returned snapshots and may release backend query storage with
+`execution.dispose()` while retaining the XML.
+
 ## Objects
 
 The 1.0 object model includes a searchable snapshot of tables, views, stored
@@ -101,6 +163,23 @@ individual tree-node refresh are deliberately outside the 1.0 contract. The
 returned script includes the resolved public object descriptor alongside its
 SQL text and execution metadata.
 
+## SQL Agent Jobs
+
+`list_jobs({ bufnr = 0 }, callback)` returns normalized, read-only job
+descriptors for the connected workspace. Call it again to refresh the list.
+The descriptors include job identity, enabled state, current execution state,
+and last and next run information when SQL Tools Service provides it.
+
+Pass a returned job to `job_details({ bufnr = 0, job = job }, callback)` to load
+its steps, schedules, execution history, and job-linked alerts. Repeating the
+call refreshes those details. A job that has never run has an empty `histories`
+list and `history_state = "empty"` while retaining its steps and schedules.
+
+The callbacks use the usual `(result, err)` form. Error codes distinguish
+`agent_unavailable`, `agent_permission_denied`, `agent_timeout`, and
+`agent_request_failed` when the service provides enough evidence. Superseded
+requests complete with `agent_cancelled`.
+
 ## Result Export
 
 `export_results(opts, callback)` writes a public API result set without a file
@@ -130,3 +209,46 @@ The existing interactive Lua handlers remain available under
 `sqlserver.commands`, such as `sqlserver.commands.connect()` and
 `sqlserver.commands.execute_query()`. Calling `sqlserver.connect()` without a
 profile also invokes the interactive connection picker for convenience.
+
+## Cell inspection
+
+```lua
+require("sqlserver").inspect_cell({
+  bufnr = result_buffer, -- optional; defaults to current result buffer
+  row = 1,              -- optional, one-based retained row
+  column = 3,           -- optional, one-based column
+  format = "json",      -- optional: "text", "xml", or "json"; default detects
+  display = "buffer",   -- optional: "float" (default) or "buffer" (regular split)
+}, function(opened, err)
+  if err then
+    vim.notify(err.message, vim.log.levels.ERROR)
+    return
+  end
+  -- opened.bufnr, opened.winid, opened.status
+end)
+```
+
+Omit row/column to inspect the current cursor cell. Supply both for a result
+buffer that is not current. This presentation operation reads retained result
+cells, never reruns SQL, and does not require a connection or a live result
+locator. Both presentations are owned by the retained result and source buffers.
+Regular cell buffers are listed and survive closing their window; `q` or Escape
+deletes them. The plugin prefix plus `f` toggles raw/formatted content; prefix
+plus `o` promotes a float to a
+regular buffer without changing the displayed value.
+`cell_not_found` reports missing results/cells; `invalid_argument` reports an
+unsupported format or display; `inspection_too_large` reports values above 8 MiB.
+
+Result cells expose `completeness` (`complete`, `possibly_truncated`, or
+`unavailable`) and an optional service storage `limit`. At the pinned service's
+long-value storage boundary, completeness is conservative because the service
+returns no truncation flag. The inspector shows retained partial content with
+an explicit status and refuses to copy it as a complete original. Concatenated
+`FOR JSON` / `FOR XML` text results can exceed scalar limits; low custom limits
+that could clip their individual chunks remain conservative. SQL NULL and
+empty strings retain their distinct model identities. See [usage](usage.md)
+for formatting, copying, limits, and float navigation.
+
+Column metadata exposes `aggregate_format` (`json` or `xml`) for recognized
+single-column FOR documents, independently of the first-row `is_json` hint.
+This format identity remains available above the content detection limit.

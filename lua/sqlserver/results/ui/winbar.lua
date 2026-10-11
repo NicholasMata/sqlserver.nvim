@@ -19,10 +19,14 @@ local function format_row_count(count)
   return tostring(count):reverse():gsub("(%d%d%d)", "%1,"):reverse():gsub("^,", "")
 end
 
----@param info { source_name: string, execution: integer, execution_count: integer, result: integer, result_count: integer, displayed_rows: integer, total_rows: integer, duration_ms?: number }
+function M.source_label(name, visible)
+  return name:gsub("%%", "%%%%") .. (visible == false and " %#SqlServerSourceHidden#󰈉%*" or " 󰈈")
+end
+
+---@param info { source_name: string, source_visible?: boolean, execution: integer, execution_count: integer, result: integer, result_count: integer, displayed_rows: integer, total_rows: integer, duration_ms?: number }
 ---@return string
 function M.render(info)
-  local source_name = info.source_name:gsub("%%", "%%%%")
+  local source_name = M.source_label(info.source_name, info.source_visible)
   local row_label = info.total_rows == 1 and "row" or "rows"
   local metadata
   if info.displayed_rows < info.total_rows then
@@ -37,11 +41,11 @@ function M.render(info)
   if info.duration_ms then
     metadata = metadata .. "  " .. format_duration(info.duration_ms)
   end
-  local position = ("Execution %d/%d  Result %d/%d"):format(
-    info.execution,
-    info.execution_count,
+  local position = ("%d of %d  Execution %d/%d"):format(
     info.result,
-    info.result_count
+    info.result_count,
+    info.execution,
+    info.execution_count
   )
   return ("%s  %s%%=%s "):format(source_name, metadata, position)
 end

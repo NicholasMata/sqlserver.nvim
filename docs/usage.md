@@ -24,6 +24,25 @@ in a different window. One query execution can produce several result sets, and
 each result set has its own result buffer. A retained sequence of those
 executions is the query buffer's result history.
 
+The result winbar always shows an eye icon beside the query filename: `󰈈` when
+its source query is visible in the current tab, or `󰈉` when it is hidden,
+including when it is open in another tab. Switching icons keeps the winbar
+spacing stable.
+The eye-off icon uses `SqlServerSourceHidden`, which defaults to `DiagnosticWarn`.
+Override it with the normal Neovim highlight API, for example:
+
+```lua
+vim.api.nvim_set_hl(0, "SqlServerSourceHidden", { fg = "#d7a65f" })
+```
+
+`:SQLServer ShowQuery` (or `<keymap_prefix>o` from a result buffer) focuses the
+source query if it is already visible. If its original window now shows another
+buffer, ShowQuery switches that window back to the query and focuses it. The
+other buffer stays loaded. If the original window has closed, it restores the
+query opposite the preferred result split: above the results when `splitbelow`
+is enabled, or below when it is disabled. The global split preference, other
+windows, result buffers, and execution history are preserved.
+
 ## SQL buffer workflow
 
 | Vim Mode | Mapping | Command | Behavior |
@@ -46,6 +65,7 @@ executions is the query buffer's result history.
 | Normal | `<keymap_prefix>r` | `RefreshCache` | Refresh object and IntelliSense metadata |
 | Normal | `<keymap_prefix>a` | `Activity` | Toggle workspace activity |
 | Normal | `<keymap_prefix>i` | `ConnectionInfo` | Show connection and server information |
+| Normal | — | `Jobs` | Inspect read-only SQL Agent jobs and their details |
 
 If a disconnected query is executed, the plugin attempts to use the connection
 profile named `default`. Current-statement parsing is delegated to SQL Tools
@@ -57,6 +77,119 @@ The workspace winbar and activity stream show background phases such as
 Interactive prompts and object pickers do not start a timer; timing begins only
 when backend work starts. Generated buffers are displayed after their contents
 are ready, so the current window remains unchanged when preparation fails.
+
+## Execution plans
+
+Capture plans from a connected SQL query buffer:
+
+| Command | Behavior |
+| --- | --- |
+| `EstimatedPlan` | Capture the statement under the cursor or current visual selection without executing SQL |
+| `EstimatedPlanBuffer` | Capture the complete buffer without executing SQL |
+| `ActualPlan` | Execute the statement or selection once and capture runtime plans alongside ordinary results |
+| `ActualPlanBuffer` | Execute the complete buffer once with runtime plans |
+| `ShowPlans` | Select and open a captured plan from the active retained execution |
+| `ExportPlan` | Export the current plan, or select one from the active execution, as a `.sqlplan` file |
+
+These commands have no default prefix mapping. Run them as
+`:SQLServer EstimatedPlan`, for example, or map the corresponding functions
+under `require("sqlserver").commands`. An actual capture executes the SQL,
+including any writes; an estimated capture does not.
+An explicit Ex range such as `:1,3SQLServer EstimatedPlan` captures those
+complete lines. A visual mapping to `commands.estimated_plan` or
+`commands.actual_plan` preserves the exact selection, including block mode.
+SQL Server requires SHOWPLAN permission for the referenced databases.
+
+Plan XML opens in a separate, read-only buffer with XML syntax highlighting.
+Plan winbars use the same hidden-query `󰈉` indicator as result views;
+`:SQLServer ShowQuery` also returns to the source from a retained plan.
+`EstimatedPlan` and `EstimatedPlanBuffer` focus the first captured plan.
+`ShowPlans` focuses the selected plan. Split placement follows Neovim's
+`splitbelow` preference. Plan windows disable spell checking by default; use
+`:setlocal spell` in a plan window to enable it.
+After XML filetype settings load, the view uses Neovim's `gq` formatting
+operator when `formatexpr` or `formatprg` is configured, including Neovim's
+bundled XML `formatexpr` where available.
+Without a configured formatter, the view shows raw XML. Formatters exposed
+only through plugin commands or mappings must be connected to `formatexpr`
+or `formatprg` to run automatically. Formatting applies only to the view;
+snapshots and `.sqlplan` exports retain the original XML.
+The winbar shows the source query and `Plan` or `Est. plan` on the left.
+The right shows the position across all retained results and plans, followed
+by the execution counter, such as `3 of 4  Execution 2/2`.
+Actual capture initially shows ordinary rows when available; use `ShowPlans`
+or `]r`/`[r` to move between result and XML buffers.
+`NextExecution`/`PreviousExecution` also work from a plan buffer.
+Plan buffers use the configured result shortcuts for next/previous execution,
+returning to the source query, and removing the current buffer. The result
+export shortcut (`<keymap_prefix>s`) exports the plan instead. WhichKey shows
+these plan actions rather than query commands or table-cell actions. XML cursor
+movement is unchanged; table-cell movement and export shortcuts do not apply.
+
+An estimated document may contain multiple statements. Actual plans can
+arrive as separate documents per executed statement, and each is selectable.
+Some statements, such as PRINT and trivial constant SELECTs, may produce no
+actual plan. A no-plan outcome is reported separately from permission or
+retrieval errors; server messages remain in Activity.
+
+Plans share the source buffer's bounded `results.history_limit` with table
+results, including executions containing only plans. They remain viewable and
+saveable after a new query replaces service-side results or the connection
+is disconnected. Removing a plan buffer, evicting its execution, or deleting
+the source clears its retained view.
+
+`ExportPlan` suggests a filename using the source query, plan kind, and plan
+number, such as `report-actual-plan-1.sqlplan`. Unnamed or unavailable sources
+use `query` as the filename stem. It confirms replacement
+of an existing file. Export writes the original captured XML as UTF-8 without
+formatting, table serialization, or truncation, and never reruns SQL.
+The notification shows the exported filename; `:messages` records the full
+destination path.
+Retrieval uses `timeouts.export`; query execution uses `timeouts.query`.
+`CancelOperation` cancels execution or plan collection.
+
+Operator trees, graphical viewing, and comparison are planned for 1.2.0.
+
+## SQL Agent Jobs
+
+Open `:SQLServer ObjectExplorer` from a connected SQL buffer and expand
+`SQL Server Agent → Jobs`. `:SQLServer Jobs` opens the same explorer and
+focuses the Jobs branch. Both commands require Snacks with its picker enabled.
+The Agent branch sits under the server, beside Databases, even when the query
+buffer is connected to a user database.
+
+Expand Jobs to load the job list, then press `<CR>` on a job to open its
+inspector. The scrollable Job Properties window has Overview, Steps,
+Schedules, and Linked alerts sections. Press `1`–`4` or `h`/`l` to switch
+sections, `[`/`]` to move between entries, and `q` to return to Object
+Explorer. Property names are muted, entry headings have an accent color, and
+status values are colored. Press `K` on a job and choose **View history** to
+filter runs.
+Press `<CR>` on a run to close the picker and read its step messages in a
+scrollable float. Field names are muted, step headings have an accent color,
+and run and step outcomes are colored. `q` returns to Object Explorer. A
+never-run job reports `No history` and stays in Object Explorer.
+
+Enabled and disabled jobs use `󰄬` and `󰅙`; unknown state uses `?`. The icons
+can be colored through `SqlServerJobEnabled`, `SqlServerJobDisabled`, and
+`SqlServerJobUnknown`. A second icon shows the current execution state:
+running, waiting, suspended, or idle. Its colors use `SqlServerJobRunning`,
+`SqlServerJobWaiting`, `SqlServerJobSuspended`, and `SqlServerJobIdle`.
+The properties window uses those same groups for status values and
+`SqlServerJobPropertyLabel` and `SqlServerJobPropertyHeading` for field names
+and entry headings. The run window uses `SqlServerJobHistoryLabel` and
+`SqlServerJobHistoryHeading` for field names and step headings;
+outcomes use Neovim's diagnostic status colors.
+
+Press `K` on SQL Server Agent, Jobs, or a job for contextual read-only
+actions. Press `r` on Jobs to refresh the list, or on a job to refresh its
+details. Existing content remains visible if a refresh fails. Empty,
+unavailable-Agent, permission, timeout, and request-failure states are shown
+when the service provides enough evidence to distinguish them. No mutating
+Agent actions are available.
+
+The equivalent `list_jobs` and `job_details` callback APIs work without
+Snacks; see the [public API](public-api.md#sql-agent-jobs).
 
 ## Result view workflow
 
@@ -84,8 +217,12 @@ enabled, result values remain checked while the column header is excluded.
 | Normal | `[r` | `PreviousResult` | Show the previous result set in the execution |
 | Normal | `<keymap_prefix>n` | `NextExecution` | Show the next retained execution |
 | Normal | `<keymap_prefix>p` | `PreviousExecution` | Show the previous retained execution |
+| Normal | `<keymap_prefix>o` | `ShowQuery` | Focus or restore the source query |
 | Normal, Visual | `]c` | — | Move to the next result column |
 | Normal, Visual | `[c` | — | Move to the previous result column |
+| Normal | `<CR>` / `<keymap_prefix>v` | `InspectCell` | Inspect the selected cell in a focused float |
+| Normal | `<keymap_prefix>V` | `InspectCellBuffer` | Open the selected cell in a regular read-only buffer |
+| Normal | — | `InspectCellXml` / `InspectCellJson` | Inspect with an explicit XML or JSON filetype |
 | Normal | `K` | — | Inspect the current column's SQL type and metadata |
 | Normal | `yic` | `CopyResultCell` | Yank the complete value under the cursor |
 | Normal | `<keymap_prefix>d` | `RemoveResult` | Remove the current result after confirmation |
@@ -93,7 +230,6 @@ enabled, result values remain checked while the column header is excluded.
 | Visual | `<keymap_prefix>s` | `ExportQueryResults` | Export the selected rows and columns |
 | Visual | `<keymap_prefix>y` | — | Copy the selected cells as a rich HTML table |
 | Normal | `vic` | — | Select the current cell's rendered contents |
-| Normal | — | `CopyResultCell` | Copy the complete value under the cursor |
 
 Normal-mode cell motions accept Vim counts, keep the current column while
 moving between rows, and skip the rendered header divider. Vertical movement
@@ -109,6 +245,71 @@ even when the displayed cell is truncated. It follows normal Vim register
 selection: use `"+yic` for the system clipboard, `"*yic` for the primary
 selection, or a prefix such as `"ayic` for a named register. Plain `yic` uses
 the unnamed register and follows the user's `clipboard` option.
+
+Press Enter on any result cell to open its retained representation in a
+read-only float. Use normal text movement and scrolling; `q` or Escape closes
+it and restores the originating cell when that result window still exists.
+`<keymap_prefix>o` opens the same value in a regular buffer, preserving its current presentation
+and cursor. From the results grid, use `<keymap_prefix>V` or
+`:SQLServer InspectCellBuffer` to open directly in a regular buffer. Both paths
+use `open_results_in`, including custom presenters and Vim split direction preferences. These listed
+buffers remain available after closing their window; `q` or Escape deletes
+them. If presentation reuses an existing window, closing restores its previous
+buffer and view instead of closing that window. Both views support normal
+Visual selection and yank commands.
+The title shows the column and row. Use `:SQLServer CellInfo`
+for the source query, execution, result, full status, and key reference.
+A status line appears only for NULL/empty values, availability warnings, or
+formatting/validation problems.
+The float sizes to the displayed content, including wrapped lines, with a
+minimum viewport of 72 columns by 8 rows when space permits. It grows to at
+most 90% of the editor width and available height, including its border, and
+stays above the command area when resizing. Larger values scroll within that
+limit. It closes when its result or source is removed from retained history. Regular cell buffers follow the same ownership.
+Spell checking is disabled in both views.
+
+Inside either cell view, the plugin-prefix menu shows only cell actions: `f`
+toggles raw/formatted when available and `o` opens a float in a regular buffer.
+Native Vim keys remain
+unmapped except `q` and Escape for closing. Without a configured prefix, use
+`:SQLServer ToggleCellFormat`, `:SQLServer OpenCellBuffer`,
+`:SQLServer CellInfo`, and `:SQLServer CloseCellInspector`.
+
+Ordinary values use `text`. Native XML/JSON metadata selects the corresponding
+filetype; valid JSON objects and arrays in text columns are detected. Text that
+looks like XML, malformed JSON, and ambiguous JSON scalars remain plain text.
+The service's first-row JSON hint does not force later text cells to use JSON.
+Use `:SQLServer InspectCellXml` or `:SQLServer InspectCellJson` to select a
+format explicitly. XML validation is left to configured tools; malformed XML
+remains accessible as raw content.
+
+XML/JSON presentation uses the buffer's configured `formatexpr` or `formatprg`
+through Neovim's formatting operator. No formatter is required. A failed
+formatter restores raw content; `<keymap_prefix>f` toggles between the original and the cached
+formatted display in either view without rerunning the formatter. Use `yic`
+from the results grid to copy the complete original, including Unicode,
+newlines, and trailing newlines, regardless of presentation. SQL NULL has no
+textual original and produces feedback instead of copying a misleading string; empty strings
+copy as empty strings, and explicit JSON `null` remains distinct from SQL NULL.
+
+Grid clipping (`max_cell_width`) colors only the trailing `…` warning marker
+and does not clip retained values. The pinned
+service's storage limits are separate: long text and binary default to 65,535
+UTF-16 code units / bytes, and native XML to 2,097,152 UTF-16 code units. Values
+at those limits are conservatively marked potentially truncated, including
+values whose actual length happens to equal the limit. Discarded content cannot
+be recovered through the service's stored results. Copying a complete original
+is refused for these values. Top-level `FOR JSON` / `FOR XML` text results join
+multiple stored chunks and can exceed these scalar limits while remaining
+complete. Custom limits small enough to clip individual chunks still produce
+a warning. Native `FOR XML TYPE` values retain the scalar XML limit.
+`FOR JSON` documents retain JSON filetype above the 1 MiB detection limit,
+with explicit feedback that validation and formatting were skipped.
+Inspection never executes SQL or fetches an
+expired locator; complete retained values work after newer queries and
+disconnects. Binary inspection shows the service's representation (usually
+hex), without decoding bytes. Inspection is limited to 8 MiB per value and
+formatting/JSON validation to 1 MiB, with explicit feedback when skipped.
 
 In contrast, `vic` selects only the rendered text, without column padding or
 separators; an empty cell selects its first padding space because Visual mode
@@ -147,7 +348,8 @@ each source buffer. Deleting the source buffer discards its complete history.
 The result winbar identifies the source SQL buffer and shows the current
 execution, result-set position, row count, and elapsed time reported by SQL
 Tools Service. For example, `query.sql  42 rows  38 ms` appears on the left,
-while `Execution 2/4  Result 1/2` stays anchored on the right. A limited result
+while `1 of 2  Execution 2/4` stays anchored on the right. This position counts
+both table results and plans when an execution contains both. A limited result
 uses `100 of 10,000 rows` to distinguish displayed rows from the complete row
 count. The time belongs to the SQL batch that produced the result, so results
 from the same batch show the same time.
@@ -306,6 +508,7 @@ scope, screenshot, and configuration.
 | --- | --- |
 | `Activity` | Toggle workspace activity |
 | `ConnectionInfo` | Show connection and server information |
+| `Jobs` | Inspect read-only SQL Agent jobs and their details |
 | `Connect` | Connect the current query buffer |
 | `Reconnect` | Retry the query buffer's previous connection |
 | `Disconnect` | Disconnect the current query buffer |

@@ -78,6 +78,12 @@ Developer container:
 make test-integration-local
 ```
 
+The SQL Agent integration fixture runs in the Developer container. To check
+the pinned service's unavailable-Agent response against a separate SQL Server
+Express container, run `make test-agent-unavailable-local`. Docker assigns it
+another available host port. Set `SQLSERVER_NO_AGENT_PORT` to request a
+particular port. Both fixtures use isolated Neovim state under `.tests/`.
+
 This requires Docker with the Compose plugin. The target starts SQL Server,
 waits for it to become healthy, recreates fixture databases, downloads SQL
 Tools Service into `.tests/`, and runs the integration suite.

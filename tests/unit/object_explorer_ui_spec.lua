@@ -216,6 +216,52 @@ T["Object Explorer searches all nodes with progress cancellation and caching"] =
   end)
 end
 
+T["Ancestor refresh settles detached Search All requests"] = function()
+  for _, cancel in ipairs({ false, true }) do
+    fake_snacks(function(picker, get_options)
+      local requests = {}
+      local root = service_node("database", "TestDb", "Database", false)
+      local folders = {
+        { nodePath = "database/Tables", label = "Tables", objectType = "Folder", isLeaf = false },
+        { nodePath = "database/Views", label = "Views", objectType = "Folder", isLeaf = false },
+      }
+      model.set_service_children(root, folders)
+      explorer.open({
+        root = root,
+        on_expand = function(node, force, done)
+          requests[#requests + 1] = { node = node, force = force, done = done }
+        end,
+        on_error = error,
+      })
+      local options = get_options()
+      options.filter.transform(picker, { pattern = "Missing" })
+      options.confirm(picker, options.finder()[1])
+      assert(requests[1].node == root.children[1])
+      options.actions.object_refresh(picker, { node = root })
+      assert(requests[2].node == root and requests[2].force)
+      requests[1].done({})
+      local detached = root.children[2]
+      assert(requests[3].node == detached)
+      -- The serialized adapter finishes the ancestor before the next folder.
+      requests[2].done(folders)
+      assert(root.children[2] ~= detached)
+      if cancel then
+        assert(options.actions.object_cancel_search(picker))
+      end
+      requests[3].done({})
+      assert(not detached.loading and detached.load_callbacks == nil)
+      assert(not options.finder()[1].search_loading, "Detached reply stranded Search All")
+      assert(not options.actions.object_cancel_search(picker))
+      -- A fresh traversal can use the replacement nodes and finish normally.
+      options.confirm(picker, options.finder()[1])
+      requests[4].done({})
+      requests[5].done({})
+      assert(options.finder()[1].label == "No matching objects")
+      picker:close()
+    end)
+  end
+end
+
 T["Object Explorer loads children by their service node path"] = function()
   fake_snacks(function(_, get_options)
     local requested
@@ -233,6 +279,52 @@ T["Object Explorer loads children by their service node path"] = function()
     options.actions.object_toggle(nil, options.finder()[1])
     assert(vim.deep_equal(requested, { path = "database", force = false }))
     assert(options.finder()[2].id == "database/Tables")
+  end)
+end
+
+T["Object Explorer clears refresh errors after a successful retry"] = function()
+  fake_snacks(function(picker, get_options)
+    local root = service_node("database", "TestDb", "Database", false)
+    root.expanded = true
+    model.set_service_children(root, {
+      { nodePath = "database/Tables", label = "Tables", objectType = "Folder", isLeaf = false },
+    })
+    local folder = root.children[1]
+    model.set_service_children(folder, {
+      { nodePath = "database/Tables/Old", label = "Old", objectType = "Table", isLeaf = true },
+    })
+    local errors, complete = {}, nil
+    explorer.open({
+      root = root,
+      on_expand = function(node, force, done)
+        assert(node == folder and force)
+        complete = done
+      end,
+      on_error = function(message)
+        errors[#errors + 1] = message
+      end,
+    })
+    local options = get_options()
+    local item = options.finder()[2]
+    options.actions.object_refresh(picker, item)
+    complete(nil, { message = "Temporary service failure" })
+    assert(not folder.loading and folder.children[1].label == "Old")
+    assert(vim.deep_equal(errors, { "Temporary service failure" }))
+    assert(model.details(folder)[1] == "Temporary service failure")
+    assert(vim.iter(options.format(item, picker)):any(function(part)
+      return part[2] == "DiagnosticError"
+    end))
+
+    options.actions.object_refresh(picker, item)
+    complete({
+      { nodePath = "database/Tables/New", label = "New", objectType = "Table", isLeaf = true },
+    })
+    assert(folder.loaded and not folder.loading and folder.children[1].label == "New")
+    assert(#model.details(folder) == 0, "Successful retry retained the old error annotation")
+    assert(not vim.iter(options.format(item, picker)):any(function(part)
+      return part[2] == "DiagnosticError"
+    end), "Successful retry retained error highlighting")
+    assert(#errors == 1)
   end)
 end
 
@@ -327,7 +419,7 @@ T["Object Explorer suppresses duplicate loads and preserves collapse while loadi
   end)
 end
 
-T["Object Explorer presents K actions in a cursor-relative context menu"] = function()
+T["Object Explorer anchors K actions to the selected node"] = function()
   local picker_options
   local selected_items
   local selected_options
@@ -383,7 +475,7 @@ T["Object Explorer presents K actions in a cursor-relative context menu"] = func
     picker_options.actions.object_actions(picker, person)
 
     assert(#selected_items > 1)
-    assert(selected_options.prompt == "[dbo].[Person]")
+    assert(selected_options.prompt == "Actions")
     assert(selected_options.snacks.focus == "list")
     local formatted = selected_options.snacks.format({ item = selected_items[1], idx = 1 })
     assert(formatted[1][1] == selected_items[1].icon .. "  " .. selected_items[1].label)
@@ -404,6 +496,41 @@ T["Object Explorer presents K actions in a cursor-relative context menu"] = func
     assert(vim.wait(1000, function()
       return copied == "[dbo].[Person]" and restored_focus == "input" and vim.fn.mode():find("^n") ~= nil
     end))
+
+    local list_buf = vim.api.nvim_create_buf(false, true)
+    vim.bo[list_buf].bufhidden = "wipe"
+    local line = " │ └╴  " .. person.icon .. " " .. person.label
+    vim.api.nvim_buf_set_lines(list_buf, 0, -1, false, { "Another node", line })
+    local list_win = vim.api.nvim_open_win(list_buf, false, {
+      relative = "editor",
+      row = 2,
+      col = 4,
+      width = 40,
+      height = 2,
+      style = "minimal",
+    })
+    picker.list = {
+      win = { win = list_win },
+      cursor = 7,
+      idx2row = function(_, idx)
+        assert(idx == 7)
+        return 2
+      end,
+    }
+    local ok, err = pcall(function()
+      local icon_col = assert(line:find(person.icon, 1, true))
+      local expected = vim.fn.screenpos(list_win, 2, icon_col)
+      assert(expected.row > 0 and expected.col > 0)
+      for _, cursor in ipairs({ { 1, 0 }, { 2, #line - 1 } }) do
+        vim.api.nvim_win_set_cursor(list_win, cursor)
+        picker_options.actions.object_actions(picker, person)
+        local anchored = selected_options.snacks.layout.layout
+        assert(anchored.relative == "editor")
+        assert(anchored.row == expected.row and anchored.col == expected.col - 1)
+      end
+    end)
+    vim.api.nvim_win_close(list_win, true)
+    assert(ok, err)
   end)
 end
 

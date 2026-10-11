@@ -21,7 +21,7 @@ local function run_action_async(action)
     end
   end)
   vim.defer_fn(function()
-    if coroutine.status(co) == "suspended" then
+    if not completed and coroutine.status(co) == "suspended" then
       coroutine.resume(co)
     end
   end, 60000)

@@ -9,6 +9,7 @@ local function available_commands(handlers)
   return {
     Activity = handlers.toggle_activity,
     ConnectionInfo = handlers.show_connection_info,
+    Jobs = handlers.show_jobs,
     Connect = handlers.connect,
     Reconnect = handlers.reconnect,
     Disconnect = handlers.disconnect,
@@ -16,6 +17,12 @@ local function available_commands(handlers)
     RestoreDatabase = handlers.restore_database,
     ExecuteQuery = handlers.execute_query,
     ExecuteBuffer = handlers.execute_buffer,
+    EstimatedPlan = handlers.estimated_plan,
+    EstimatedPlanBuffer = handlers.estimated_plan_buffer,
+    ActualPlan = handlers.actual_plan,
+    ActualPlanBuffer = handlers.actual_plan_buffer,
+    ShowPlans = handlers.show_plans,
+    ExportPlan = handlers.export_plan,
     RefreshCache = handlers.refresh_cache,
     EditConnections = handlers.edit_connections,
     SwitchDatabase = handlers.switch_database,
@@ -23,12 +30,29 @@ local function available_commands(handlers)
     NewDefaultQuery = handlers.new_default_query,
     ExportQueryResults = handlers.export_query_results,
     ShowResults = handlers.show_results,
+    ShowQuery = handlers.show_query,
     NextResult = handlers.next_result,
     PreviousResult = handlers.previous_result,
     NextExecution = handlers.next_execution,
     PreviousExecution = handlers.previous_execution,
     RemoveResult = handlers.remove_result,
     CopyResultCell = handlers.copy_result_cell,
+    InspectCell = handlers.inspect_result_cell,
+    InspectCellBuffer = handlers.inspect_result_cell_buffer,
+    InspectCellXml = handlers.inspect_result_cell_xml,
+    InspectCellJson = handlers.inspect_result_cell_json,
+    ToggleCellFormat = function()
+      require("sqlserver.results.ui.inspection").perform("format")
+    end,
+    OpenCellBuffer = function()
+      require("sqlserver.results.ui.inspection").perform("open")
+    end,
+    CloseCellInspector = function()
+      require("sqlserver.results.ui.inspection").perform("close")
+    end,
+    CellInfo = function()
+      require("sqlserver.results.ui.inspection").perform("info")
+    end,
     Find = handlers.find_object,
     ObjectDefinition = handlers.show_object_definition,
     ObjectExplorer = handlers.object_explorer,
@@ -37,9 +61,23 @@ local function available_commands(handlers)
   }
 end
 
-local function completion_items()
+local function get_items()
   local workspace = workspace_registry.get()
-  if vim.b.query_result_info then
+  if vim.b.sqlserver_cell_info then
+    return { "ToggleCellFormat", "OpenCellBuffer", "CloseCellInspector", "CellInfo" }
+  elseif vim.b.sqlserver_plan_info then
+    return {
+      "ShowQuery",
+      "ShowPlans",
+      "ExportPlan",
+      "ShowResults",
+      "NextResult",
+      "PreviousResult",
+      "NextExecution",
+      "PreviousExecution",
+      "RemoveResult",
+    }
+  elseif vim.b.query_result_info then
     return {
       "NewQuery",
       "NewDefaultQuery",
@@ -51,6 +89,12 @@ local function completion_items()
       "PreviousExecution",
       "RemoveResult",
       "CopyResultCell",
+      "InspectCell",
+      "InspectCellBuffer",
+      "InspectCellXml",
+      "InspectCellJson",
+      "ShowQuery",
+      "ShowPlans",
     }
   elseif not workspace then
     local items = { "NewQuery", "NewDefaultQuery", "EditConnections" }
@@ -73,12 +117,18 @@ local function completion_items()
   elseif state == states.connected then
     local items = {
       "ConnectionInfo",
+      "Jobs",
       "NewQuery",
       "NewDefaultQuery",
       "EditConnections",
       "RefreshCache",
       "ExecuteQuery",
       "ExecuteBuffer",
+      "EstimatedPlan",
+      "EstimatedPlanBuffer",
+      "ActualPlan",
+      "ActualPlanBuffer",
+      "ShowPlans",
       "Disconnect",
       "SwitchDatabase",
       "BackupDatabase",
@@ -102,6 +152,7 @@ local function completion_items()
     end
     if query_results.has_results(workspace.bufnr) then
       table.insert(items, "ShowResults")
+      table.insert(items, "ShowPlans")
     end
     return with_activity(items)
   elseif state == states.cancelling then
@@ -111,6 +162,24 @@ local function completion_items()
   return {}
 end
 
+local function completion_items(arg_lead, _, _)
+  local items = get_items()
+  if not arg_lead or arg_lead == "" then
+    return items
+  end
+
+  local matched = {}
+  local wordln = #arg_lead
+  arg_lead = arg_lead:lower()
+
+  for _, item in ipairs(items) do
+    if item:sub(1, wordln):lower() == arg_lead then
+      table.insert(matched, item)
+    end
+  end
+  return matched
+end
+
 function M.setup(handlers)
   local commands = available_commands(handlers)
   vim.api.nvim_create_user_command("SQLServer", function(args)
@@ -118,8 +187,23 @@ function M.setup(handlers)
     if not command then
       error("No such command " .. args.args, 0)
     end
+    if args.range > 0 and (args.args == "EstimatedPlan" or args.args == "ActualPlan") then
+      local last_line = vim.api.nvim_buf_get_lines(0, args.line2 - 1, args.line2, false)[1] or ""
+      command({
+        request = {
+          kind = "selection",
+          range = {
+            startLine = args.line1 - 1,
+            startColumn = 0,
+            endLine = args.line2 - 1,
+            endColumn = vim.str_utfindex(last_line, "utf-16"),
+          },
+        },
+      })
+      return
+    end
     command()
-  end, { nargs = 1, complete = completion_items })
+  end, { nargs = 1, range = true, complete = completion_items })
 end
 
 return M

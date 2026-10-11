@@ -1,7 +1,9 @@
 local M = {}
 
-local configured_suffixes = { "s", "n", "p", "d", "y" }
+local configured_suffixes = { "s", "n", "p", "d", "y", "o", "v", "V" }
 local cell_navigation = true
+local configured_prefix
+local configured_handlers
 local cell_motion_keys = { "h", "j", "k", "l" }
 local cell_motion_descriptions = {
   ["Previous SQL result cell"] = true,
@@ -62,6 +64,16 @@ function M.attach(bufnr)
       end,
       "Previous SQL result column",
     },
+    {
+      "<CR>",
+      function()
+        local ok, err = pcall(view.inspect_cell)
+        if not ok then
+          vim.notify(type(err) == "table" and err.message or tostring(err), vim.log.levels.WARN)
+        end
+      end,
+      "Inspect SQL result cell",
+    },
     { "K", view.show_column_info, "Show SQL result column type" },
     { "yic", view.copy_cell, "Yank complete SQL result cell" },
   }
@@ -89,6 +101,7 @@ function M.configure(opts)
 end
 
 local function attach_configured(prefix, handlers, bufnr)
+  local is_plan = vim.b[bufnr].sqlserver_plan_info ~= nil
   local previous_prefix = vim.b[bufnr].sqlserver_result_keymap_prefix
   if previous_prefix and previous_prefix ~= prefix then
     for _, suffix in ipairs(configured_suffixes) do
@@ -101,29 +114,46 @@ local function attach_configured(prefix, handlers, bufnr)
   pcall(vim.keymap.del, "n", prefix .. "y", { buffer = bufnr })
 
   local mappings = {
-    { "s", handlers.export_query_results, "Export SQL result" },
     { "n", handlers.next_execution, "Next SQL execution" },
     { "p", handlers.previous_execution, "Previous SQL execution" },
     { "d", handlers.remove_result, "Remove SQL result" },
+    { "o", handlers.show_query, "Show source SQL query" },
   }
+  if is_plan then
+    table.insert(mappings, { "s", handlers.export_plan, "Export SQL execution plan" })
+  else
+    table.insert(mappings, { "v", handlers.inspect_result_cell, "Inspect SQL result cell" })
+    table.insert(mappings, { "V", handlers.inspect_result_cell_buffer, "Open SQL result cell in buffer" })
+    table.insert(mappings, { "s", handlers.export_query_results, "Export SQL result" })
+  end
   for _, mapping in ipairs(mappings) do
     vim.keymap.set("n", prefix .. mapping[1], mapping[2], { buffer = bufnr, desc = mapping[3] })
   end
-  vim.keymap.set("x", prefix .. "s", function()
-    handlers.export_query_results({ selection = true })
-  end, { buffer = bufnr, desc = "Export selected SQL result cells" })
-  vim.keymap.set("x", prefix .. "y", handlers.copy_result_selection, {
-    buffer = bufnr,
-    desc = "Copy selected SQL result cells as HTML",
-  })
+  if not is_plan then
+    vim.keymap.set("x", prefix .. "s", function()
+      handlers.export_query_results({ selection = true })
+    end, { buffer = bufnr, desc = "Export selected SQL result cells" })
+    vim.keymap.set("x", prefix .. "y", handlers.copy_result_selection, {
+      buffer = bufnr,
+      desc = "Copy selected SQL result cells as HTML",
+    })
+  end
   vim.b[bufnr].sqlserver_result_keymap_prefix = prefix
 end
 
+function M.attach_plan(bufnr)
+  if configured_prefix then
+    attach_configured(configured_prefix, configured_handlers, bufnr)
+  end
+end
+
 function M.setup(prefix, handlers)
+  configured_prefix = prefix
+  configured_handlers = handlers
+  local group = vim.api.nvim_create_augroup("sqlserver-result-keymaps", { clear = true })
   if not prefix then
     return
   end
-  local group = vim.api.nvim_create_augroup("sqlserver-result-keymaps", { clear = true })
   vim.api.nvim_create_autocmd("FileType", {
     group = group,
     pattern = "sqlserver-result",
@@ -132,7 +162,10 @@ function M.setup(prefix, handlers)
     end,
   })
   for _, bufnr in ipairs(vim.api.nvim_list_bufs()) do
-    if vim.api.nvim_buf_is_valid(bufnr) and vim.bo[bufnr].filetype == "sqlserver-result" then
+    if
+      vim.api.nvim_buf_is_valid(bufnr)
+      and (vim.bo[bufnr].filetype == "sqlserver-result" or vim.b[bufnr].sqlserver_plan_info ~= nil)
+    then
       attach_configured(prefix, handlers, bufnr)
     end
   end
@@ -140,10 +173,23 @@ end
 
 function M.which_key_items(handlers)
   return {
+    { "v", handlers.inspect_result_cell, desc = "Inspect Cell" },
+    { "V", handlers.inspect_result_cell_buffer, desc = "Open Cell in Buffer" },
     { "s", handlers.export_query_results, desc = "Export Query Result", icon = { icon = "", color = "green" } },
     { "n", handlers.next_execution, desc = "Next Execution" },
     { "p", handlers.previous_execution, desc = "Previous Execution" },
+    { "o", handlers.show_query, desc = "Show Query" },
     { "d", handlers.remove_result, desc = "Remove Result", icon = { icon = "󰆴", color = "red" } },
+  }
+end
+
+function M.which_key_plan_items(handlers)
+  return {
+    { "s", handlers.export_plan, desc = "Export Plan", icon = { icon = "", color = "green" } },
+    { "n", handlers.next_execution, desc = "Next Execution" },
+    { "p", handlers.previous_execution, desc = "Previous Execution" },
+    { "o", handlers.show_query, desc = "Show Query" },
+    { "d", handlers.remove_result, desc = "Remove Plan", icon = { icon = "󰆴", color = "red" } },
   }
 end
 

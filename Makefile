@@ -21,12 +21,13 @@ export DbUser ?= sa
 export DbPassword ?= Test_Password_123
 export COMPOSE_PROJECT_NAME ?= sqlserver-nvim-$(TEST_PROJECT_ID)
 export SQLSERVER_PORT ?= 0
+export SQLSERVER_NO_AGENT_PORT ?= 0
 
 .NOTPARALLEL: test-all test-integration-local coverage coverage-unit coverage-platform coverage-integration
 
 .PHONY: format format-check lint lint-doc-filenames
-.PHONY: test test-deps test-snacks-deps test-unit test-platform test-integration test-integration-shard test-integration-local test-all assert-no-process-leaks
-.PHONY: test-env-up test-env-seed test-env-reset test-env-down
+.PHONY: test test-deps test-snacks-deps test-unit test-platform test-integration test-integration-shard test-integration-local test-agent-unavailable-local test-all assert-no-process-leaks
+.PHONY: test-env-up test-env-seed test-env-reset test-env-no-agent-up test-env-down
 .PHONY: coverage coverage-clean coverage-deps coverage-unit coverage-platform coverage-integration coverage-report
 .PHONY: coverage-run-unit coverage-run-platform coverage-run-integration coverage-run-integration-shard
 
@@ -88,7 +89,13 @@ test-integration-shard: test-deps $(if $(filter objects,$(SHARD)),test-snacks-de
 
 test-integration-local: test-env-seed test-integration
 
-test-all: test-unit test-platform test-integration-local
+test-agent-unavailable-local: test-deps test-env-no-agent-up
+	@server=$$(tests/resolve-db-server.sh sqlserver-no-agent) || exit; \
+	$(TEST_ENV) DbServer="$$server" DbDatabase=master SQLSERVER_TEST_SUITE=agent_unavailable \
+		$(NVIM) --headless --clean -u $(CURDIR)/tests/minimal-init.lua -c "lua MiniTest.run()"
+	$(MAKE) assert-no-process-leaks
+
+test-all: test-unit test-platform test-integration-local test-agent-unavailable-local
 
 coverage-clean:
 	$(RM) -r "$(COVERAGE_DIR)"
@@ -160,5 +167,8 @@ test-env-seed: test-env-up
 
 test-env-reset: test-env-seed
 
+test-env-no-agent-up:
+	$(COMPOSE) --profile agent-unavailable up --detach --wait --wait-timeout 180 sqlserver-no-agent
+
 test-env-down:
-	$(COMPOSE) down --volumes --remove-orphans
+	$(COMPOSE) --profile agent-unavailable down --volumes --remove-orphans
